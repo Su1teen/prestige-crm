@@ -33,7 +33,7 @@ const DashboardSidebar = ({ activeTab, onTabChange }: DashboardSidebarProps) => 
             animate={{ opacity: 1 }}
             className="font-bold text-foreground tracking-tight text-lg"
           >
-            LuxeCRM
+            PaterhausCRM
           </motion.span>
         )}
       </div>
