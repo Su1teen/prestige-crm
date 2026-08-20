@@ -1,99 +1,60 @@
-import { FormEvent, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Building2, Handshake } from "lucide-react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useAuth, type UserRole } from "@/contexts/AuthContext";
 
-export type SessionUser = "sultan" | "ruslan";
-
-interface LoginPageProps {
-  onLogin: (user: SessionUser) => void;
-}
-
-const LoginPage = ({ onLogin }: LoginPageProps) => {
+const LoginPage = () => {
   const navigate = useNavigate();
-  const [login, setLogin] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [shakeKey, setShakeKey] = useState(0);
+  const { login } = useAuth();
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (login === "sultan" && password === "admin") {
-      onLogin("sultan");
-      navigate("/luxe", { replace: true });
-      return;
-    }
-
-    if (login === "ruslan" && password === "admin123") {
-      onLogin("ruslan");
-      navigate("/steppe", { replace: true });
-      return;
-    }
-
-    setError("Неверный логин или пароль");
-    setShakeKey((value) => value + 1);
+  const handleLogin = (role: UserRole) => {
+    login(role);
+    navigate("/steppe", { replace: true });
   };
 
   return (
     <div className="dark min-h-screen bg-background text-foreground">
       <main className="flex min-h-screen items-center justify-center px-6 py-10">
-        <motion.form
-          key={shakeKey}
-          animate={error ? { x: [0, -8, 8, -6, 6, 0] } : { x: 0 }}
-          transition={{ duration: 0.35 }}
-          onSubmit={handleSubmit}
-          className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-elevated"
+        <motion.section
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-3xl rounded-2xl border border-border bg-card/80 p-8 shadow-elevated backdrop-blur-md md:p-12"
         >
-          <div className="mb-8">
-            <p className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Steppe HM</p>
-            <h1 className="mt-3 text-2xl font-semibold tracking-tight text-foreground">Вход в CRM</h1>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Единая точка доступа для LuxeCRM и Steppe Hotel CRM.
+          <div className="mx-auto mb-10 max-w-xl text-center">
+            <p className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Steppe Hotel CRM</p>
+            <h1 className="mt-4 text-3xl font-semibold tracking-tight text-foreground">Выберите рабочее пространство</h1>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              Два режима используют единую базу PMS и показывают разные бизнес-процессы.
             </p>
           </div>
 
-          <div className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="login">Логин</Label>
-              <Input
-                id="login"
-                value={login}
-                onChange={(event) => setLogin(event.target.value.trim())}
-                className="bg-background/60"
-                autoComplete="username"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Пароль</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="bg-background/60"
-                autoComplete="current-password"
-              />
-            </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleLogin("HM")}
+              className="h-36 whitespace-normal rounded-2xl border-primary/30 bg-background/60 px-6 text-base transition-all duration-300 ease-in-out hover:-translate-y-1 hover:border-primary hover:bg-primary/10"
+            >
+              <span className="flex flex-col items-center gap-3 text-center">
+                <Building2 className="h-8 w-8 text-primary" />
+                <span>Войти как Администратор (Cosmonaut HM)</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleLogin("B2B")}
+              className="h-36 whitespace-normal rounded-2xl border-emerald-500/30 bg-background/60 px-6 text-base transition-all duration-300 ease-in-out hover:-translate-y-1 hover:border-emerald-500 hover:bg-emerald-500/10"
+            >
+              <span className="flex flex-col items-center gap-3 text-center">
+                <Handshake className="h-8 w-8 text-emerald-400" />
+                <span>Войти как Менеджер B2B (Корпоративные продажи)</span>
+              </span>
+            </Button>
           </div>
-
-          {error && (
-            <p className="mt-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {error}
-            </p>
-          )}
-
-          <Button type="submit" className="mt-7 w-full">
-            Войти
-          </Button>
-
-          <div className="mt-6 border-t border-border pt-5 text-xs leading-5 text-muted-foreground">
-            <p>Sultan Sovetov: существующий LuxeCRM</p>
-            <p>Ruslan Tszi: Steppe Hotel CRM, директор по маркетингу</p>
-          </div>
-        </motion.form>
+        </motion.section>
       </main>
     </div>
   );

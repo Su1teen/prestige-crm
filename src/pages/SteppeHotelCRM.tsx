@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   Bar,
@@ -15,19 +15,27 @@ import {
   YAxis,
 } from "recharts";
 import {
+  BedDouble,
   Bell,
   Bot,
+  Check,
   ChevronLeft,
   ChevronRight,
+  Clock,
   FileText,
   LayoutDashboard,
   LogOut,
   MessageSquare,
+  Phone,
+  Plus,
   Search,
   Send,
   Settings,
   SlidersHorizontal,
+  Star,
   Users,
+  Wrench,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,15 +45,23 @@ import {
   filterDealsByPeriod,
   formatTenge,
   getReachedStageCount,
+  hotelRooms,
+  hotelStaff,
   initialChats,
   initialDeals,
+  initialServiceTasks,
   periods,
   revenueSeries,
+  roomBookings,
   stageLabels,
   stageOrder,
   steppeClients,
   steppeNotifications,
+  type HotelRoom,
   type PeriodKey,
+  type RoomBooking,
+  type ServiceTask,
+  type StaffMember,
   type SteppeChat,
   type SteppeClient,
   type SteppeDeal,
@@ -56,7 +72,7 @@ interface SteppeHotelCRMProps {
   onLogout: () => void;
 }
 
-type SteppeSection = "dashboard" | "pipeline" | "clients" | "dialogs" | "notifications" | "contracts" | "settings";
+type SteppeSection = "dashboard" | "pipeline" | "clients" | "dialogs" | "notifications" | "contracts" | "staff" | "rooms" | "settings";
 type TeamSortKey = "name" | "deals" | "conversion" | "averageCheck" | "responseMinutes";
 type ClientSortKey = "company" | "contact" | "contractStatus" | "lastContact";
 
@@ -65,6 +81,8 @@ const navItems: Array<{ id: SteppeSection; label: string; icon: typeof LayoutDas
   { id: "pipeline", label: "Воронка продаж", icon: SlidersHorizontal },
   { id: "clients", label: "Клиенты", icon: Users },
   { id: "dialogs", label: "Диалоги", icon: MessageSquare },
+  { id: "rooms", label: "Номера", icon: BedDouble },
+  { id: "staff", label: "Персонал", icon: Wrench },
   { id: "notifications", label: "Уведомления", icon: Bell },
   { id: "contracts", label: "Договоры", icon: FileText },
   { id: "settings", label: "Настройки", icon: Settings },
@@ -134,7 +152,7 @@ const SteppeSidebar = ({
       </div>
       {!collapsed && (
         <div>
-          <p className="font-semibold tracking-tight text-foreground">Steppe HM</p>
+          <p className="font-semibold tracking-tight text-foreground">Cosmonaut HM</p>
           <p className="text-xs text-muted-foreground">Hotel CRM</p>
         </div>
       )}
@@ -684,12 +702,12 @@ const DialogsSection = ({
   onTakeChat: (chatId: string) => void;
   onReturnAi: (chatId: string) => void;
 }) => {
-  const [selectedChatId, setSelectedChatId] = useState(chats[0]?.id ?? "");
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [showSummary, setShowSummary] = useState(false);
   const [draft, setDraft] = useState("");
-  const selectedChat = chats.find((chat) => chat.id === selectedChatId) ?? chats[0];
+  const selectedChat = selectedChatId ? chats.find((chat) => chat.id === selectedChatId) ?? null : null;
 
-  if (!selectedChat) {
+  if (!chats.length) {
     return <p className="text-muted-foreground">Активных диалогов нет.</p>;
   }
 
@@ -708,9 +726,10 @@ const DialogsSection = ({
               onClick={() => {
                 setSelectedChatId(chat.id);
                 setShowSummary(false);
+                setDraft("");
               }}
               className={`w-full p-4 text-left transition-colors ${
-                selectedChat.id === chat.id ? "bg-secondary/60" : "hover:bg-secondary/30"
+                selectedChat?.id === chat.id ? "bg-secondary/60" : "hover:bg-secondary/30"
               }`}
             >
               <div className="flex items-start justify-between gap-3">
@@ -718,7 +737,10 @@ const DialogsSection = ({
                   <p className="font-medium text-foreground">{chat.contact}</p>
                   <p className="text-xs text-muted-foreground">{chat.company}</p>
                 </div>
-                <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">{chat.channel}</span>
+                <span className="flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+                  {chat.channel === "Звонок" && <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>}
+                  {chat.channel}
+                </span>
               </div>
               <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{chat.lastMessage}</p>
               <p className="mt-2 text-xs text-primary">{chat.owner}</p>
@@ -727,12 +749,28 @@ const DialogsSection = ({
         </div>
       </aside>
 
+      {!selectedChat ? (
+        <section className="flex flex-col items-center justify-center text-center p-8 text-muted-foreground">
+          <MessageSquare className="h-10 w-10 mb-3 opacity-30" />
+          <p className="font-medium">Выберите диалог из списка слева</p>
+        </section>
+      ) : (
       <section className="flex min-h-[680px] flex-col">
         <div className="border-b border-border p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="font-semibold text-foreground">{selectedChat.contact}</h3>
-              <p className="text-sm text-muted-foreground">{selectedChat.company}</p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedChatId(null)}
+                className="flex items-center justify-center rounded-xl p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                title="Назад"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <div>
+                <h3 className="font-semibold text-foreground">{selectedChat.contact}</h3>
+                <p className="text-sm text-muted-foreground">{selectedChat.company}</p>
+              </div>
             </div>
             {selectedChat.activeAi ? (
               <Button variant="outline" size="sm" onClick={() => onTakeChat(selectedChat.id)}>
@@ -751,7 +789,34 @@ const DialogsSection = ({
           </div>
         </div>
 
+        {selectedChat.channel === "Звонок" && (
+          <div className="border-b border-border p-5 bg-secondary/10">
+            <div className="flex items-center justify-between gap-4 rounded-full border border-border bg-background p-2 pr-4 shadow-sm">
+              <button type="button" className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+                <svg className="h-5 w-5 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              </button>
+              <div className="flex-1 space-y-1">
+                <div className="flex items-center gap-1">
+                  <div className="h-1 flex-1 bg-primary/20 rounded-full overflow-hidden">
+                    <div className="h-full bg-primary w-[30%] rounded-full"></div>
+                  </div>
+                </div>
+                <div className="flex justify-between text-[10px] text-muted-foreground font-medium">
+                  <span>00:45</span>
+                  <span>{selectedChat.duration ?? "02:15"}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-primary">Аудиозапись</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex-1 space-y-3 overflow-y-auto p-5">
+          {selectedChat.channel === "Звонок" && (
+            <h4 className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Транскрипт звонка</h4>
+          )}
           {selectedChat.messages.map((message) => (
             <div key={message.id} className={`flex ${message.author === "client" ? "justify-start" : "justify-end"}`}>
               <div
@@ -769,61 +834,81 @@ const DialogsSection = ({
         </div>
 
         <div className="border-t border-border p-4">
-          <div className="flex gap-2">
-            <Input
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              disabled={selectedChat.activeAi}
-              placeholder={selectedChat.activeAi ? "Поле заблокировано: диалог ведёт AI" : "Напишите сообщение клиенту"}
-            />
-            <Button disabled={selectedChat.activeAi || draft.length === 0}>
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      <aside className="border-l border-border p-4">
-        <h3 className="font-semibold text-foreground">Аналитика чата</h3>
-        <div className="mt-4 space-y-4">
-          <section className="rounded-xl border border-border bg-background/60 p-3">
-            <div className="flex items-center justify-between gap-3">
-              <p className="font-medium text-foreground">Выжимка диалога</p>
-              <Button variant="outline" size="sm" onClick={() => setShowSummary(true)}>
-                Сгенерировать
+          {selectedChat.channel === "Звонок" ? (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
+              <p className="text-sm text-primary">Звонок завершён. Транскрипт и аналитика сохранены.</p>
+              <a href={`tel:+77000000000`} className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                Перезвонить
+              </a>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Input
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                disabled={selectedChat.activeAi}
+                placeholder={selectedChat.activeAi ? "Поле заблокировано: диалог ведёт AI" : "Напишите сообщение клиенту"}
+                className="bg-secondary/50 text-foreground placeholder:text-muted-foreground"
+              />
+              <Button disabled={selectedChat.activeAi || draft.length === 0}>
+                <Send className="h-4 w-4" />
               </Button>
             </div>
-            {showSummary && <p className="mt-3 text-sm leading-6 text-muted-foreground">{selectedChat.summary}</p>}
-          </section>
-          <section className="rounded-xl border border-border bg-background/60 p-3">
-            <p className="font-medium text-foreground">Ключевые моменты</p>
-            <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-              {selectedChat.facts.map((fact) => (
-                <li key={fact}>• {fact}</li>
-              ))}
-            </ul>
-          </section>
-          <section className="rounded-xl border border-border bg-background/60 p-3">
-            <p className="font-medium text-foreground">Настроение клиента</p>
-            <p className="mt-2 text-sm text-primary">{selectedChat.sentiment}</p>
-          </section>
-          <section className="rounded-xl border border-border bg-background/60 p-3">
-            <p className="font-medium text-foreground">Подсказки AI</p>
-            <div className="mt-3 space-y-2">
-              {selectedChat.aiHints.map((hint) => (
-                <button
-                  key={hint}
-                  type="button"
-                  onClick={() => setDraft(hint)}
-                  disabled={selectedChat.activeAi}
-                  className="w-full rounded-lg border border-border p-2 text-left text-sm text-muted-foreground transition-colors hover:border-primary/50 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {hint}
-                </button>
-              ))}
-            </div>
-          </section>
+          )}
         </div>
+      </section>
+      )}
+
+      <aside className="border-l border-border p-4">
+        {selectedChat ? (
+          <>
+            <h3 className="font-semibold text-foreground">Аналитика чата</h3>
+            <div className="mt-4 space-y-4">
+              <section className="rounded-xl border border-border bg-background/60 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-medium text-foreground">Выжимка диалога</p>
+                  <Button variant="outline" size="sm" onClick={() => setShowSummary(true)}>
+                    Сгенерировать
+                  </Button>
+                </div>
+                {showSummary && <p className="mt-3 text-sm leading-6 text-muted-foreground">{selectedChat.summary}</p>}
+              </section>
+              <section className="rounded-xl border border-border bg-background/60 p-3">
+                <p className="font-medium text-foreground">Ключевые моменты</p>
+                <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                  {selectedChat.facts.map((fact) => (
+                    <li key={fact}>• {fact}</li>
+                  ))}
+                </ul>
+              </section>
+              <section className="rounded-xl border border-border bg-background/60 p-3">
+                <p className="font-medium text-foreground">Настроение клиента</p>
+                <p className="mt-2 text-sm text-primary">{selectedChat.sentiment}</p>
+              </section>
+              <section className="rounded-xl border border-border bg-background/60 p-3">
+                <p className="font-medium text-foreground">Подсказки AI</p>
+                <div className="mt-3 space-y-2">
+                  {selectedChat.aiHints.map((hint) => (
+                    <button
+                      key={hint}
+                      type="button"
+                      onClick={() => setDraft(hint)}
+                      disabled={selectedChat.activeAi}
+                      className="w-full rounded-lg border border-border p-2 text-left text-sm text-muted-foreground transition-colors hover:border-primary/50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {hint}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            </div>
+          </>
+        ) : (
+          <div className="flex h-full items-center justify-center text-center text-muted-foreground opacity-50">
+            <p className="text-sm">Выберите диалог для просмотра аналитики</p>
+          </div>
+        )}
       </aside>
     </div>
   );
@@ -919,6 +1004,475 @@ const ContractsSection = () => (
   </section>
 );
 
+// ─── Staff Section ───────────────────────────────────────────────────────────
+
+const priorityStyles: Record<string, string> = {
+  "Срочно": "text-red-300 bg-red-500/20 border-red-500/30",
+  "Обычный": "text-amber-300 bg-amber-500/20 border-amber-500/30",
+  "Низкий": "text-slate-400 bg-slate-500/20 border-slate-500/30",
+};
+
+const staffStatusStyles: Record<string, string> = {
+  "Свободен": "text-emerald-300 bg-emerald-500/20",
+  "На задаче": "text-blue-300 bg-blue-500/20",
+  "На перерыве": "text-amber-300 bg-amber-500/20",
+  "Выходной": "text-slate-400 bg-slate-500/20",
+};
+
+const taskStatusStyles: Record<string, string> = {
+  "В ожидании": "text-amber-300 bg-amber-500/20 border-amber-500/30",
+  "В работе": "text-blue-300 bg-blue-500/20 border-blue-500/30",
+  "Завершена": "text-emerald-300 bg-emerald-500/20 border-emerald-500/30",
+};
+
+const StaffSection = ({
+  tasks,
+  onAssignTask,
+  onStartTask,
+  onCompleteTask,
+}: {
+  tasks: ServiceTask[];
+  onAssignTask: (taskId: string, staffId: string, staffName: string) => void;
+  onStartTask: (taskId: string) => void;
+  onCompleteTask: (taskId: string) => void;
+}) => {
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("Все");
+  const [statusFilter, setStatusFilter] = useState<string>("Все");
+  const [tab, setTab] = useState<"staff" | "tasks">("staff");
+  const [taskFilter, setTaskFilter] = useState<string>("Активные");
+  const [assigningTaskId, setAssigningTaskId] = useState<string | null>(null);
+
+  const roles = ["Все", "Техник", "Клининг", "Сантехник", "Электрик", "Горничная", "Администратор"];
+  const statuses = ["Все", "Свободен", "На задаче", "На перерыве", "Выходной"];
+
+  const filteredStaff = hotelStaff.filter((member) => {
+    if (roleFilter !== "Все" && member.role !== roleFilter) return false;
+    if (statusFilter !== "Все" && member.status !== statusFilter) return false;
+    if (search && !member.name.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  const activeTasks = tasks.filter((task) => task.status !== "Завершена");
+  const completedTasks = tasks.filter((task) => task.status === "Завершена");
+  const displayedTasks = taskFilter === "Активные" ? activeTasks : taskFilter === "Завершённые" ? completedTasks : tasks;
+
+  const freeStaff = hotelStaff.filter((member) => member.status === "Свободен");
+
+  const onDutyCount = hotelStaff.filter((m) => m.status !== "Выходной").length;
+  const busyCount = hotelStaff.filter((m) => m.status === "На задаче").length;
+  const pendingTasks = tasks.filter((t) => t.status === "В ожидании").length;
+  const urgentTasks = tasks.filter((t) => t.priority === "Срочно" && t.status !== "Завершена").length;
+
+  return (
+    <div className="space-y-6">
+      {/* Summary cards */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+          <p className="text-sm text-muted-foreground">На смене</p>
+          <p className="mt-3 text-2xl font-semibold text-foreground">{onDutyCount} из {hotelStaff.length}</p>
+          <p className="mt-2 text-sm text-emerald-300">{freeStaff.length} свободны</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+          <p className="text-sm text-muted-foreground">На задачах</p>
+          <p className="mt-3 text-2xl font-semibold text-foreground">{busyCount}</p>
+          <p className="mt-2 text-sm text-blue-300">выполняют работу</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+          <p className="text-sm text-muted-foreground">Ожидают назначения</p>
+          <p className="mt-3 text-2xl font-semibold text-foreground">{pendingTasks}</p>
+          <p className="mt-2 text-sm text-amber-300">задач без исполнителя</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+          <p className="text-sm text-muted-foreground">Срочные задачи</p>
+          <p className="mt-3 text-2xl font-semibold text-foreground">{urgentTasks}</p>
+          <p className="mt-2 text-sm text-red-300">требуют внимания</p>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2">
+        <button type="button" onClick={() => setTab("staff")} className={`rounded-xl border px-4 py-2 text-sm font-medium transition-colors ${tab === "staff" ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground hover:text-foreground"}`}>
+          <Users className="inline h-4 w-4 mr-1.5" />Сотрудники
+        </button>
+        <button type="button" onClick={() => setTab("tasks")} className={`rounded-xl border px-4 py-2 text-sm font-medium transition-colors ${tab === "tasks" ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground hover:text-foreground"}`}>
+          <Wrench className="inline h-4 w-4 mr-1.5" />Задачи ({activeTasks.length})
+        </button>
+      </div>
+
+      {tab === "staff" && (
+        <>
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[200px] max-w-xs">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Поиск по имени..." className="bg-secondary/50 pl-9 text-white placeholder:text-muted-foreground/70" />
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {roles.map((role) => (
+                <button key={role} type="button" onClick={() => setRoleFilter(role)} className={`rounded-lg border px-2.5 py-1.5 text-xs transition-colors ${roleFilter === role ? "border-primary bg-primary/20 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}>{role}</button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {statuses.map((status) => (
+                <button key={status} type="button" onClick={() => setStatusFilter(status)} className={`rounded-lg border px-2.5 py-1.5 text-xs transition-colors ${statusFilter === status ? "border-primary bg-primary/20 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}>{status}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Staff cards */}
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {filteredStaff.map((member) => {
+              const memberTasks = tasks.filter((task) => task.assigneeId === member.id && task.status !== "Завершена");
+              return (
+                <article key={member.id} className="rounded-2xl border border-border bg-card p-5 shadow-card transition-colors hover:border-primary/30">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/20 text-sm font-semibold text-primary">
+                        {member.name.split(" ").map((n) => n[0]).join("")}
+                      </div>
+                      <div>
+                        <p className="font-medium text-foreground">{member.name}</p>
+                        <p className="text-xs text-muted-foreground">{member.role}</p>
+                      </div>
+                    </div>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${staffStatusStyles[member.status]}`}>{member.status}</span>
+                  </div>
+                  <div className="mt-4 space-y-2 text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Clock className="h-3.5 w-3.5" />
+                      <span>Смена: {member.shift}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Star className="h-3.5 w-3.5 text-amber-400" />
+                      <span>Рейтинг: {member.rating}/5.0</span>
+                    </div>
+                    {member.currentRoom && (
+                      <div className="flex items-center gap-2 text-blue-300">
+                        <BedDouble className="h-3.5 w-3.5" />
+                        <span>Номер {member.currentRoom}</span>
+                      </div>
+                    )}
+                    {memberTasks.length > 0 && (
+                      <div className="mt-3 space-y-1.5">
+                        <p className="text-xs font-medium text-foreground">Текущие задачи:</p>
+                        {memberTasks.map((task) => (
+                          <div key={task.id} className="flex items-center gap-2 text-xs">
+                            <span className={`inline-flex rounded border px-1.5 py-0.5 ${priorityStyles[task.priority]}`}>{task.priority}</span>
+                            <span className="text-muted-foreground truncate">{task.room}: {task.description}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-4 flex gap-2">
+                    <a href={`tel:${member.phone.replace(/\s/g, "")}`} className="flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-300 transition-colors hover:bg-emerald-500/20">
+                      <Phone className="h-3.5 w-3.5" />Позвонить
+                    </a>
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">{member.phone}</span>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {tab === "tasks" && (
+        <>
+          {/* Task filters */}
+          <div className="flex flex-wrap gap-2">
+            {["Активные", "Завершённые", "Все"].map((f) => (
+              <button key={f} type="button" onClick={() => setTaskFilter(f)} className={`rounded-xl border px-3 py-2 text-sm transition-colors ${taskFilter === f ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground hover:text-foreground"}`}>{f}</button>
+            ))}
+          </div>
+
+          {/* Assignment modal */}
+          {assigningTaskId && (
+            <div className="rounded-2xl border border-primary/30 bg-primary/5 p-5 shadow-card">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-semibold text-foreground">Назначить исполнителя</h4>
+                <button type="button" onClick={() => setAssigningTaskId(null)} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
+              </div>
+              {freeStaff.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Нет свободных сотрудников</p>
+              ) : (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {freeStaff.map((member) => (
+                    <button key={member.id} type="button" onClick={() => { onAssignTask(assigningTaskId, member.id, member.name); setAssigningTaskId(null); }} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 text-left transition-colors hover:border-primary/50">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">{member.name.split(" ").map((n) => n[0]).join("")}</div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{member.name}</p>
+                        <p className="text-xs text-muted-foreground">{member.role} · {member.phone}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Task list */}
+          <div className="space-y-3">
+            {displayedTasks.map((task) => (
+              <article key={task.id} className={`rounded-2xl border p-4 shadow-card ${task.priority === "Срочно" && task.status !== "Завершена" ? "border-red-500/30 bg-red-500/5" : "border-border bg-card"}`}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-lg bg-secondary px-2 py-0.5 text-xs font-semibold text-foreground">Номер {task.room}</span>
+                      <span className={`rounded border px-2 py-0.5 text-xs font-medium ${priorityStyles[task.priority]}`}>{task.priority}</span>
+                      <span className={`rounded border px-2 py-0.5 text-xs font-medium ${taskStatusStyles[task.status]}`}>{task.status}</span>
+                    </div>
+                    <p className="mt-2 text-sm text-foreground">{task.description}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                      <span>Создана: {task.createdAt}</span>
+                      {task.assigneeName && <span>Исполнитель: <span className="text-primary">{task.assigneeName}</span></span>}
+                      {task.completedAt && <span>Завершена: {task.completedAt}</span>}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    {task.status === "В ожидании" && (
+                      <>
+                        <Button variant="outline" size="sm" onClick={() => setAssigningTaskId(task.id)}>
+                          <Plus className="h-3.5 w-3.5 mr-1" />Назначить
+                        </Button>
+                      </>
+                    )}
+                    {task.status === "В ожидании" && task.assigneeId && (
+                      <Button variant="outline" size="sm" onClick={() => onStartTask(task.id)}>Начать</Button>
+                    )}
+                    {task.status === "В работе" && (
+                      <Button variant="outline" size="sm" onClick={() => onCompleteTask(task.id)} className="border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10">
+                        <Check className="h-3.5 w-3.5 mr-1" />Завершить
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+// ─── Rooms Section (Chess Grid) ──────────────────────────────────────────────
+
+const roomStatusColors: Record<string, { bg: string; border: string; text: string; label: string }> = {
+  "Свободен": { bg: "bg-emerald-500/20", border: "border-emerald-500/40", text: "text-emerald-300", label: "Свободен" },
+  "Занят": { bg: "bg-red-500/20", border: "border-red-500/40", text: "text-red-300", label: "Занят" },
+  "Уборка": { bg: "bg-amber-500/20", border: "border-amber-500/40", text: "text-amber-300", label: "Уборка" },
+  "Ремонт": { bg: "bg-orange-500/20", border: "border-orange-500/40", text: "text-orange-300", label: "Ремонт" },
+  "Забронирован": { bg: "bg-blue-500/20", border: "border-blue-500/40", text: "text-blue-300", label: "Забронирован" },
+};
+
+const RoomsSection = ({ tasks }: { tasks: ServiceTask[] }) => {
+  const [selectedRoom, setSelectedRoom] = useState<HotelRoom | null>(null);
+  const [floorFilter, setFloorFilter] = useState<number | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("Все");
+
+  const floors = [5, 4, 3, 2, 1];
+
+  const filteredRooms = hotelRooms.filter((room) => {
+    if (floorFilter !== null && room.floor !== floorFilter) return false;
+    if (statusFilter !== "Все" && room.status !== statusFilter) return false;
+    return true;
+  });
+
+  const totalRooms = hotelRooms.length;
+  const freeRooms = hotelRooms.filter((r) => r.status === "Свободен").length;
+  const occupiedRooms = hotelRooms.filter((r) => r.status === "Занят").length;
+  const cleaningRooms = hotelRooms.filter((r) => r.status === "Уборка").length;
+  const repairRooms = hotelRooms.filter((r) => r.status === "Ремонт").length;
+  const bookedRooms = hotelRooms.filter((r) => r.status === "Забронирован").length;
+
+  const getBooking = (roomId: string): RoomBooking | undefined => roomBookings.find((b) => b.roomId === roomId);
+  const getRoomTasks = (roomNumber: string) => tasks.filter((t) => t.room === roomNumber && t.status !== "Завершена");
+
+  return (
+    <div className="space-y-6">
+      {/* Summary */}
+      <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-6">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-card text-center">
+          <p className="text-2xl font-semibold text-foreground">{totalRooms}</p>
+          <p className="text-xs text-muted-foreground mt-1">Всего номеров</p>
+        </div>
+        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4 shadow-card text-center">
+          <p className="text-2xl font-semibold text-emerald-300">{freeRooms}</p>
+          <p className="text-xs text-emerald-300/70 mt-1">Свободных</p>
+        </div>
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-4 shadow-card text-center">
+          <p className="text-2xl font-semibold text-red-300">{occupiedRooms}</p>
+          <p className="text-xs text-red-300/70 mt-1">Занятых</p>
+        </div>
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 shadow-card text-center">
+          <p className="text-2xl font-semibold text-amber-300">{cleaningRooms}</p>
+          <p className="text-xs text-amber-300/70 mt-1">На уборке</p>
+        </div>
+        <div className="rounded-2xl border border-orange-500/30 bg-orange-500/5 p-4 shadow-card text-center">
+          <p className="text-2xl font-semibold text-orange-300">{repairRooms}</p>
+          <p className="text-xs text-orange-300/70 mt-1">На ремонте</p>
+        </div>
+        <div className="rounded-2xl border border-blue-500/30 bg-blue-500/5 p-4 shadow-card text-center">
+          <p className="text-2xl font-semibold text-blue-300">{bookedRooms}</p>
+          <p className="text-xs text-blue-300/70 mt-1">Забронировано</p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-sm font-medium text-muted-foreground">Этаж:</span>
+        <div className="flex gap-1.5">
+          <button type="button" onClick={() => setFloorFilter(null)} className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${floorFilter === null ? "border-primary bg-primary/20 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}>Все</button>
+          {floors.map((floor) => (
+            <button key={floor} type="button" onClick={() => setFloorFilter(floor)} className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${floorFilter === floor ? "border-primary bg-primary/20 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}>{floor}</button>
+          ))}
+        </div>
+        <span className="text-sm font-medium text-muted-foreground ml-2">Статус:</span>
+        <div className="flex flex-wrap gap-1.5">
+          {["Все", "Свободен", "Занят", "Уборка", "Ремонт", "Забронирован"].map((status) => (
+            <button key={status} type="button" onClick={() => setStatusFilter(status)} className={`rounded-lg border px-2.5 py-1.5 text-xs transition-colors ${statusFilter === status ? "border-primary bg-primary/20 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}>{status}</button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
+        {/* Chess Grid */}
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+          <h3 className="font-semibold text-foreground mb-5">Шахматка номеров</h3>
+          <div className="space-y-4">
+            {floors.filter((floor) => floorFilter === null || floorFilter === floor).map((floor) => {
+              const floorRooms = filteredRooms.filter((r) => r.floor === floor);
+              if (floorRooms.length === 0 && statusFilter !== "Все") return null;
+              const allFloorRooms = hotelRooms.filter((r) => r.floor === floor);
+              const displayRooms = statusFilter === "Все" ? allFloorRooms : floorRooms;
+              return (
+                <div key={floor} className="flex items-start gap-3">
+                  <div className="flex h-10 w-14 shrink-0 items-center justify-center rounded-xl bg-secondary text-sm font-bold text-foreground">
+                    {floor} эт
+                  </div>
+                  <div className="flex flex-wrap gap-2 flex-1">
+                    {displayRooms.map((room) => {
+                      const style = roomStatusColors[room.status];
+                      const booking = getBooking(room.id);
+                      const roomTasks = getRoomTasks(room.number);
+                      const isSelected = selectedRoom?.id === room.id;
+                      const isHidden = statusFilter !== "Все" && room.status !== statusFilter;
+                      return (
+                        <button
+                          key={room.id}
+                          type="button"
+                          onClick={() => setSelectedRoom(isSelected ? null : room)}
+                          className={`relative flex flex-col items-center rounded-xl border p-2.5 min-w-[80px] transition-all ${isHidden ? "opacity-20" : ""} ${isSelected ? "ring-2 ring-primary border-primary" : ""} ${style.bg} ${style.border} hover:brightness-125`}
+                        >
+                          <span className={`text-lg font-bold ${style.text}`}>{room.number}</span>
+                          <span className="text-[10px] text-muted-foreground mt-0.5">{room.category}</span>
+                          {booking && room.status === "Занят" && (
+                            <span className="text-[10px] text-foreground/70 mt-0.5 truncate max-w-[70px]">{booking.guestName.split(" ")[0]}</span>
+                          )}
+                          {roomTasks.length > 0 && (
+                            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">{roomTasks.length}</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Legend */}
+          <div className="mt-6 flex flex-wrap gap-4 pt-4 border-t border-border">
+            {Object.entries(roomStatusColors).map(([status, style]) => (
+              <div key={status} className="flex items-center gap-2 text-xs">
+                <span className={`h-3 w-3 rounded-sm border ${style.bg} ${style.border}`} />
+                <span className="text-muted-foreground">{status}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Detail Panel */}
+        <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+          {selectedRoom ? (() => {
+            const booking = getBooking(selectedRoom.id);
+            const roomTasks = getRoomTasks(selectedRoom.number);
+            const style = roomStatusColors[selectedRoom.status];
+            return (
+              <div className="space-y-5">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground">Номер {selectedRoom.number}</h3>
+                    <p className="text-sm text-muted-foreground">{selectedRoom.category} · {selectedRoom.area} м² · {selectedRoom.beds === 1 ? "1 кровать" : `${selectedRoom.beds} кровати`}</p>
+                  </div>
+                  <span className={`rounded-full px-3 py-1 text-xs font-medium ${style.bg} ${style.text} border ${style.border}`}>{selectedRoom.status}</span>
+                </div>
+
+                <div className="rounded-xl bg-secondary/30 p-3">
+                  <p className="text-sm text-muted-foreground">Стоимость за ночь</p>
+                  <p className="text-lg font-semibold text-foreground">{formatTenge(selectedRoom.pricePerNight)}</p>
+                </div>
+
+                {booking && (
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-foreground">Гость</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between"><span className="text-muted-foreground">Имя</span><span className="text-foreground font-medium">{booking.guestName}</span></div>
+                      {booking.company && <div className="flex justify-between"><span className="text-muted-foreground">Компания</span><span className="text-primary">{booking.company}</span></div>}
+                      <div className="flex justify-between"><span className="text-muted-foreground">Заезд</span><span className="text-foreground">{booking.checkIn}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Выезд</span><span className="text-foreground">{booking.checkOut}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Ночей</span><span className="text-foreground font-medium">{booking.nights}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Гостей</span><span className="text-foreground">{booking.guests}</span></div>
+                      <div className="flex justify-between"><span className="text-muted-foreground">Итого</span><span className="text-foreground font-semibold">{formatTenge(booking.nights * selectedRoom.pricePerNight)}</span></div>
+                    </div>
+                    {booking.notes && (
+                      <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-primary leading-5">{booking.notes}</div>
+                    )}
+                    <a href={`tel:${booking.phone.replace(/\s/g, "")}`} className="flex items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-2 text-sm font-medium text-emerald-300 transition-colors hover:bg-emerald-500/20 w-full">
+                      <Phone className="h-4 w-4" />{booking.phone}
+                    </a>
+                  </div>
+                )}
+
+                {!booking && (selectedRoom.status === "Свободен" || selectedRoom.status === "Забронирован") && (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <BedDouble className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">{selectedRoom.status === "Свободен" ? "Номер свободен и готов к заселению" : "Номер забронирован на ближайшие даты"}</p>
+                  </div>
+                )}
+
+                {roomTasks.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-foreground">Сервисные задачи</h4>
+                    {roomTasks.map((task) => (
+                      <div key={task.id} className={`rounded-xl border p-3 text-xs ${task.priority === "Срочно" ? "border-red-500/30 bg-red-500/5" : "border-border bg-secondary/20"}`}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`rounded border px-1.5 py-0.5 ${priorityStyles[task.priority]}`}>{task.priority}</span>
+                          <span className={`rounded border px-1.5 py-0.5 ${taskStatusStyles[task.status]}`}>{task.status}</span>
+                        </div>
+                        <p className="text-foreground mt-1">{task.description}</p>
+                        {task.assigneeName && <p className="text-muted-foreground mt-1">Исполнитель: {task.assigneeName}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })() : (
+            <div className="flex flex-col items-center justify-center text-center h-full py-12 text-muted-foreground">
+              <BedDouble className="h-10 w-10 mb-3 opacity-30" />
+              <p className="font-medium">Выберите номер</p>
+              <p className="text-xs mt-1">Нажмите на номер в шахматке для просмотра деталей</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const SettingsSection = () => (
   <div className="grid gap-6 xl:grid-cols-2">
     <section className="rounded-2xl border border-border bg-card p-5 shadow-card">
@@ -942,7 +1496,16 @@ const SettingsSection = () => (
 
 const DirectorAssistant = ({ deals, notifications }: { deals: SteppeDeal[]; notifications: SteppeNotification[] }) => {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Array<{ role: "user" | "assistant"; text: string }>>([]);
+  const [messages, setMessages] = useState<Array<{ role: "user" | "assistant"; content: React.ReactNode }>>([]);
+  const [draft, setDraft] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, isTyping]);
 
   const closedRevenue = deals.filter((deal) => deal.stage === "closed").reduce((sum, deal) => sum + deal.amount, 0);
   const criticalUnread = notifications.filter((notification) => notification.type === "Критические" && !notification.read);
@@ -954,9 +1517,57 @@ const DirectorAssistant = ({ deals, notifications }: { deals: SteppeDeal[]; noti
     }))
     .sort((first, second) => second.revenue - first.revenue);
 
-  const answerByPrompt = (prompt: string) => {
+  const answerByPrompt = (prompt: string): React.ReactNode => {
+    if (prompt.includes("отчет")) {
+      return (
+        <div className="space-y-3">
+          <p>Вот сформированный отчет по выручке по каналам за сегодня:</p>
+          <div className="overflow-hidden rounded-xl border border-border">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-secondary/50 text-muted-foreground">
+                <tr className="border-b border-border">
+                  <th className="p-3 font-medium">Канал</th>
+                  <th className="p-3 font-medium text-right">Выручка</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sourceRevenue.map((item, index) => (
+                  <tr key={item.source} className={index !== sourceRevenue.length - 1 ? "border-b border-border" : ""}>
+                    <td className="p-3">{item.source}</td>
+                    <td className="p-3 text-right text-primary font-medium">{formatTenge(item.revenue)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    if (prompt.includes("договор") || prompt.includes("базе данных")) {
+      return (
+        <div className="space-y-3">
+          <p>Я нашел запрошенные документы в базе данных по клиенту АО «КазМунайГаз»:</p>
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-background/50 p-3 hover:bg-background transition-colors cursor-pointer">
+            <FileText className="h-8 w-8 text-blue-400 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-foreground">Договор №45-2026 (АО «КазМунайГаз»).pdf</p>
+              <p className="text-xs text-muted-foreground">PDF · 2.4 MB · Обновлен сегодня</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-background/50 p-3 hover:bg-background transition-colors cursor-pointer">
+            <FileText className="h-8 w-8 text-blue-400 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-foreground">Приложение 1 (Спецификация услуг).pdf</p>
+              <p className="text-xs text-muted-foreground">PDF · 1.1 MB · Обновлен вчера</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     if (prompt.includes("важного")) {
-      return `Сегодня ${hotDeals.length} горячих сделок в работе. Главный риск — ${criticalUnread[0]?.title ?? "критических рисков нет"}. Закрытая выручка в базе демо: ${formatTenge(closedRevenue)}. AI L2 держит ответ 3–5 минут по VIP-чатам.`;
+      return `Сегодня ${hotDeals.length} горячих сделок в работе. Главный риск — ${criticalUnread[0]?.title ?? "критических рисков нет"}. Закрытая выручка: ${formatTenge(closedRevenue)}. AI L2 держит ответ 3–5 минут по VIP-чатам.`;
     }
 
     if (prompt.includes("проблемные")) {
@@ -971,14 +1582,23 @@ const DirectorAssistant = ({ deals, notifications }: { deals: SteppeDeal[]; noti
   };
 
   const sendPrompt = (prompt: string) => {
-    setMessages((current) => [...current, { role: "user", text: prompt }, { role: "assistant", text: answerByPrompt(prompt) }]);
+    if (!prompt.trim() || isTyping) return;
+    setMessages((current) => [...current, { role: "user", content: prompt }]);
+    setDraft("");
+    setIsTyping(true);
+    
+    setTimeout(() => {
+      setMessages((current) => [...current, { role: "assistant", content: answerByPrompt(prompt) }]);
+      setIsTyping(false);
+    }, 1200);
   };
 
   const quickPrompts = [
+    "Сформируй отчет по продажам",
+    "Найди договор в базе данных",
     "Что важного произошло сегодня?",
     "Покажи проблемные сделки",
     "Как работает команда на этой неделе?",
-    "Какой канал приносит больше всего выручки?",
   ];
 
   return (
@@ -990,10 +1610,24 @@ const DirectorAssistant = ({ deals, notifications }: { deals: SteppeDeal[]; noti
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent className="dark flex w-full flex-col overflow-hidden sm:max-w-lg">
           <SheetHeader>
-            <SheetTitle>AI-ассистент директора</SheetTitle>
-            <SheetDescription>Аналитика на основе mock-данных CRM.</SheetDescription>
+            <div className="flex items-start gap-3">
+              {messages.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setMessages([])}
+                  className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary/50 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                  title="Назад к списку"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+              )}
+              <div>
+                <SheetTitle className="text-left">AI-ассистент директора</SheetTitle>
+                <SheetDescription className="text-left">Аналитика на основе данных CRM.</SheetDescription>
+              </div>
+            </div>
           </SheetHeader>
-          <div className="mt-6 flex-1 overflow-y-auto">
+          <div className="mt-6 flex-1 overflow-y-auto pr-2" ref={scrollRef}>
             {messages.length === 0 ? (
               <div className="space-y-3">
                 {quickPrompts.map((prompt) => (
@@ -1008,21 +1642,45 @@ const DirectorAssistant = ({ deals, notifications }: { deals: SteppeDeal[]; noti
                 ))}
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4 flex flex-col pb-4">
                 {messages.map((message, index) => (
-                  <div key={`${message.role}-${index}`} className={`rounded-2xl border p-3 text-sm leading-6 ${message.role === "assistant" ? "border-primary/20 bg-primary/10 text-foreground" : "border-border bg-card text-muted-foreground"}`}>
-                    {message.text}
+                  <div key={`${message.role}-${index}`} className={`rounded-2xl border p-4 text-sm leading-6 max-w-[85%] ${message.role === "assistant" ? "border-primary/20 bg-primary/10 text-foreground self-start rounded-tl-sm" : "border-border bg-secondary/30 text-foreground self-end ml-auto rounded-tr-sm"}`}>
+                    {message.content}
                   </div>
                 ))}
+                {isTyping && (
+                  <div className="rounded-2xl border border-primary/20 bg-primary/10 p-4 text-sm max-w-[85%] self-start rounded-tl-sm flex items-center gap-1 h-[54px]">
+                    <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                    <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                    <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce"></span>
+                  </div>
+                )}
               </div>
             )}
           </div>
-          <div className="mt-4 grid gap-2">
-            {quickPrompts.map((prompt) => (
-              <Button key={prompt} variant="outline" size="sm" onClick={() => sendPrompt(prompt)}>
-                {prompt}
+          <div className="mt-4 flex flex-col gap-3 pt-2 border-t border-border">
+            {messages.length === 0 && (
+              <div className="flex flex-wrap gap-2">
+                {quickPrompts.map((prompt) => (
+                  <Button key={prompt} variant="outline" size="sm" onClick={() => sendPrompt(prompt)}>
+                    {prompt}
+                  </Button>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Input
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => event.key === "Enter" && sendPrompt(draft)}
+                placeholder="Спросите AI-ассистента..."
+                disabled={isTyping}
+                className="bg-secondary/50 text-white placeholder:text-muted-foreground/70"
+              />
+              <Button disabled={isTyping || draft.length === 0} onClick={() => sendPrompt(draft)}>
+                <Send className="h-4 w-4" />
               </Button>
-            ))}
+            </div>
           </div>
         </SheetContent>
       </Sheet>
@@ -1036,6 +1694,7 @@ const SteppeHotelCRM = ({ onLogout }: SteppeHotelCRMProps) => {
   const [period, setPeriod] = useState<PeriodKey>("week");
   const [deals, setDeals] = useState(initialDeals);
   const [chats, setChats] = useState(initialChats);
+  const [serviceTasks, setServiceTasks] = useState(initialServiceTasks);
   const activeAiDialogs = chats.filter((chat) => chat.activeAi).length;
   const unreadNotifications = steppeNotifications.filter((notification) => !notification.read).length;
 
@@ -1051,6 +1710,24 @@ const SteppeHotelCRM = ({ onLogout }: SteppeHotelCRMProps) => {
 
   const returnAi = (chatId: string) => {
     setChats((current) => current.map((chat) => (chat.id === chatId ? { ...chat, activeAi: true, owner: "AI L2" } : chat)));
+  };
+
+  const assignTask = (taskId: string, staffId: string, staffName: string) => {
+    setServiceTasks((current) =>
+      current.map((task) => (task.id === taskId ? { ...task, assigneeId: staffId, assigneeName: staffName } : task)),
+    );
+  };
+
+  const startTask = (taskId: string) => {
+    setServiceTasks((current) =>
+      current.map((task) => (task.id === taskId ? { ...task, status: "В работе" as const } : task)),
+    );
+  };
+
+  const completeTask = (taskId: string) => {
+    setServiceTasks((current) =>
+      current.map((task) => (task.id === taskId ? { ...task, status: "Завершена" as const, completedAt: "Только что" } : task)),
+    );
   };
 
   return (
@@ -1071,6 +1748,8 @@ const SteppeHotelCRM = ({ onLogout }: SteppeHotelCRMProps) => {
             {activeSection === "pipeline" && <PipelineSection deals={deals} onTakeDeal={takeDeal} />}
             {activeSection === "clients" && <ClientsSection deals={deals} />}
             {activeSection === "dialogs" && <DialogsSection chats={chats} onTakeChat={takeChat} onReturnAi={returnAi} />}
+            {activeSection === "rooms" && <RoomsSection tasks={serviceTasks} />}
+            {activeSection === "staff" && <StaffSection tasks={serviceTasks} onAssignTask={assignTask} onStartTask={startTask} onCompleteTask={completeTask} />}
             {activeSection === "notifications" && <NotificationsSection notifications={steppeNotifications} />}
             {activeSection === "contracts" && <ContractsSection />}
             {activeSection === "settings" && <SettingsSection />}
