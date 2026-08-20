@@ -1,4 +1,4 @@
-import { Building2, Handshake } from "lucide-react";
+import { Building2, Handshake, Home } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ const LoginPage = () => {
 
   const handleLogin = (role: UserRole) => {
     login(role);
-    navigate("/steppe", { replace: true });
+    navigate(role === "PATERHAUS" ? "/paterhaus" : "/steppe", { replace: true });
   };
 
   return (
@@ -30,7 +30,7 @@ const LoginPage = () => {
             </p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-3">
             <Button
               type="button"
               variant="outline"
@@ -40,6 +40,17 @@ const LoginPage = () => {
               <span className="flex flex-col items-center gap-3 text-center">
                 <Building2 className="h-8 w-8 text-primary" />
                 <span>Войти как Администратор (Cosmonaut HM)</span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleLogin("PATERHAUS")}
+              className="h-36 whitespace-normal rounded-2xl border-amber-500/30 bg-background/60 px-6 text-base transition-all duration-300 ease-in-out hover:-translate-y-1 hover:border-amber-400 hover:bg-amber-500/10"
+            >
+              <span className="flex flex-col items-center gap-3 text-center">
+                <Home className="h-8 w-8 text-amber-300" />
+                <span>Amelia Hart · Operations Director · Paterhaus Property Management</span>
               </span>
             </Button>
             <Button

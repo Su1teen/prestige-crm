@@ -74,6 +74,19 @@
     --shadow-elevated: 0 20px 50px -24px rgba(0, 0, 0, 0.85);
     --shadow-hover: 0 22px 56px -24px rgba(0, 0, 0, 0.9);
   }
+
+  .paterhaus {
+    --primary: 31 36% 57%;
+    --primary-foreground: 224 24% 8%;
+    --accent: 166 25% 38%;
+    --accent-foreground: 214 32% 94%;
+    --ring: 31 36% 57%;
+    --sidebar-primary: 31 36% 57%;
+    --sidebar-primary-foreground: 224 24% 8%;
+    --sidebar-accent: 31 22% 18%;
+    --sidebar-accent-foreground: 35 35% 82%;
+    --sidebar-ring: 31 36% 57%;
+  }
 }
 
 @layer base {
