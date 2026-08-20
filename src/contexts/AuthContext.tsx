@@ -1,6 +1,12 @@
 import { createContext, type ReactNode, useContext, useMemo, useState } from "react";
 
-export type UserRole = "HM" | "B2B";
+export type UserRole = "HM" | "B2B" | "PATERHAUS";
+
+export type WorkspaceId = "steppe" | "paterhaus";
+
+export const workspaceForRole = (role: UserRole): WorkspaceId => (role === "PATERHAUS" ? "paterhaus" : "steppe");
+
+export const workspacePathForRole = (role: UserRole): string => `/${workspaceForRole(role)}`;
 
 interface AuthContextValue {
   role: UserRole | null;
@@ -20,7 +26,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 const getStoredRole = (): UserRole | null => {
   const storedRole = localStorage.getItem(AUTH_ROLE_STORAGE_KEY);
-  return storedRole === "HM" || storedRole === "B2B" ? storedRole : null;
+  return storedRole === "HM" || storedRole === "B2B" || storedRole === "PATERHAUS" ? storedRole : null;
 };
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
