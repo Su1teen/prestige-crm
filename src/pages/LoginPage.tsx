@@ -1,17 +1,32 @@
+import { useState } from "react";
 import { Building2, Handshake, Home } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useAuth, type UserRole } from "@/contexts/AuthContext";
-import { CURRENT_PATERHAUS_USER } from "@/data/paterhaus";
+import { Input } from "@/components/ui/input";
+import { PATERHAUS_ADMIN_EMAIL, useAuth, type UserRole } from "@/contexts/AuthContext";
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, loginWithEmail } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const handleLogin = (role: UserRole) => {
     login(role);
-    navigate(role === "PATERHAUS" ? "/paterhaus" : "/steppe", { replace: true });
+    navigate(role === "PATERHAUS" || role === "ADMIN" ? "/paterhaus" : "/steppe", { replace: true });
+  };
+
+  const handlePaterhausLogin = (event: React.FormEvent) => {
+    event.preventDefault();
+    const role = loginWithEmail(email, password);
+    if (!role) {
+      setError(`Use ${PATERHAUS_ADMIN_EMAIL} with any password for the Paterhaus demo.`);
+      return;
+    }
+    setError(null);
+    navigate("/paterhaus", { replace: true });
   };
 
   return (
@@ -31,7 +46,7 @@ const LoginPage = () => {
             </p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2">
             <Button
               type="button"
               variant="outline"
@@ -46,17 +61,6 @@ const LoginPage = () => {
             <Button
               type="button"
               variant="outline"
-              onClick={() => handleLogin("PATERHAUS")}
-              className="h-36 whitespace-normal rounded-2xl border-amber-500/30 bg-background/60 px-6 text-base transition-all duration-300 ease-in-out hover:-translate-y-1 hover:border-amber-400 hover:bg-amber-500/10"
-            >
-              <span className="flex flex-col items-center gap-3 text-center">
-                <Home className="h-8 w-8 text-amber-300" />
-                <span>{CURRENT_PATERHAUS_USER.name} · {CURRENT_PATERHAUS_USER.role} · Paterhaus Property Management</span>
-              </span>
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
               onClick={() => handleLogin("B2B")}
               className="h-36 whitespace-normal rounded-2xl border-emerald-500/30 bg-background/60 px-6 text-base transition-all duration-300 ease-in-out hover:-translate-y-1 hover:border-emerald-500 hover:bg-emerald-500/10"
             >
@@ -66,6 +70,41 @@ const LoginPage = () => {
               </span>
             </Button>
           </div>
+
+          <form
+            onSubmit={handlePaterhausLogin}
+            className="mt-6 rounded-2xl border border-amber-500/30 bg-background/60 p-6"
+          >
+            <div className="flex items-center gap-3">
+              <Home className="h-6 w-6 flex-shrink-0 text-amber-300" />
+              <div>
+                <p className="font-medium text-foreground">Paterhaus Property Management</p>
+                <p className="text-xs text-muted-foreground">Admin sign-in · Dubai property management demo</p>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <Input
+                type="email"
+                autoComplete="email"
+                placeholder="admin@paterhaus.com"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                aria-label="Paterhaus email"
+              />
+              <Input
+                type="password"
+                autoComplete="current-password"
+                placeholder="Password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                aria-label="Paterhaus password"
+              />
+            </div>
+            {error && <p className="mt-2 text-xs text-amber-300">{error}</p>}
+            <Button type="submit" className="mt-4 w-full sm:w-auto" disabled={!email.trim() || !password.trim()}>
+              Sign in to Paterhaus
+            </Button>
+          </form>
         </motion.section>
       </main>
     </div>

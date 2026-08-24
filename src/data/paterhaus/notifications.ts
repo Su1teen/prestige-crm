@@ -28,7 +28,7 @@ export const paterhausNotifications: Notification[] = [
   {
     id: "note-03",
     title: "Owner approval needed",
-    description: "AED 2,800 cooling repair awaits Khalid Al Farsi's approval.",
+    description: "$2,800 cooling repair awaits Khalid Al Farsi's approval.",
     priority: "Critical",
     createdAt: "2025-08-20T07:35:00",
     read: false,
@@ -76,7 +76,7 @@ export const paterhausNotifications: Notification[] = [
   {
     id: "note-07",
     title: "New high-value reservation",
-    description: "AED 16,200 Palm Crescent stay is on hold pending readiness.",
+    description: "$16,200 Palm Crescent stay is on hold pending readiness.",
     priority: "Info",
     createdAt: "2025-08-18T18:00:00",
     read: true,

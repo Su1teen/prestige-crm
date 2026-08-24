@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { usePaterhausWorkspace } from "@/contexts/PaterhausWorkspaceContext";
-import { CURRENT_PATERHAUS_USER, formatAED, PATERHAUS_TODAY } from "@/data/paterhaus";
+import { CURRENT_PATERHAUS_USER, formatUSD, PATERHAUS_TODAY } from "@/data/paterhaus";
 import type { TaskCategory } from "@/types/paterhaus";
 
 interface CopilotProps {
@@ -116,13 +116,13 @@ export const OpsCopilot = ({ propertyId, conversationId, onOpenProperty, onDraft
 
     if (normalized.includes("maintenance") || normalized.includes("cost")) {
       const draft = `Hello ${owner?.name ?? "Owner"},\n\n${maintenanceProperty?.name ?? "The property"} requires ${
-        maintenance ? formatAED(maintenance.cost) : "non-routine"
+        maintenance ? formatUSD(maintenance.cost) : "non-routine"
       } maintenance work for ${maintenance?.title ?? "the reported issue"}. We recommend approval to protect the next stay.\n\n${CURRENT_PATERHAUS_USER.name}`;
       setResponse({
         title: "Owner maintenance-cost draft",
         blocks: [
           { label: "Issue", value: maintenance?.title ?? "Maintenance review" },
-          { label: "Estimated cost", value: maintenance ? formatAED(maintenance.cost) : "Not estimated" },
+          { label: "Estimated cost", value: maintenance ? formatUSD(maintenance.cost) : "Not estimated" },
           { label: "Related task", value: contextTasks[0]?.title ?? "Owner approval follow-up" },
           { label: "Draft reply", value: draft },
         ],
@@ -238,7 +238,7 @@ export const OpsCopilot = ({ propertyId, conversationId, onOpenProperty, onDraft
       setResponse({
         title: "Revenue variance explanation",
         blocks: [
-          { label: "Portfolio variance", value: formatAED(revenueChange) },
+          { label: "Portfolio variance", value: formatUSD(revenueChange) },
           {
             label: "Read-through",
             value:

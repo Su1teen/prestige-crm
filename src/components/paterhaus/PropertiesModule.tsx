@@ -3,7 +3,11 @@ import {
   BedDouble,
   CalendarDays,
   ClipboardCheck,
+  Download,
+  FileImage,
   FileText,
+  Paperclip,
+  Trash2,
   Grid2X2,
   List,
   MapPin,
@@ -28,7 +32,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { usePaterhausWorkspace } from "@/contexts/PaterhausWorkspaceContext";
-import { formatAED, formatPaterhausDateTime, PATERHAUS_TODAY } from "@/data/paterhaus";
+import { formatUSD, formatPaterhausDateTime, PATERHAUS_TODAY } from "@/data/paterhaus";
 import type { Property, Snag } from "@/types/paterhaus";
 import { SectionHeader, StatusPill, EmptyState } from "./shared";
 import { OpsCopilot } from "./OpsCopilot";
@@ -105,6 +109,7 @@ const PropertyDetail = ({
     ? workspace.statements.filter((statement) => statement.propertyId === property.id)
     : [];
   const propertyActivity = property ? workspace.activity.filter((event) => event.propertyId === property.id) : [];
+  const propertyFiles = property ? workspace.files.filter((file) => file.propertyId === property.id) : [];
 
   const submitSnag = () => {
     if (!property || !snagArea.trim() || !snagDescription.trim()) return;
@@ -154,7 +159,7 @@ const PropertyDetail = ({
                 </div>
                 <div className="rounded-xl border border-border bg-card p-3">
                   <p className="text-xs text-muted-foreground">Monthly revenue</p>
-                  <p className="mt-1 text-sm font-medium text-foreground">{formatAED(property.monthlyRevenue)}</p>
+                  <p className="mt-1 text-sm font-medium text-foreground">{formatUSD(property.monthlyRevenue)}</p>
                 </div>
                 <div className="rounded-xl border border-border bg-card p-3">
                   <p className="text-xs text-muted-foreground">Occupancy</p>
@@ -288,7 +293,7 @@ const PropertyDetail = ({
                             <StatusPill status={stay.lifecycle} />
                           </div>
                           <p className="mt-2 text-xs text-muted-foreground">
-                            {formatAED(stay.bookingValue)} · ID {stay.idVerificationStatus} · Payment{" "}
+                            {formatUSD(stay.bookingValue)} · ID {stay.idVerificationStatus} · Payment{" "}
                             {stay.paymentStatus}
                           </p>
                         </Card>
@@ -349,7 +354,7 @@ const PropertyDetail = ({
                           <StatusPill status={snag.severity} />
                         </div>
                         <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                          <span>Cost estimate {formatAED(snag.costEstimate)}</span>
+                          <span>Cost estimate {formatUSD(snag.costEstimate)}</span>
                           <span>Deadline {snag.deadline}</span>
                           <StatusPill status={snag.status} />
                         </div>
@@ -375,7 +380,7 @@ const PropertyDetail = ({
                         <StatusPill status={issue.status} />
                       </div>
                       <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                        <span>{formatAED(issue.cost)}</span>
+                        <span>{formatUSD(issue.cost)}</span>
                         <span>
                           {issue.vendorId
                             ? workspace.vendors.find((vendor) => vendor.id === issue.vendorId)?.name
@@ -418,8 +423,8 @@ const PropertyDetail = ({
                           <div>
                             <p className="font-medium text-foreground">{statement.period} owner statement</p>
                             <p className="mt-1 text-sm text-muted-foreground">
-                              Gross {formatAED(statement.grossRevenue)} · Fees{" "}
-                              {formatAED(
+                              Gross {formatUSD(statement.grossRevenue)} · Fees{" "}
+                              {formatUSD(
                                 statement.channelFees +
                                   statement.cleaningLaundry +
                                   statement.maintenance +
@@ -430,7 +435,7 @@ const PropertyDetail = ({
                           <StatusPill status={statement.status} />
                         </div>
                         <p className="mt-3 text-sm font-semibold text-primary">
-                          Net owner payout {formatAED(statement.netPayout)}
+                          Net owner payout {formatUSD(statement.netPayout)}
                         </p>
                       </Card>
                     ))
@@ -465,6 +470,61 @@ const PropertyDetail = ({
                           />
                         </div>
                       ))}
+                    </div>
+                  </Card>
+                  <Card className="mt-4 border-border bg-card p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-medium text-foreground">Files</h3>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() =>
+                          workspace.addFile({
+                            name: `Document_${property.unitIdentifier.replace(/\s+/g, "_")}_${propertyFiles.length + 1}.pdf`,
+                            type: "document",
+                            sizeKb: 320,
+                            propertyId: property.id,
+                            description: "Demo upload from property documents",
+                          })
+                        }
+                      >
+                        <Paperclip className="h-3.5 w-3.5" />
+                        Upload
+                      </Button>
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {propertyFiles.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No files stored for this property yet.</p>
+                      ) : (
+                        propertyFiles.map((file) => (
+                          <div key={file.id} className="flex items-center gap-3 rounded-xl border border-border/70 p-3">
+                            {file.type === "image" ? (
+                              <FileImage className="h-4 w-4 flex-shrink-0 text-primary" />
+                            ) : (
+                              <FileText className="h-4 w-4 flex-shrink-0 text-primary" />
+                            )}
+                            <span className="min-w-0 flex-1">
+                              <span className="block break-all text-sm text-foreground">{file.name}</span>
+                              <span className="block text-xs text-muted-foreground">
+                                {file.sizeKb} KB · {file.uploadedAt}
+                              </span>
+                            </span>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Download ${file.name}`}>
+                              <Download className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive"
+                              aria-label={`Delete ${file.name}`}
+                              onClick={() => workspace.removeFile(file.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </Card>
                 </TabsContent>
@@ -544,7 +604,7 @@ const PropertyDetail = ({
               </div>
               <div>
                 <label htmlFor="snag-cost" className="text-sm font-medium text-foreground">
-                  Cost estimate (AED)
+                  Cost estimate (USD)
                 </label>
                 <Input
                   id="snag-cost"
@@ -835,7 +895,7 @@ export const PropertiesModule = ({ initialPropertyId }: { initialPropertyId?: st
                           ? `Out ${property.nextCheckOut}`
                           : "No upcoming stay"}
                     </td>
-                    <td className="px-4 py-3 font-medium text-foreground">{formatAED(property.monthlyRevenue)}</td>
+                    <td className="px-4 py-3 font-medium text-foreground">{formatUSD(property.monthlyRevenue)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <Progress value={property.healthScore} className="h-1.5 w-16" />
@@ -885,7 +945,7 @@ export const PropertiesModule = ({ initialPropertyId }: { initialPropertyId?: st
                   Owner<span className="mt-1 block text-foreground">{ownerName(property)}</span>
                 </span>
                 <span className="text-muted-foreground">
-                  Revenue<span className="mt-1 block text-foreground">{formatAED(property.monthlyRevenue)}</span>
+                  Revenue<span className="mt-1 block text-foreground">{formatUSD(property.monthlyRevenue)}</span>
                 </span>
                 <span className="text-muted-foreground">
                   Occupancy

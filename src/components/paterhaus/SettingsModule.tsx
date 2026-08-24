@@ -109,7 +109,7 @@ export const SettingsModule = () => {
         <Card className="border-border/80 bg-card/80 p-5">
           <h3 className="font-semibold text-foreground">Approval and reminders</h3>
           <label className="mt-4 block text-xs text-muted-foreground">
-            Expense approval threshold (AED)
+            Expense approval threshold (USD)
             <Input
               type="number"
               value={draft.expenseApprovalThreshold}
@@ -118,7 +118,7 @@ export const SettingsModule = () => {
             />
           </label>
           <p className="mt-2 text-xs leading-5 text-muted-foreground">
-            Maintenance items above this threshold require owner review. Saved local threshold: AED{" "}
+            Maintenance items above this threshold require owner review. Saved local threshold: ${" "}
             {workspace.settings.expenseApprovalThreshold.toLocaleString("en-GB")}.
           </p>
           <label className="mt-4 block text-xs text-muted-foreground">

@@ -8,8 +8,8 @@ import { paterhausTasks } from "./tasks";
 /** Fixed demo date: all Paterhaus records are intentionally anchored to 20 August 2025. */
 export const PATERHAUS_TODAY = "2025-08-20";
 
-export const formatAED = (value: number): string =>
-  `AED ${new Intl.NumberFormat("en-GB", { maximumFractionDigits: 0 }).format(Math.round(value))}`;
+export const formatUSD = (value: number): string =>
+  `$${new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Math.round(value))}`;
 
 const toDemoDate = (value: string) => new Date(value.includes("T") ? value : `${value}T12:00:00`);
 

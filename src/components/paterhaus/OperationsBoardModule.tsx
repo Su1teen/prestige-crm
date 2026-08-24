@@ -14,7 +14,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { usePaterhausWorkspace } from "@/contexts/PaterhausWorkspaceContext";
-import { PATERHAUS_TODAY, formatAED, formatPaterhausDateTime } from "@/data/paterhaus";
+import { PATERHAUS_TODAY, formatUSD, formatPaterhausDateTime } from "@/data/paterhaus";
 import type { Priority, Task, TaskCategory, TaskStatus } from "@/types/paterhaus";
 import { EmptyState, SectionHeader, StatusPill } from "./shared";
 
@@ -139,7 +139,7 @@ const TaskDetail = ({
               <p className="text-sm text-muted-foreground">
                 <span className="block text-xs">Cost estimate</span>
                 <span className="text-foreground">
-                  {task.costEstimate ? formatAED(task.costEstimate) : "Not estimated"}
+                  {task.costEstimate ? formatUSD(task.costEstimate) : "Not estimated"}
                 </span>
               </p>
             </div>

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { FileText, Plus, Search, UserRound, X } from "lucide-react";
+import { Download, FileImage, FileText, MessageCircle, Paperclip, Plus, Search, Send, Trash2, UserRound, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { usePaterhausWorkspace, type NewOpportunityInput } from "@/contexts/PaterhausWorkspaceContext";
-import { CURRENT_PATERHAUS_USER, formatAED, formatPaterhausDateTime } from "@/data/paterhaus";
+import { CURRENT_PATERHAUS_USER, formatUSD, formatPaterhausDateTime } from "@/data/paterhaus";
 import type { OpportunityStage, OwnerOpportunity, Priority } from "@/types/paterhaus";
 import { EmptyState, SectionHeader, StatusPill } from "./shared";
 
@@ -39,6 +39,8 @@ const priorityValues: string[] = priorities;
 const isOpportunityStage = (value: string): value is OpportunityStage => stageValues.includes(value);
 const isPriority = (value: string): value is Priority => priorityValues.includes(value);
 
+const leadSources = ["Referral", "Meta Lead Ads", "Instagram DM", "Website", "Walk-in"] as const;
+
 interface LeadForm {
   ownerName: string;
   prospectProperty: string;
@@ -50,6 +52,11 @@ interface LeadForm {
   leadSource: string;
   priority: Priority;
   nextAction: string;
+  phone: string;
+  email: string;
+  campaignId: string;
+  bedrooms: string;
+  comment: string;
 }
 
 const initialLead: LeadForm = {
@@ -63,7 +70,14 @@ const initialLead: LeadForm = {
   leadSource: "Referral",
   priority: "Medium",
   nextAction: "Qualify investment objectives",
+  phone: "+971 ",
+  email: "",
+  campaignId: "",
+  bedrooms: "",
+  comment: "",
 };
+
+const waLink = (phone: string) => `https://wa.me/${phone.replace(/[^0-9]/g, "")}`;
 
 const OpportunityDetail = ({
   opportunity,
@@ -75,12 +89,21 @@ const OpportunityDetail = ({
   onOpenChange: (open: boolean) => void;
 }) => {
   const workspace = usePaterhausWorkspace();
+  const [draft, setDraft] = useState("");
   if (!opportunity) return null;
   const linkedTasks = workspace.tasks.filter((task) => opportunity.taskIds?.includes(task.id));
   const linkedConversations = workspace.conversations.filter((conversation) =>
     opportunity.conversationIds?.includes(conversation.id),
   );
   const checklist = opportunity.onboardingChecklist ?? [];
+  const attachments = workspace.files.filter((file) => file.leadId === opportunity.id);
+  const messages = workspace.leadMessages.filter((message) => message.opportunityId === opportunity.id);
+  const campaign = workspace.campaigns.find((item) => item.id === opportunity.campaignId);
+  const sendDraft = () => {
+    if (!draft.trim()) return;
+    workspace.sendLeadMessage(opportunity.id, draft);
+    setDraft("");
+  };
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="dark w-full overflow-y-auto border-border bg-background sm:max-w-2xl">
@@ -95,6 +118,16 @@ const OpportunityDetail = ({
             </div>
             <StatusPill status={opportunity.stage} />
           </div>
+          {opportunity.phone && (
+            <div className="mt-2">
+              <Button asChild variant="outline" size="sm" className="gap-1.5">
+                <a href={waLink(opportunity.phone)} target="_blank" rel="noreferrer">
+                  <MessageCircle className="h-4 w-4 text-emerald-400" />
+                  Chat on WhatsApp
+                </a>
+              </Button>
+            </div>
+          )}
         </SheetHeader>
         <div className="mt-6 space-y-4">
           <Card className="border-border bg-card p-4">
@@ -116,6 +149,22 @@ const OpportunityDetail = ({
                 <span className="block text-xs">Last communication</span>
                 <span className="text-foreground">{opportunity.lastCommunication}</span>
               </p>
+              <p className="text-sm text-muted-foreground">
+                <span className="block text-xs">Phone</span>
+                <span className="text-foreground">{opportunity.phone ?? "Not captured"}</span>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                <span className="block text-xs">Email</span>
+                <span className="break-all text-foreground">{opportunity.email ?? "Not captured"}</span>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                <span className="block text-xs">Campaign</span>
+                <span className="text-foreground">{campaign?.name ?? "—"}</span>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                <span className="block text-xs">Bedrooms</span>
+                <span className="text-foreground">{opportunity.bedrooms !== undefined ? `${opportunity.bedrooms} BR` : "—"}</span>
+              </p>
             </div>
           </Card>
           <Card className="border-border bg-card p-4">
@@ -124,25 +173,25 @@ const OpportunityDetail = ({
               <div>
                 <p className="text-xs text-muted-foreground">Monthly revenue</p>
                 <p className="mt-1 text-sm font-semibold text-foreground">
-                  {formatAED(opportunity.estimatedMonthlyRevenue)}
+                  {formatUSD(opportunity.estimatedMonthlyRevenue)}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Annual revenue</p>
                 <p className="mt-1 text-sm font-semibold text-foreground">
-                  {formatAED(opportunity.estimatedAnnualRevenue)}
+                  {formatUSD(opportunity.estimatedAnnualRevenue)}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Potential fee</p>
                 <p className="mt-1 text-sm font-semibold text-foreground">
-                  {formatAED(opportunity.potentialManagementFee)}
+                  {formatUSD(opportunity.potentialManagementFee)}
                 </p>
               </div>
             </div>
             <p className="mt-3 text-sm text-muted-foreground">
-              Expected range: {formatAED(opportunity.expectedRevenueMin ?? opportunity.estimatedMonthlyRevenue)}–
-              {formatAED(opportunity.expectedRevenueMax ?? opportunity.estimatedMonthlyRevenue)}
+              Expected range: {formatUSD(opportunity.expectedRevenueMin ?? opportunity.estimatedMonthlyRevenue)}–
+              {formatUSD(opportunity.expectedRevenueMax ?? opportunity.estimatedMonthlyRevenue)}
             </p>
             <p className="mt-3 text-sm leading-6 text-foreground">{opportunity.notes}</p>
             <p className="mt-3 text-xs text-muted-foreground">
@@ -163,6 +212,112 @@ const OpportunityDetail = ({
             <p className="mt-3 text-xs text-muted-foreground">
               Follow-up reminder: {opportunity.followUpAt ? formatPaterhausDateTime(opportunity.followUpAt) : "Not scheduled"}
             </p>
+          </Card>
+          <Card className="border-border bg-card p-4">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="font-medium text-foreground">Attachments</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() =>
+                  workspace.addFile({
+                    name: `Note_${opportunity.ownerName.split(" ")[0]}_${attachments.length + 1}.pdf`,
+                    type: "document",
+                    sizeKb: 240,
+                    leadId: opportunity.id,
+                    description: "Demo upload from Owner Pipeline",
+                  })
+                }
+              >
+                <Paperclip className="h-3.5 w-3.5" />
+                Upload
+              </Button>
+            </div>
+            <div className="mt-3 space-y-2">
+              {attachments.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No files attached to this lead yet.</p>
+              ) : (
+                attachments.map((file) => (
+                  <div key={file.id} className="flex items-center gap-2 rounded-lg border border-border/70 p-2 text-sm">
+                    {file.type === "image" ? (
+                      <FileImage className="h-4 w-4 flex-shrink-0 text-primary" />
+                    ) : (
+                      <FileText className="h-4 w-4 flex-shrink-0 text-primary" />
+                    )}
+                    <span className="min-w-0">
+                      <span className="block break-all text-foreground">{file.name}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {file.sizeKb} KB · {file.uploadedAt}
+                      </span>
+                    </span>
+                    <span className="ml-auto flex flex-shrink-0 items-center gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Download ${file.name}`}>
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive"
+                        aria-label={`Delete ${file.name}`}
+                        onClick={() => workspace.removeFile(file.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+          <Card className="border-border bg-card p-4">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="font-medium text-foreground">Conversation</h3>
+              {opportunity.phone && (
+                <a
+                  href={waLink(opportunity.phone)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-emerald-400 hover:underline"
+                >
+                  Open in WhatsApp
+                </a>
+              )}
+            </div>
+            <div className="mt-3 space-y-2">
+              {messages.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No messages with this owner yet.</p>
+              ) : (
+                messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={
+                      message.direction === "outbound"
+                        ? "ml-8 rounded-xl rounded-br-sm border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-sm text-foreground"
+                        : "mr-8 rounded-xl rounded-bl-sm border border-border/70 bg-background/40 p-2.5 text-sm text-foreground"
+                    }
+                  >
+                    <p>{message.text}</p>
+                    <p className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                      {message.direction === "outbound" ? "You" : opportunity.ownerName} · WhatsApp
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="mt-3 flex gap-2">
+              <Input
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") sendDraft();
+                }}
+                placeholder="Type a WhatsApp message"
+              />
+              <Button onClick={sendDraft} disabled={!draft.trim()} aria-label="Send message">
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
           </Card>
           {checklist.length > 0 && (
             <Card className="border-primary/30 bg-primary/5 p-4">
@@ -239,6 +394,11 @@ export const OwnerPipelineModule = () => {
     const input: NewOpportunityInput = {
       ...lead,
       estimatedMonthlyRevenue: Number(lead.estimatedMonthlyRevenue) || 0,
+      phone: lead.phone.trim() || undefined,
+      email: lead.email.trim() || undefined,
+      campaignId: lead.campaignId || undefined,
+      bedrooms: Number(lead.bedrooms) || undefined,
+      notes: lead.comment.trim() || undefined,
     };
     workspace.addOpportunity(input);
     setShowLeadDialog(false);
@@ -343,7 +503,8 @@ export const OwnerPipelineModule = () => {
                             </div>
                             <dl className="mt-3 grid grid-cols-[84px_minmax(0,1fr)] gap-x-2 gap-y-2 text-xs">
                               <dt className="text-muted-foreground">Area</dt><dd className="min-w-0 break-words text-foreground">{opportunity.area}</dd>
-                              <dt className="text-muted-foreground">Monthly revenue</dt><dd className="font-medium text-foreground">{formatAED(opportunity.estimatedMonthlyRevenue)}</dd>
+                              <dt className="text-muted-foreground">Monthly revenue</dt><dd className="font-medium text-foreground">{formatUSD(opportunity.estimatedMonthlyRevenue)}</dd>
+                              <dt className="text-muted-foreground">Source</dt><dd className="min-w-0 break-words text-foreground">{opportunity.leadSource}</dd>
                               <dt className="text-muted-foreground">Priority</dt><dd><StatusPill status={opportunity.priority} /></dd>
                               <dt className="text-muted-foreground">Next action</dt><dd className="min-w-0 break-words leading-5 text-foreground">{opportunity.nextAction}</dd>
                               <dt className="text-muted-foreground">Assignee</dt><dd className="min-w-0 break-words text-foreground">{opportunity.assignedTo}</dd>
@@ -387,9 +548,62 @@ export const OwnerPipelineModule = () => {
               onChange={(event) => setLead((current) => ({ ...current, prospectProperty: event.target.value }))}
             />
             <Input
+              placeholder="Phone (+971 XX XXX XXXX)"
+              value={lead.phone}
+              onChange={(event) => setLead((current) => ({ ...current, phone: event.target.value }))}
+            />
+            <Input
+              type="email"
+              placeholder="Email"
+              value={lead.email}
+              onChange={(event) => setLead((current) => ({ ...current, email: event.target.value }))}
+            />
+            <select
+              aria-label="Lead source"
+              value={lead.leadSource}
+              onChange={(event) => setLead((current) => ({ ...current, leadSource: event.target.value }))}
+              className="h-10 max-w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              {leadSources.map((source) => (
+                <option key={source}>{source}</option>
+              ))}
+            </select>
+            <select
+              aria-label="Campaign"
+              value={lead.campaignId}
+              onChange={(event) => setLead((current) => ({ ...current, campaignId: event.target.value }))}
+              className="h-10 max-w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">No campaign</option>
+              {workspace.campaigns.map((campaign) => (
+                <option key={campaign.id} value={campaign.id}>
+                  {campaign.name}
+                </option>
+              ))}
+            </select>
+            <Input
               placeholder="Area"
               value={lead.area}
               onChange={(event) => setLead((current) => ({ ...current, area: event.target.value }))}
+            />
+            <select
+              aria-label="Property type"
+              value={lead.type}
+              onChange={(event) =>
+                setLead((current) => ({ ...current, type: event.target.value as LeadForm["type"] }))
+              }
+              className="h-10 max-w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              {propertyTypes.map((type) => (
+                <option key={type}>{type}</option>
+              ))}
+            </select>
+            <Input
+              type="number"
+              min="0"
+              placeholder="Bedrooms"
+              value={lead.bedrooms}
+              onChange={(event) => setLead((current) => ({ ...current, bedrooms: event.target.value }))}
             />
             <Input
               type="number"
@@ -424,6 +638,12 @@ export const OwnerPipelineModule = () => {
                 <option key={priority}>{priority}</option>
               ))}
             </select>
+            <Input
+              placeholder="Comment (optional)"
+              value={lead.comment}
+              onChange={(event) => setLead((current) => ({ ...current, comment: event.target.value }))}
+              className="sm:col-span-2"
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowLeadDialog(false)}>
