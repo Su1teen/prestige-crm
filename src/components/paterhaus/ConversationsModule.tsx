@@ -8,7 +8,9 @@ import {
   FileText,
   Flag,
   FolderOpen,
+  Info,
   Paperclip,
+  Phone,
   Search,
   Send,
   Sparkles,
@@ -50,7 +52,7 @@ const formatConversationTime = (value: string) => {
 const matchesFolder = (conversation: Conversation, filter: InboxFilter) => {
   if (filter === "unread") return conversation.unread;
   if (filter === "mine") return conversation.assignedTo === CURRENT_PATERHAUS_USER.name;
-  if (filter === "owners") return conversation.contactType === "Owner";
+  if (filter === "owners") return conversation.contactType === "Owner" || conversation.contactType === "Owner Lead";
   if (filter === "guests") return conversation.contactType === "Guest";
   if (filter === "vendors") return conversation.contactType === "Vendor";
   if (filter === "internal") return conversation.contactType === "Internal";
@@ -93,6 +95,18 @@ export const ConversationsModule = ({ onPropertySelect, initialConversationId }:
     : [];
   const property = selected?.propertyId ? workspace.properties.find((item) => item.id === selected.propertyId) : undefined;
   const stay = selected?.stayId ? workspace.stays.find((item) => item.id === selected.stayId) : undefined;
+  const openTasks = selected
+    ? workspace.tasks.filter((task) => task.status !== "Completed" && (property ? task.propertyId === property.id : false))
+    : [];
+  const relatedLead = selected ? workspace.opportunities.find((item) => item.ownerName === selected.contactName) : undefined;
+  const relatedFiles = selected
+    ? workspace.files.filter(
+        (file) =>
+          (selected.propertyId && file.propertyId === selected.propertyId) ||
+          (relatedLead && file.leadId === relatedLead.id),
+      )
+    : [];
+  const whatsappHref = selected?.phone ? `https://wa.me/${selected.phone.replace(/[^\d]/g, "")}` : null;
 
   const folderCount = (filter: InboxFilter) => workspace.conversations.filter((conversation) => matchesFolder(conversation, filter)).length;
   const selectConversation = (conversation: Conversation) => {
@@ -150,7 +164,7 @@ export const ConversationsModule = ({ onPropertySelect, initialConversationId }:
               const lastMessage = workspace.messages.filter((message) => conversation.messageIds.includes(message.id)).sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0];
               return (
                 <button key={conversation.id} type="button" onClick={() => selectConversation(conversation)} className={`w-full border-b border-border/70 p-3 text-left transition-colors ${selectedId === conversation.id ? "border-l-4 border-l-primary bg-primary/10" : "border-l-4 border-l-transparent hover:bg-secondary/35"}`}>
-                  <div className="flex items-start gap-3"><div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-foreground">{conversation.contactName.split(" ").map((part) => part[0]).slice(0, 2).join("")}</div><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><p className={`truncate text-sm ${conversation.unread ? "font-semibold text-foreground" : "font-medium text-foreground"}`}>{conversation.contactName}</p><span className="flex-shrink-0 text-[10px] text-muted-foreground">{formatConversationTime(conversation.lastMessageAt)}</span></div><div className="mt-0.5 flex items-center gap-1"><span className="text-[10px] uppercase tracking-wide text-primary">{conversation.contactType}</span>{(conversation.priority === "High" || conversation.priority === "Urgent") && <Flag className="h-3 w-3 fill-amber-400 text-amber-400" />}{conversation.unread && <span className="ml-auto rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">1</span>}</div><p className="mt-1 truncate text-xs text-muted-foreground">{lastMessage?.text ?? conversation.summary}</p><div className="mt-2 flex min-w-0 items-center justify-between gap-2 text-[10px] text-muted-foreground"><span className="truncate">{linkedProperty?.name ?? "No linked property"}</span><span className="flex-shrink-0">{conversation.assignedTo}</span></div></div></div>
+                  <div className="flex items-start gap-3"><div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-foreground">{conversation.contactName.split(" ").map((part) => part[0]).slice(0, 2).join("")}</div><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><p className={`truncate text-sm ${conversation.unread ? "font-semibold text-foreground" : "font-medium text-foreground"}`}>{conversation.contactName}</p><span className="flex-shrink-0 text-[10px] text-muted-foreground">{formatConversationTime(conversation.lastMessageAt)}</span></div><div className="mt-0.5 flex items-center gap-1"><span className="text-[10px] uppercase tracking-wide text-primary">{conversation.contactType} · {conversation.channel}</span>{(conversation.priority === "High" || conversation.priority === "Urgent") && <Flag className="h-3 w-3 fill-amber-400 text-amber-400" />}{conversation.unread && <span className="ml-auto rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">1</span>}</div><p className="mt-1 truncate text-xs text-muted-foreground">{lastMessage?.text ?? conversation.summary}</p><div className="mt-2 flex min-w-0 items-center justify-between gap-2 text-[10px] text-muted-foreground"><span className="truncate">{linkedProperty?.name ?? "No linked property"}</span><span className="flex-shrink-0">{conversation.assignedTo}</span></div></div></div>
                 </button>
               );
             }) : <div className="p-6 text-center text-sm text-muted-foreground">No conversations match this view.</div>}
@@ -162,7 +176,15 @@ export const ConversationsModule = ({ onPropertySelect, initialConversationId }:
             <div className="border-b border-border p-3">
               <div className="mb-2 xl:hidden"><Button type="button" variant="ghost" size="sm" onClick={() => setMobilePane("list")}><ArrowLeft className="h-4 w-4" /> Back to conversations</Button></div>
               <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="truncate font-semibold text-foreground">{selected.contactName}</h3><StatusPill status={selected.contactType} /><StatusPill status={selected.status} /></div><p className="mt-1 truncate text-sm text-muted-foreground">{selected.subject}</p></div><div className="flex flex-wrap gap-1"><Button type="button" variant="ghost" size="sm" onClick={() => openAi("summary")}><Sparkles className="h-4 w-4" /> Summarise</Button><Button type="button" variant="ghost" size="sm" onClick={() => openAi("reply")}><Bot className="h-4 w-4" /> Suggest reply</Button><Button type="button" variant="ghost" size="sm" onClick={createTask}><ClipboardPlus className="h-4 w-4" /> Create task</Button>{!agentStopped && <Button type="button" variant="outline" size="sm" onClick={stopAgent}><Bot className="h-4 w-4" /> Stop agent</Button>}</div></div>
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs"><span className="text-muted-foreground">Assigned to</span><Select value={selected.assignedTo} onValueChange={(value) => workspace.assignConversation(selected.id, value)}><SelectTrigger className="h-8 w-[170px]"><SelectValue /></SelectTrigger><SelectContent>{PATERHAUS_TEAM.map((member) => <SelectItem key={member.name} value={member.name}>{member.name}</SelectItem>)}</SelectContent></Select>{property && <Button type="button" variant="outline" size="sm" onClick={() => onPropertySelect?.(property.id)}>Open property</Button>}{stay && <Button type="button" variant="outline" size="sm" onClick={() => toast.info(`Stay ${stay.reservationId} is linked to this conversation.`)}>Stay {stay.reservationId}</Button>}<Button type="button" variant="outline" size="sm" className="ml-auto" onClick={() => workspace.setConversationStatus(selected.id, selected.status === "Resolved" ? "Open" : "Resolved")}><CheckCircle2 className="h-4 w-4" /> {selected.status === "Resolved" ? "Reopen" : "Resolve"}</Button></div>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs"><span className="text-muted-foreground">Assigned to</span><Select value={selected.assignedTo} onValueChange={(value) => workspace.assignConversation(selected.id, value)}><SelectTrigger className="h-8 w-[170px]"><SelectValue /></SelectTrigger><SelectContent>{PATERHAUS_TEAM.map((member) => <SelectItem key={member.name} value={member.name}>{member.name}</SelectItem>)}</SelectContent></Select>{property && <Button type="button" variant="outline" size="sm" onClick={() => onPropertySelect?.(property.id)}>Open property</Button>}{stay && <Button type="button" variant="outline" size="sm" onClick={() => toast.info(`Stay ${stay.reservationId} is linked to this conversation.`)}>Stay {stay.reservationId}</Button>}{whatsappHref && <Button type="button" variant="outline" size="sm" asChild><a href={whatsappHref} target="_blank" rel="noreferrer"><Phone className="h-4 w-4" /> WhatsApp</a></Button>}<Button type="button" variant="outline" size="sm" className="ml-auto" onClick={() => workspace.setConversationStatus(selected.id, selected.status === "Resolved" ? "Open" : "Resolved")}><CheckCircle2 className="h-4 w-4" /> {selected.status === "Resolved" ? "Reopen" : "Resolve"}</Button></div>
+              <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-border/70 bg-background/40 p-3 text-xs sm:grid-cols-3 lg:grid-cols-6">
+                <div><p className="text-muted-foreground">Contact</p><p className="mt-0.5 truncate font-medium text-foreground">{selected.contactName}</p>{selected.phone && <p className="truncate text-muted-foreground">{selected.phone}</p>}</div>
+                <div><p className="text-muted-foreground">Type · Channel</p><p className="mt-0.5 font-medium text-foreground">{selected.contactType}</p><p className="text-muted-foreground">{selected.channel}</p></div>
+                <div><p className="text-muted-foreground">Property</p><p className="mt-0.5 truncate font-medium text-foreground">{property?.name ?? "Not linked"}</p></div>
+                <div><p className="text-muted-foreground">Current stage</p><p className="mt-0.5 truncate font-medium text-foreground">{selected.stage ?? selected.status}</p></div>
+                <div><p className="text-muted-foreground">Manager</p><p className="mt-0.5 truncate font-medium text-foreground">{selected.assignedTo}</p></div>
+                <div><p className="text-muted-foreground">Open tasks · Files</p><p className="mt-0.5 font-medium text-foreground">{openTasks.length} tasks · {relatedFiles.length} files</p>{relatedFiles[0] && <p className="flex items-center gap-1 truncate text-muted-foreground"><Info className="h-3 w-3 flex-shrink-0" />{relatedFiles[0].name}</p>}</div>
+              </div>
             </div>
             {agentStopped ? <div className="border-b border-emerald-500/25 bg-emerald-500/10 px-4 py-2 text-xs text-emerald-200"><span className="font-semibold">Human handoff active.</span> The agent is stopped and your replies will be sent as the property management team.</div> : <div className="border-b border-border bg-secondary/30 px-4 py-2 text-xs text-muted-foreground">Agent is handling this thread. Stop the agent to take over manually.</div>}
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-background/25 p-4">

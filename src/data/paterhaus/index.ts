@@ -4,6 +4,7 @@ export * from "./conversations";
 export * from "./files";
 export * from "./finance";
 export * from "./guests";
+export * from "./knowledgeBase";
 export * from "./maintenance";
 export * from "./marketing";
 export * from "./notifications";

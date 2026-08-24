@@ -42,8 +42,8 @@ export type TaskCategory =
 export type Priority = "Low" | "Medium" | "High" | "Urgent";
 export type SnagStatus = "Open" | "Assigned" | "In progress" | "Resolved" | "Accepted";
 export type MaintenanceStatus = "Open" | "Awaiting approval" | "Scheduled" | "In progress" | "Completed";
-export type ConversationContactType = "Owner" | "Guest" | "Vendor" | "Internal";
-export type ConversationChannel = "WhatsApp" | "Email" | "Phone note" | "Internal note";
+export type ConversationContactType = "Owner Lead" | "Owner" | "Guest" | "Vendor" | "Internal";
+export type ConversationChannel = "WhatsApp" | "Instagram" | "Email" | "Phone note" | "Internal note";
 export type ConversationStatus = "Open" | "Waiting for reply" | "Waiting for internal action" | "Resolved";
 export type MessageAuthor = "contact" | "ai" | "team" | "internal";
 export type StatementStatus = "Draft" | "Awaiting approval" | "Approved" | "Scheduled" | "Paid" | "Exception";
@@ -195,6 +195,8 @@ export interface Conversation {
   intent: string;
   summary: string;
   messageIds: string[];
+  phone?: string;
+  stage?: string;
 }
 
 export interface Task {

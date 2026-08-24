@@ -278,6 +278,173 @@ export const demoMarketingLeads: MarketingLead[] = [
   },
 ];
 
+export type MarketingPeriod = "this_month" | "last_month" | "last_90";
+
+export const marketingPeriodLabels: Record<MarketingPeriod, string> = {
+  this_month: "This month",
+  last_month: "Last month",
+  last_90: "Last 90 days",
+};
+
+export const campaignMatchesPeriod = (campaign: Campaign, period: MarketingPeriod): boolean => {
+  if (period === "last_90") return true;
+  if (period === "this_month") return campaign.period === "Aug 2026";
+  return campaign.period === "Jul 2026";
+};
+
+export type FunnelStage = { label: string; value: number };
+
+export const marketingFunnels: Record<MarketingPeriod, FunnelStage[]> = {
+  this_month: [
+    { label: "Ad impressions", value: 18600 },
+    { label: "Landing / form visits", value: 740 },
+    { label: "Leads", value: 85 },
+    { label: "Contacted", value: 61 },
+    { label: "Qualified", value: 27 },
+    { label: "Proposal sent", value: 10 },
+    { label: "Won owners", value: 4 },
+  ],
+  last_month: [
+    { label: "Ad impressions", value: 9800 },
+    { label: "Landing / form visits", value: 400 },
+    { label: "Leads", value: 47 },
+    { label: "Contacted", value: 33 },
+    { label: "Qualified", value: 14 },
+    { label: "Proposal sent", value: 6 },
+    { label: "Won owners", value: 2 },
+  ],
+  last_90: [
+    { label: "Ad impressions", value: 28400 },
+    { label: "Landing / form visits", value: 1140 },
+    { label: "Leads", value: 132 },
+    { label: "Contacted", value: 94 },
+    { label: "Qualified", value: 41 },
+    { label: "Proposal sent", value: 16 },
+    { label: "Won owners", value: 6 },
+  ],
+};
+
+export type AreaQualityRow = { area: string; leads: number; qualified: number; won: number };
+
+export const leadQualityByArea: AreaQualityRow[] = [
+  { area: "Dubai Marina", leads: 42, qualified: 14, won: 2 },
+  { area: "Palm Jumeirah", leads: 28, qualified: 12, won: 3 },
+  { area: "Downtown Dubai", leads: 19, qualified: 7, won: 1 },
+  { area: "Other areas", leads: 43, qualified: 8, won: 0 },
+];
+
+export type FollowUpPerformance = {
+  newLeadsAwaitingResponse: number;
+  contactedWithin15MinPct: number;
+  averageFirstResponseMinutes: number;
+  followUpsOverdue: number;
+  topResponder: string;
+};
+
+export const followUpPerformance: FollowUpPerformance = {
+  newLeadsAwaitingResponse: 3,
+  contactedWithin15MinPct: 83,
+  averageFirstResponseMinutes: 11,
+  followUpsOverdue: 4,
+  topResponder: "Ruslan Tszi",
+};
+
+export type LeadScoreLevel = "high" | "medium" | "low";
+
+export type LeadScore = { level: LeadScoreLevel; reason: string };
+
+const highIntentAreas = ["Dubai Marina", "Palm Jumeirah", "JBR"];
+
+export const scoreMarketingLead = (lead: MarketingLead): LeadScore => {
+  const areaLabel = lead.propertyArea ?? "an unspecified area";
+  const unitLabel = `${lead.bedrooms ? `${lead.bedrooms}BR ` : ""}${lead.propertyType ?? "property"}`;
+  if (
+    lead.propertyArea &&
+    highIntentAreas.includes(lead.propertyArea) &&
+    lead.bedrooms !== undefined &&
+    lead.bedrooms >= 2
+  ) {
+    return {
+      level: "high",
+      reason: `Owner of a ${unitLabel} in ${areaLabel}, submitted contact details and requested a revenue estimate.`,
+    };
+  }
+  if (lead.propertyArea && lead.propertyType) {
+    return {
+      level: "medium",
+      reason: `Provided property details for a ${unitLabel} in ${areaLabel}; engagement so far is limited to the initial enquiry.`,
+    };
+  }
+  return {
+    level: "low",
+    reason: "Enquiry is missing property details; qualify the area and unit type on the first call.",
+  };
+};
+
+export type AutomationPreview = { id: string; trigger: string; steps: string[] };
+
+export const automationPreviews: AutomationPreview[] = [
+  {
+    id: "auto-01",
+    trigger: "New Meta lead",
+    steps: ["Assign to Owner Acquisition", "Create follow-up in 15 min", "Notify assigned manager"],
+  },
+  {
+    id: "auto-02",
+    trigger: "No reply after 24 hours",
+    steps: ["Create follow-up task", "Add \u201cNeeds attention\u201d tag"],
+  },
+  {
+    id: "auto-03",
+    trigger: "Lead marked as Qualified",
+    steps: ["Create property assessment task", "Notify Sales Manager"],
+  },
+  {
+    id: "auto-04",
+    trigger: "Agreement signed",
+    steps: ["Create property onboarding checklist", "Move lead to Owner"],
+  },
+];
+
+export type AudienceSegment = {
+  id: string;
+  label: string;
+  matches: (lead: MarketingLead) => boolean;
+};
+
+export const audienceSegments: AudienceSegment[] = [
+  {
+    id: "seg-high-intent",
+    label: "High-Intent Owners",
+    matches: (lead) => scoreMarketingLead(lead).level === "high",
+  },
+  {
+    id: "seg-marina",
+    label: "Dubai Marina Owners",
+    matches: (lead) => lead.propertyArea === "Dubai Marina",
+  },
+  {
+    id: "seg-palm",
+    label: "Palm Jumeirah Owners",
+    matches: (lead) => lead.propertyArea === "Palm Jumeirah",
+  },
+  {
+    id: "seg-uncontacted",
+    label: "Uncontacted Leads",
+    matches: (lead) => lead.status === "new",
+  },
+  {
+    id: "seg-proposal",
+    label: "Proposal Sent",
+    matches: (lead) => lead.status === "proposal_sent",
+  },
+  {
+    id: "seg-referrals",
+    label: "Past Owners / Referrals",
+    matches: (lead) => lead.source === "referral",
+  },
+];
+
 export const demoLeadMessages: LeadMessage[] = [
   {
     id: "lmsg-001",

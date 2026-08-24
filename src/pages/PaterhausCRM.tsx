@@ -1,26 +1,47 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bell,
+  BookOpenText,
   BriefcaseBusiness,
   CalendarDays,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   CircleDollarSign,
+  FolderOpen,
   Home,
   LayoutDashboard,
   LogOut,
   Megaphone,
   Menu,
   MessageSquare,
+  Plus,
+  Search,
   Settings,
   ShieldCheck,
+  Sparkles,
   UsersRound,
   Wrench,
   type LucideIcon,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { usePaterhausWorkspace, PaterhausWorkspaceProvider } from "@/contexts/PaterhausWorkspaceContext";
 import { CURRENT_PATERHAUS_USER } from "@/data/paterhaus";
@@ -37,6 +58,10 @@ import { ComplianceModule } from "@/components/paterhaus/ComplianceModule";
 import { TeamVendorsModule } from "@/components/paterhaus/TeamVendorsModule";
 import { NotificationsModule } from "@/components/paterhaus/NotificationsModule";
 import { SettingsModule } from "@/components/paterhaus/SettingsModule";
+import { FilesHubModule } from "@/components/paterhaus/FilesHubModule";
+import { KnowledgeBaseModule } from "@/components/paterhaus/KnowledgeBaseModule";
+import { OpsCopilot } from "@/components/paterhaus/OpsCopilot";
+import { Card } from "@/components/ui/card";
 
 export type PaterhausSection =
   | "overview"
@@ -45,11 +70,14 @@ export type PaterhausSection =
   | "marketing"
   | "operations"
   | "calendar"
+  | "files"
   | "stays"
   | "conversations"
   | "finance"
   | "compliance"
   | "team"
+  | "copilot"
+  | "knowledge"
   | "notifications"
   | "settings";
 
@@ -87,14 +115,17 @@ const navGroups: NavGroup[] = [
       { id: "properties", label: "Properties", icon: Home },
       { id: "operations", label: "Operations Board", icon: BriefcaseBusiness },
       { id: "calendar", label: "Calendar", icon: CalendarDays },
+      { id: "files", label: "Files & Documents", icon: FolderOpen },
       { id: "team", label: "Team & Vendors", icon: Wrench },
-      { id: "compliance", label: "Compliance", icon: ShieldCheck },
     ],
   },
   {
-    id: "finance",
-    label: "Finance",
-    items: [{ id: "finance", label: "Finance", icon: CircleDollarSign }],
+    id: "intelligence",
+    label: "Intelligence",
+    items: [
+      { id: "copilot", label: "Ops Copilot", icon: Sparkles },
+      { id: "knowledge", label: "Knowledge Base", icon: BookOpenText },
+    ],
   },
   {
     id: "system",
@@ -104,11 +135,20 @@ const navGroups: NavGroup[] = [
       { id: "settings", label: "Settings", icon: Settings },
     ],
   },
+  {
+    id: "more",
+    label: "More",
+    items: [
+      { id: "stays", label: "Guests & Stays", icon: UsersRound },
+      { id: "finance", label: "Finance", icon: CircleDollarSign },
+      { id: "compliance", label: "Compliance", icon: ShieldCheck },
+    ],
+  },
 ];
 
 const allNavItems = navGroups.flatMap((group) => group.items);
 
-const sectionIds: string[] = [...allNavItems.map((item) => item.id), "stays"];
+const sectionIds: string[] = allNavItems.map((item) => item.id);
 const isPaterhausSection = (value: string): value is PaterhausSection => sectionIds.includes(value);
 
 const groupForSection = (section: PaterhausSection): NavGroup =>
@@ -121,9 +161,10 @@ const sectionLabels: Partial<Record<PaterhausSection, string>> = Object.fromEntr
 const descriptions: Record<string, string> = {
   overview: "Portfolio performance and operational priorities.",
   sales: "Owner acquisition, campaigns and conversations.",
-  operations: "Properties, tasks, turnovers and vendor coordination.",
-  finance: "Owner reporting, payouts and financial KPIs.",
+  operations: "Properties, tasks, turnovers, documents and vendor coordination.",
+  intelligence: "Ops Copilot and the operating knowledge behind it.",
   system: "Notifications and workspace settings.",
+  more: "Secondary modules: guests, finance and compliance.",
 };
 
 const GroupedNav = ({
@@ -136,7 +177,9 @@ const GroupedNav = ({
   urgent: number;
 }) => {
   const activeGroup = groupForSection(section);
-  const [openGroups, setOpenGroups] = useState<string[]>(navGroups.map((group) => group.id));
+  const [openGroups, setOpenGroups] = useState<string[]>(
+    navGroups.filter((group) => group.id !== "more").map((group) => group.id),
+  );
   const toggleGroup = (groupId: string) =>
     setOpenGroups((current) =>
       current.includes(groupId) ? current.filter((id) => id !== groupId) : [...current, groupId],
@@ -241,11 +284,121 @@ const WorkspaceSidebar = ({
   );
 };
 
+const GlobalSearch = ({
+  open,
+  onOpenChange,
+  onNavigate,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onNavigate: (section: PaterhausSection, propertyId?: string) => void;
+}) => {
+  const workspace = usePaterhausWorkspace();
+  const go = (section: PaterhausSection, propertyId?: string) => {
+    onOpenChange(false);
+    onNavigate(section, propertyId);
+  };
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="dark overflow-hidden border-border bg-background p-0">
+        <DialogTitle className="sr-only">Global search</DialogTitle>
+        <Command className="bg-background">
+          <CommandInput placeholder="Search owners, leads, properties, guests, files, tasks, knowledge…" />
+          <CommandList className="max-h-[420px]">
+            <CommandEmpty>No results found.</CommandEmpty>
+            <CommandGroup heading="Owners & Leads">
+              {workspace.opportunities.slice(0, 6).map((lead) => (
+                <CommandItem key={lead.id} value={`lead ${lead.ownerName} ${lead.prospectProperty}`} onSelect={() => go("pipeline")}>
+                  <UsersRound className="h-4 w-4" /> {lead.ownerName} · {lead.stage}
+                </CommandItem>
+              ))}
+              {workspace.owners.slice(0, 4).map((owner) => (
+                <CommandItem key={owner.id} value={`owner ${owner.name}`} onSelect={() => go("pipeline")}>
+                  <UsersRound className="h-4 w-4" /> {owner.name} · Owner
+                </CommandItem>
+              ))}
+            </CommandGroup>
+            <CommandGroup heading="Properties">
+              {workspace.properties.map((property) => (
+                <CommandItem key={property.id} value={`property ${property.name} ${property.area}`} onSelect={() => go("properties", property.id)}>
+                  <Home className="h-4 w-4" /> {property.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+            <CommandGroup heading="Guests">
+              {workspace.guests.slice(0, 5).map((guest) => (
+                <CommandItem key={guest.id} value={`guest ${guest.name}`} onSelect={() => go("stays")}>
+                  <UsersRound className="h-4 w-4" /> {guest.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+            <CommandGroup heading="Files">
+              {workspace.files.slice(0, 6).map((file) => (
+                <CommandItem key={file.id} value={`file ${file.name}`} onSelect={() => go("files")}>
+                  <FolderOpen className="h-4 w-4" /> {file.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+            <CommandGroup heading="Tasks">
+              {workspace.tasks.filter((task) => task.status !== "Completed").slice(0, 6).map((task) => (
+                <CommandItem key={task.id} value={`task ${task.title}`} onSelect={() => go("operations")}>
+                  <BriefcaseBusiness className="h-4 w-4" /> {task.title}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+            <CommandGroup heading="Knowledge">
+              {workspace.knowledgeItems.slice(0, 6).map((item) => (
+                <CommandItem key={item.id} value={`knowledge ${item.title} ${item.tags.join(" ")}`} onSelect={() => go("knowledge")}>
+                  <BookOpenText className="h-4 w-4" /> {item.title}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const CopilotSection = ({ onOpenProperty }: { onOpenProperty: (propertyId: string) => void }) => (
+  <div className="space-y-6">
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Intelligence</p>
+      <h2 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">Ops Copilot</h2>
+      <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+        Ask operational questions across properties, stays, tasks and owners. Answers are grounded in the workspace data and the Knowledge Base.
+      </p>
+    </div>
+    <Card className="border-primary/25 bg-primary/5 p-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="min-w-0">
+          <p className="font-semibold text-foreground">Open the Copilot panel</p>
+          <p className="mt-1 text-sm text-muted-foreground">Summaries, drafts and follow-up actions for the current portfolio context.</p>
+        </div>
+        <OpsCopilot onOpenProperty={onOpenProperty} />
+      </div>
+    </Card>
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+      {[
+        { title: "Operational summaries", text: "Today's risks, readiness gaps and overdue work in one answer." },
+        { title: "Owner & guest drafts", text: "Maintenance approvals, weekly updates and incident responses drafted for review." },
+        { title: "Grounded in knowledge", text: "SOPs, property profiles and vendor rules from the Knowledge Base shape every reply." },
+      ].map((item) => (
+        <Card key={item.title} className="border-border/80 bg-card/70 p-4">
+          <p className="font-medium text-foreground">{item.title}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{item.text}</p>
+        </Card>
+      ))}
+    </div>
+  </div>
+);
+
 const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
   const [activeSection, setActiveSection] = useState<PaterhausSection>("overview");
   const [collapsed, setCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [targetPropertyId, setTargetPropertyId] = useState<string>();
   const [targetTaskId, setTargetTaskId] = useState<string>();
   const [targetConversationId, setTargetConversationId] = useState<string>();
@@ -261,6 +414,22 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
     setMobileNavOpen(false);
   };
 
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setSearchOpen((current) => !current);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  const quickCreate = (target: PaterhausSection, message: string) => {
+    setActiveSection(target);
+    toast.info(message);
+  };
+
   const renderSection = () => {
     if (activeSection === "overview") return <PortfolioOverview onNavigate={(section, propertyId) => {
       if (isPaterhausSection(section)) setActiveSection(section);
@@ -271,6 +440,9 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
     if (activeSection === "marketing") return <MarketingModule />;
     if (activeSection === "operations") return <OperationsBoardModule onPropertySelect={openProperty} initialTaskId={targetTaskId} />;
     if (activeSection === "calendar") return <CalendarModule onPropertySelect={openProperty} />;
+    if (activeSection === "files") return <FilesHubModule onOpenProperty={openProperty} />;
+    if (activeSection === "knowledge") return <KnowledgeBaseModule />;
+    if (activeSection === "copilot") return <CopilotSection onOpenProperty={openProperty} />;
     if (activeSection === "stays") return <GuestsStaysModule onPropertySelect={openProperty} />;
     if (activeSection === "conversations") return <ConversationsModule onPropertySelect={openProperty} initialConversationId={targetConversationId} />;
     if (activeSection === "finance") return <FinanceModule />;
@@ -294,6 +466,30 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
                 <div className="min-w-0"><h1 className="truncate text-lg font-semibold text-foreground">{sectionLabels[activeSection] ?? "Paterhaus"}</h1><p className="hidden text-xs text-muted-foreground sm:block">{descriptions[activeGroup.id]}</p></div>
               </div>
               <div className="flex flex-shrink-0 items-center gap-2">
+                <span className="hidden rounded-full border border-border px-2.5 py-1 text-[11px] text-muted-foreground lg:inline">Demo workspace</span>
+                <Button type="button" variant="outline" size="sm" className="hidden gap-2 text-muted-foreground sm:flex" onClick={() => setSearchOpen(true)}>
+                  <Search className="h-4 w-4" />
+                  <span className="hidden md:inline">Search</span>
+                  <kbd className="hidden rounded border border-border bg-secondary/60 px-1.5 text-[10px] md:inline">⌘K</kbd>
+                </Button>
+                <Button type="button" variant="ghost" size="icon" className="sm:hidden" aria-label="Search" onClick={() => setSearchOpen(true)}>
+                  <Search className="h-4 w-4" />
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button type="button" size="sm">
+                      <Plus className="h-4 w-4" />
+                      <span className="hidden sm:inline">Create</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="dark border-border bg-background">
+                    <DropdownMenuItem onClick={() => quickCreate("pipeline", "Use “New Lead” in the Owner Pipeline to add a lead.")}>New Lead</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => quickCreate("operations", "Use “New task” on the Operations Board to create a task.")}>New Task</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => quickCreate("files", "Use “Upload file” in Files & Documents to add a document.")}>Upload File</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => quickCreate("knowledge", "Use “Add knowledge” to record a new knowledge item.")}>Add Knowledge Item</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => quickCreate("pipeline", "Open a lead and add an internal note to log owner context.")}>Log Owner Note</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button type="button" variant="ghost" size="icon" className="relative" aria-label={`Notifications, ${unread} unread`} onClick={() => setNotificationsOpen(true)}>
                   <Bell className="h-4 w-4" />
                   {unread > 0 && <span className="absolute right-1 top-1 min-w-4 rounded-full bg-primary px-1 text-[10px] leading-4 text-primary-foreground">{unread}</span>}
@@ -319,6 +515,14 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
           </div>
         </SheetContent>
       </Sheet>
+      <GlobalSearch
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        onNavigate={(section, propertyId) => {
+          if (propertyId) setTargetPropertyId(propertyId);
+          setActiveSection(section);
+        }}
+      />
       <Sheet open={notificationsOpen} onOpenChange={setNotificationsOpen}>
         <SheetContent className="dark w-full overflow-y-auto border-border bg-background sm:max-w-xl">
           <SheetHeader><SheetTitle>Notifications</SheetTitle></SheetHeader>
