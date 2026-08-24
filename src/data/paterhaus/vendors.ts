@@ -13,7 +13,7 @@ export const paterhausVendors: Vendor[] = [
     activeTaskCount: 3,
     completionRate: 94,
     slaRisk: "Medium",
-    costRange: "AED 180–420",
+    costRange: "$180–420",
     qualityScore: 4.6,
   },
   {
@@ -28,7 +28,7 @@ export const paterhausVendors: Vendor[] = [
     activeTaskCount: 2,
     completionRate: 89,
     slaRisk: "High",
-    costRange: "AED 250–2,800",
+    costRange: "$250–2,800",
     qualityScore: 4.3,
   },
   {
@@ -43,7 +43,7 @@ export const paterhausVendors: Vendor[] = [
     activeTaskCount: 1,
     completionRate: 98,
     slaRisk: "Low",
-    costRange: "AED 850–1,900",
+    costRange: "$850–1,900",
     qualityScore: 4.8,
   },
   {
@@ -58,7 +58,7 @@ export const paterhausVendors: Vendor[] = [
     activeTaskCount: 2,
     completionRate: 96,
     slaRisk: "Low",
-    costRange: "AED 80–260",
+    costRange: "$80–260",
     qualityScore: 4.5,
   },
   {
@@ -73,7 +73,7 @@ export const paterhausVendors: Vendor[] = [
     activeTaskCount: 1,
     completionRate: 97,
     slaRisk: "Low",
-    costRange: "AED 120–450",
+    costRange: "$120–450",
     qualityScore: 4.7,
   },
 ];

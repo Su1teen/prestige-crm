@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { usePaterhausWorkspace } from "@/contexts/PaterhausWorkspaceContext";
 import {
-  formatAED,
+  formatUSD,
   getPortfolioFinancialSummary,
   getRevenueDelta,
   getRevenueSeries,
@@ -36,7 +36,7 @@ export const FinanceModule = () => {
       <SectionHeader
         eyebrow="Finance control"
         title="Finance & Owner Reports"
-        description="Reconciled AED statements, property P&L and owner-facing reporting status."
+        description="Reconciled USD statements, property P&L and owner-facing reporting status."
       />
       <div className="flex flex-wrap items-center gap-2">
         <Filter className="h-4 w-4 text-muted-foreground" />
@@ -78,7 +78,7 @@ export const FinanceModule = () => {
         ].map(([label, value]) => (
           <Card key={label} className="border-border/80 bg-card/80 p-4">
             <p className="text-xs text-muted-foreground">{label}</p>
-            <p className="mt-2 text-lg font-semibold text-foreground">{formatAED(Number(value))}</p>
+            <p className="mt-2 text-lg font-semibold text-foreground">{formatUSD(Number(value))}</p>
           </Card>
         ))}
       </div>
@@ -130,8 +130,8 @@ export const FinanceModule = () => {
                         </button>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{property?.name}</td>
-                      <td className="px-4 py-3 text-foreground">{formatAED(statement.grossRevenue)}</td>
-                      <td className="px-4 py-3 font-medium text-primary">{formatAED(statement.netPayout)}</td>
+                      <td className="px-4 py-3 text-foreground">{formatUSD(statement.grossRevenue)}</td>
+                      <td className="px-4 py-3 font-medium text-primary">{formatUSD(statement.netPayout)}</td>
                       <td className="px-4 py-3 text-muted-foreground">{statement.payoutDate}</td>
                       <td className="px-4 py-3">
                         <StatusPill status={statement.status} />
@@ -164,7 +164,7 @@ export const FinanceModule = () => {
                       Occupancy {property?.occupancyRate}% · prior period comparison available in report
                     </span>
                   </span>
-                  <span className="font-medium text-primary">{formatAED(reconcileStatement(statement))}</span>
+                  <span className="font-medium text-primary">{formatUSD(reconcileStatement(statement))}</span>
                 </div>
               );
             })}
@@ -214,16 +214,16 @@ export const FinanceModule = () => {
                       {workspace.properties.find((item) => item.id === selected.propertyId)?.occupancyRate}%
                     </span>
                     <span className="text-muted-foreground">Revenue</span>
-                    <span className="text-right text-foreground">{formatAED(selected.grossRevenue)}</span>
+                    <span className="text-right text-foreground">{formatUSD(selected.grossRevenue)}</span>
                     <span className="text-muted-foreground">Expenses</span>
                     <span className="text-right text-foreground">
-                      {formatAED(selected.channelFees + selected.cleaningLaundry + selected.maintenance)}
+                      {formatUSD(selected.channelFees + selected.cleaningLaundry + selected.maintenance)}
                     </span>
                     <span className="text-muted-foreground">Management fee</span>
-                    <span className="text-right text-foreground">{formatAED(selected.managementFee)}</span>
+                    <span className="text-right text-foreground">{formatUSD(selected.managementFee)}</span>
                     <span className="font-medium text-foreground">Net payout</span>
                     <span className="text-right font-semibold text-primary">
-                      {formatAED(reconcileStatement(selected))}
+                      {formatUSD(reconcileStatement(selected))}
                     </span>
                   </div>
                 </Card>

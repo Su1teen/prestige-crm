@@ -1,5 +1,9 @@
 import { createContext, type ReactNode, useContext, useState } from "react";
 import {
+  demoCampaigns,
+  demoFiles,
+  demoLeadMessages,
+  demoMarketingLeads,
   paterhausActivity,
   paterhausComplianceItems,
   paterhausConversations,
@@ -18,6 +22,8 @@ import {
   CURRENT_PATERHAUS_USER,
   PATERHAUS_TODAY,
 } from "@/data/paterhaus";
+import type { DemoFile } from "@/data/paterhaus/files";
+import type { Campaign, LeadMessage, MarketingLead } from "@/data/paterhaus/marketing";
 import type {
   ActivityEvent,
   Conversation,
@@ -73,6 +79,31 @@ export interface NewOpportunityInput {
   leadSource: string;
   priority: OwnerOpportunity["priority"];
   nextAction: string;
+  phone?: string;
+  email?: string;
+  campaignId?: string;
+  bedrooms?: number;
+  notes?: string;
+}
+
+export interface NewMarketingLeadInput {
+  name: string;
+  phone: string;
+  email: string;
+  campaignId?: string;
+  propertyArea?: string;
+  propertyType?: MarketingLead["propertyType"];
+  bedrooms?: number;
+  comment?: string;
+}
+
+export interface NewDemoFileInput {
+  name: string;
+  type: DemoFile["type"];
+  sizeKb: number;
+  leadId?: string;
+  propertyId?: string;
+  description?: string;
 }
 
 interface NewPropertyInput {
@@ -115,6 +146,14 @@ interface PaterhausWorkspaceContextValue {
   assignConversation: (conversationId: string, assignedTo: string) => void;
   moveOpportunityStage: (opportunityId: string, stage: OpportunityStage, lostReason?: string) => void;
   addOpportunity: (input: NewOpportunityInput) => void;
+  files: DemoFile[];
+  addFile: (input: NewDemoFileInput) => void;
+  removeFile: (fileId: string) => void;
+  campaigns: Campaign[];
+  marketingLeads: MarketingLead[];
+  addMarketingLead: (input: NewMarketingLeadInput) => void;
+  leadMessages: LeadMessage[];
+  sendLeadMessage: (opportunityId: string, text: string) => void;
   sendMessage: (conversationId: string, text: string, internal?: boolean) => void;
   createTask: (input: NewTaskInput) => void;
   setTaskStatus: (taskId: string, status: Task["status"]) => void;
@@ -147,6 +186,10 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
   const [notifications, setNotifications] = useState<Notification[]>(paterhausNotifications);
   const [compliance] = useState(paterhausComplianceItems);
   const [activity, setActivity] = useState<ActivityEvent[]>(paterhausActivity);
+  const [files, setFiles] = useState<DemoFile[]>(demoFiles);
+  const [campaigns, setCampaigns] = useState<Campaign[]>(demoCampaigns);
+  const [marketingLeads, setMarketingLeads] = useState<MarketingLead[]>(demoMarketingLeads);
+  const [leadMessages, setLeadMessages] = useState<LeadMessage[]>(demoLeadMessages);
   const [settings, setSettings] = useState<PaterhausSettings>({
     workspaceName: "Paterhaus Property Management",
     expenseApprovalThreshold: 1000,
@@ -257,7 +300,11 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
       leadSource: input.leadSource,
       lastCommunication: PATERHAUS_TODAY,
       priority: input.priority,
-      notes: "New demo lead added from the local Owner Pipeline workspace.",
+      notes: input.notes?.trim() || "New demo lead added from the local Owner Pipeline workspace.",
+      phone: input.phone,
+      email: input.email,
+      campaignId: input.campaignId,
+      bedrooms: input.bedrooms,
       expectedRevenueMin: Math.round(input.estimatedMonthlyRevenue * 0.9),
       expectedRevenueMax: Math.round(input.estimatedMonthlyRevenue * 1.1),
       proposalStatus: "Not started",
@@ -268,6 +315,82 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
       activity: [`Lead added by ${CURRENT_PATERHAUS_USER.name} on ${PATERHAUS_TODAY}`],
     };
     setOpportunities((current) => [opportunity, ...current]);
+  };
+
+  const addFile = (input: NewDemoFileInput) => {
+    setFiles((current) => [
+      { ...input, id: nextId("file", current.length), uploadedAt: PATERHAUS_TODAY },
+      ...current,
+    ]);
+  };
+
+  const removeFile = (fileId: string) => {
+    setFiles((current) => current.filter((file) => file.id !== fileId));
+  };
+
+  const addMarketingLead = (input: NewMarketingLeadInput) => {
+    const createdAt = new Date().toISOString();
+    setMarketingLeads((current) => [
+      {
+        id: nextId("mlead", current.length),
+        name: input.name,
+        phone: input.phone,
+        email: input.email,
+        source: "meta_lead_ads",
+        campaignId: input.campaignId,
+        status: "new",
+        assignedTo: CURRENT_PATERHAUS_USER.name,
+        propertyArea: input.propertyArea,
+        propertyType: input.propertyType,
+        bedrooms: input.bedrooms,
+        createdAt,
+      },
+      ...current,
+    ]);
+    if (input.campaignId) {
+      setCampaigns((current) =>
+        current.map((campaign) =>
+          campaign.id === input.campaignId ? { ...campaign, leads: campaign.leads + 1 } : campaign,
+        ),
+      );
+    }
+    addOpportunity({
+      ownerName: input.name,
+      prospectProperty: input.propertyArea ? `${input.propertyArea} prospect` : "Prospect property",
+      area: input.propertyArea ?? "Dubai",
+      type:
+        input.propertyType === "villa"
+          ? "Villa"
+          : input.propertyType === "townhouse"
+            ? "Townhouse"
+            : "Apartment",
+      estimatedMonthlyRevenue: 4000,
+      stage: "New Lead",
+      assignedTo: CURRENT_PATERHAUS_USER.name,
+      leadSource: "Meta Lead Ads",
+      priority: "Medium",
+      nextAction: "Contact new Meta lead",
+      phone: input.phone,
+      email: input.email,
+      campaignId: input.campaignId,
+      bedrooms: input.bedrooms,
+      notes: input.comment,
+    });
+  };
+
+  const sendLeadMessage = (opportunityId: string, text: string) => {
+    if (!text.trim()) return;
+    setLeadMessages((current) => [
+      ...current,
+      {
+        id: nextId("lmsg", current.length),
+        opportunityId,
+        direction: "outbound",
+        channel: "whatsapp",
+        text: text.trim(),
+        timestamp: `${PATERHAUS_TODAY}T12:00:00`,
+      },
+    ]);
   };
 
   const sendMessage = (conversationId: string, text: string, internal = false) => {
@@ -401,7 +524,7 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
     addActivity({
       propertyId: task.propertyId,
       actor: "Khalid Al Farsi",
-      text: `Owner approved ${task.costEstimate ? `AED ${task.costEstimate.toLocaleString("en-GB")} ` : ""}expense`,
+      text: `Owner approved ${task.costEstimate ? `$${task.costEstimate.toLocaleString("en-US")} ` : ""}expense`,
       type: "Finance",
     });
   };
@@ -574,6 +697,14 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
     assignConversation,
     moveOpportunityStage,
     addOpportunity,
+    files,
+    addFile,
+    removeFile,
+    campaigns,
+    marketingLeads,
+    addMarketingLead,
+    leadMessages,
+    sendLeadMessage,
     sendMessage,
     createTask,
     setTaskStatus,

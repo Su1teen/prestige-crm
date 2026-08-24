@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { usePaterhausWorkspace } from "@/contexts/PaterhausWorkspaceContext";
-import { formatAED } from "@/data/paterhaus";
+import { formatUSD } from "@/data/paterhaus";
 import type { Guest, Stay } from "@/types/paterhaus";
 import { EmptyState, SectionHeader, StatusPill } from "./shared";
 
@@ -77,7 +77,7 @@ const StayDetail = ({
               </p>
               <p className="text-sm text-muted-foreground">
                 <span className="block text-xs">Booking value</span>
-                <span className="text-foreground">{formatAED(stay.bookingValue)}</span>
+                <span className="text-foreground">{formatUSD(stay.bookingValue)}</span>
               </p>
               <p className="text-sm text-muted-foreground">
                 <span className="block text-xs">Guest count</span>

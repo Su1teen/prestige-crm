@@ -112,6 +112,10 @@ export interface OwnerOpportunity {
   lastCommunication: string;
   priority: Priority;
   notes: string;
+  phone?: string;
+  email?: string;
+  campaignId?: string;
+  bedrooms?: number;
   expectedRevenueMin?: number;
   expectedRevenueMax?: number;
   proposalStatus?: "Not started" | "Draft" | "Sent" | "Accepted" | "Declined";

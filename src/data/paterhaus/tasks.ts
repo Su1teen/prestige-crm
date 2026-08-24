@@ -45,7 +45,7 @@ export const paterhausTasks: Task[] = [
     propertyId: "prop-palm-crescent",
     category: "Finance approval",
     title: "Approve cooling system repair",
-    description: "Owner approval required for non-routine AED 2,800 repair before the next booking.",
+    description: "Owner approval required for non-routine $2,800 repair before the next booking.",
     priority: "Urgent",
     dueAt: "2025-08-21T12:00:00",
     assignee: RUSLAN_TSZI.name,

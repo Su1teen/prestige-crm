@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { usePaterhausWorkspace } from "@/contexts/PaterhausWorkspaceContext";
 import {
-  formatAED,
+  formatUSD,
   formatPaterhausToday,
   getCheckInsToday,
   getCheckOutsToday,
@@ -306,14 +306,14 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
         />
         <KpiCard
           label="MTD Revenue"
-          value={formatAED(metrics.monthToDateRevenue)}
+          value={formatUSD(metrics.monthToDateRevenue)}
           detail={`${Math.round((metrics.monthToDateRevenue / metrics.revenueTarget) * 100)}% of target`}
           tone="good"
           icon={<MetricIcon kind="up" />}
         />
         <KpiCard
           label="Net Payouts Due"
-          value={formatAED(metrics.netOwnerPayoutsDue)}
+          value={formatUSD(metrics.netOwnerPayoutsDue)}
           detail="September run · 5 Sep"
           tone="neutral"
           icon={<MetricIcon kind="flat" />}
@@ -346,10 +346,10 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h3 className="font-semibold text-foreground">Revenue vs target</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Weekly portfolio performance · AED</p>
+              <p className="mt-1 text-sm text-muted-foreground">Weekly portfolio performance · USD</p>
             </div>
             <div className="text-right">
-              <p className="text-lg font-semibold text-foreground">{formatAED(metrics.monthToDateRevenue)}</p>
+              <p className="text-lg font-semibold text-foreground">{formatUSD(metrics.monthToDateRevenue)}</p>
               <p className={revenueDelta >= 0 ? "text-xs text-emerald-300" : "text-xs text-red-300"}>
                 {revenueDelta >= 0 ? "+" : ""}
                 {revenueDelta.toFixed(1)}% vs previous period
@@ -380,7 +380,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
                 />
                 <Tooltip
                   formatter={(value: number, name: string) => [
-                    formatAED(value),
+                    formatUSD(value),
                     name === "target" ? "Target" : "Revenue",
                   ]}
                   contentStyle={{
@@ -584,7 +584,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
                   <div>
                     <p className="text-sm font-medium text-foreground">{statement.period} statement</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {formatAED(statement.netPayout)} net payout · {statement.status}
+                      {formatUSD(statement.netPayout)} net payout · {statement.status}
                     </p>
                   </div>
                 </div>
@@ -713,7 +713,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
                   </label>
                   {actionKind === "maintenance" && (
                     <label className="block text-sm text-foreground">
-                      Cost estimate (AED)
+                      Cost estimate (USD)
                       <input
                         type="number"
                         min="0"
@@ -744,7 +744,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
                     />
                   </label>
                   <label className="block text-sm text-foreground">
-                    Cost estimate (AED)
+                    Cost estimate (USD)
                     <input
                       type="number"
                       min="0"
@@ -820,7 +820,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
                     </label>
                   </div>
                   <label className="block text-sm text-foreground">
-                    Booking value (AED)
+                    Booking value (USD)
                     <input
                       type="number"
                       min="0"

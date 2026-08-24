@@ -22,7 +22,7 @@ export const paterhausActivity: ActivityEvent[] = [
     id: "activity-03",
     propertyId: "prop-palm-crescent",
     actor: "Khalid Al Farsi",
-    text: "Owner approval requested for AED 2,800 cooling repair",
+    text: "Owner approval requested for $2,800 cooling repair",
     timestamp: "2025-08-20T07:35:00",
     type: "Finance",
   },

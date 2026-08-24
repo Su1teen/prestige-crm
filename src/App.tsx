@@ -3,7 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider, useAuth, workspacePathForRole } from "@/contexts/AuthContext";
+import { AuthProvider, isPaterhausRole, useAuth, workspacePathForRole } from "@/contexts/AuthContext";
 import LoginPage from "./pages/LoginPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import PaterhausCRM from "./pages/PaterhausCRM.tsx";
@@ -21,13 +21,13 @@ const AppRoutes = () => {
       <Route
         path="/steppe/*"
         element={
-          isAuthenticated && role !== "PATERHAUS" ? <SteppeHotelCRM onLogout={logout} /> : <Navigate to={isAuthenticated ? workspacePath : "/"} replace />
+          isAuthenticated && !isPaterhausRole(role) ? <SteppeHotelCRM onLogout={logout} /> : <Navigate to={isAuthenticated ? workspacePath : "/"} replace />
         }
       />
       <Route
         path="/paterhaus/*"
         element={
-          isAuthenticated && role === "PATERHAUS" ? <PaterhausCRM onLogout={logout} /> : <Navigate to={isAuthenticated ? workspacePath : "/"} replace />
+          isAuthenticated && isPaterhausRole(role) ? <PaterhausCRM onLogout={logout} /> : <Navigate to={isAuthenticated ? workspacePath : "/"} replace />
         }
       />
       <Route path="/luxe" element={<Navigate to={isAuthenticated ? workspacePath : "/"} replace />} />
