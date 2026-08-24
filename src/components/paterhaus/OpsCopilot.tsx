@@ -12,8 +12,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { usePaterhausWorkspace } from "@/contexts/PaterhausWorkspaceContext";
-import { formatAED, PATERHAUS_TODAY } from "@/data/paterhaus";
+import { CURRENT_PATERHAUS_USER, formatAED, PATERHAUS_TODAY } from "@/data/paterhaus";
 import type { TaskCategory } from "@/types/paterhaus";
 
 interface CopilotProps {
@@ -51,6 +52,7 @@ const suggestions = [
 
 export const OpsCopilot = ({ propertyId, conversationId, onOpenProperty, onDraftReply }: CopilotProps) => {
   const workspace = usePaterhausWorkspace();
+  const [open, setOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [response, setResponse] = useState<CopilotResponse | null>(null);
   const [confirmAction, setConfirmAction] = useState<CopilotAction>(null);
@@ -115,7 +117,7 @@ export const OpsCopilot = ({ propertyId, conversationId, onOpenProperty, onDraft
     if (normalized.includes("maintenance") || normalized.includes("cost")) {
       const draft = `Hello ${owner?.name ?? "Owner"},\n\n${maintenanceProperty?.name ?? "The property"} requires ${
         maintenance ? formatAED(maintenance.cost) : "non-routine"
-      } maintenance work for ${maintenance?.title ?? "the reported issue"}. We recommend approval to protect the next stay.\n\nAmelia Hart`;
+      } maintenance work for ${maintenance?.title ?? "the reported issue"}. We recommend approval to protect the next stay.\n\n${CURRENT_PATERHAUS_USER.name}`;
       setResponse({
         title: "Owner maintenance-cost draft",
         blocks: [
@@ -347,20 +349,36 @@ export const OpsCopilot = ({ propertyId, conversationId, onOpenProperty, onDraft
     ? workspace.properties.find((item) => item.id === response.targetPropertyId)?.name
     : conversation?.subject;
 
+  const visibleSuggestions = conversationId
+    ? ["Summarise the guest incident", "Prepare a response to the owner about the maintenance cost", "Create a task from this conversation", "Draft a vendor follow-up"]
+    : propertyId
+      ? ["Prepare the weekly owner update", "Which properties are not ready for check-in?", "List overdue snagging tasks", "Explain the revenue variance"]
+      : suggestions.slice(0, 6);
+
   return (
-    <Card className="border-primary/25 bg-primary/5 p-5">
+    <>
+      <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
+        <Sparkles className="h-4 w-4" /> Ops Copilot
+      </Button>
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent className="dark w-full overflow-y-auto border-border bg-background sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>Ops Copilot</SheetTitle>
+            <SheetDescription>Current context: {contextLabel}</SheetDescription>
+          </SheetHeader>
+          <Card className="mt-6 border-primary/25 bg-primary/5 p-5">
       <div className="flex items-start gap-3">
         <span className="rounded-xl bg-primary/15 p-2 text-primary">
           <Sparkles className="h-5 w-5" />
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Paterhaus Ops Copilot</p>
-          <h3 className="mt-1 font-semibold text-foreground">Deterministic operational assistant</h3>
+          <h3 className="mt-1 font-semibold text-foreground">Operational support, on demand</h3>
           <p className="mt-1 text-xs text-muted-foreground">Analysing: {contextLabel}</p>
         </div>
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
-        {suggestions.map((suggestion) => (
+        {visibleSuggestions.map((suggestion) => (
           <Button
             key={suggestion}
             type="button"
@@ -454,6 +472,9 @@ export const OpsCopilot = ({ propertyId, conversationId, onOpenProperty, onDraft
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+          </Card>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 };

@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { usePaterhausWorkspace, type NewOpportunityInput } from "@/contexts/PaterhausWorkspaceContext";
-import { formatAED } from "@/data/paterhaus";
+import { CURRENT_PATERHAUS_USER, formatAED, formatPaterhausDateTime } from "@/data/paterhaus";
 import type { OpportunityStage, OwnerOpportunity, Priority } from "@/types/paterhaus";
 import { EmptyState, SectionHeader, StatusPill } from "./shared";
 
@@ -59,7 +59,7 @@ const initialLead: LeadForm = {
   type: "Apartment",
   estimatedMonthlyRevenue: "18000",
   stage: "New Lead",
-  assignedTo: "Amelia Hart",
+  assignedTo: CURRENT_PATERHAUS_USER.name,
   leadSource: "Referral",
   priority: "Medium",
   nextAction: "Qualify investment objectives",
@@ -161,7 +161,7 @@ const OpportunityDetail = ({
               ))}
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              Follow-up reminder: {opportunity.followUpAt?.replace("T", " ") ?? "Not scheduled"}
+              Follow-up reminder: {opportunity.followUpAt ? formatPaterhausDateTime(opportunity.followUpAt) : "Not scheduled"}
             </p>
           </Card>
           {checklist.length > 0 && (
@@ -284,7 +284,7 @@ export const OwnerPipelineModule = () => {
                 setStageFilter(event.target.value);
               }
             }}
-            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+            className="h-10 max-w-full rounded-md border border-input bg-background px-3 text-sm"
           >
             <option>All</option>
             {stages.map((stage) => (
@@ -297,7 +297,7 @@ export const OwnerPipelineModule = () => {
             onChange={(event) => {
               if (event.target.value === "All" || isPriority(event.target.value)) setPriorityFilter(event.target.value);
             }}
-            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+            className="h-10 max-w-full rounded-md border border-input bg-background px-3 text-sm"
           >
             <option>All</option>
             {priorities.map((priority) => (
@@ -312,57 +312,54 @@ export const OwnerPipelineModule = () => {
           description="Adjust the search or filters to see pipeline records."
         />
       ) : (
-        <div className="grid gap-3 overflow-x-auto pb-3 xl:grid-cols-11">
-          {stages.map((stage) => {
-            const opportunities = filtered.filter((opportunity) => opportunity.stage === stage);
-            return (
-              <Card key={stage} className="min-w-[240px] border-border/80 bg-card/60 p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-xs font-semibold text-foreground">{stage}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{opportunities.length} opportunities</p>
-                  </div>
-                  <StatusPill status={`${opportunities.length}`} />
-                </div>
-                <div className="mt-3 space-y-2">
-                  {opportunities.map((opportunity) => (
-                    <div key={opportunity.id} className="rounded-xl border border-border/70 bg-background/40 p-3">
-                      <button type="button" onClick={() => setSelected(opportunity)} className="w-full text-left">
-                        <div className="flex items-start gap-2">
-                          <UserRound className="mt-0.5 h-4 w-4 text-primary" />
-                          <span className="min-w-0">
-                            <span className="block truncate text-sm font-medium text-foreground">
-                              {opportunity.ownerName}
-                            </span>
-                            <span className="mt-1 block truncate text-xs text-muted-foreground">
-                              {opportunity.prospectProperty}
-                            </span>
-                          </span>
-                        </div>
-                        <p className="mt-3 text-xs text-muted-foreground">
-                          {opportunity.area} · {formatAED(opportunity.estimatedMonthlyRevenue)}/mo
-                        </p>
-                        <div className="mt-2 flex items-center justify-between gap-2">
-                          <StatusPill status={opportunity.priority} />
-                          <span className="text-[11px] text-muted-foreground">{opportunity.assignedTo}</span>
-                        </div>
-                      </button>
-                      <select
-                        aria-label={`Move ${opportunity.ownerName} opportunity`}
-                        value={opportunity.stage}
-                        onChange={(event) => changeStage(opportunity, event.target.value)}
-                        className="mt-3 h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
-                      >
-                        {stages.map((nextStage) => (
-                          <option key={nextStage}>{nextStage}</option>
-                        ))}
-                      </select>
+        <div>
+          <div className="mb-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+            <span>Scroll horizontally to review every stage</span>
+            <span aria-hidden="true">Shift + wheel →</span>
+          </div>
+          <div className="overflow-x-auto overscroll-x-contain pb-4">
+            <div className="flex w-max min-w-full gap-4">
+              {stages.map((stage) => {
+                const opportunities = filtered.filter((opportunity) => opportunity.stage === stage);
+                return (
+                  <Card key={stage} className="w-[300px] min-w-[300px] border-border/80 bg-card/60 p-3">
+                    <div className="flex min-h-12 items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold leading-5 text-foreground">{stage}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{opportunities.length} opportunities</p>
+                      </div>
+                      <StatusPill status={`${opportunities.length}`} />
                     </div>
-                  ))}
-                </div>
-              </Card>
-            );
-          })}
+                    <div className="mt-3 space-y-3">
+                      {opportunities.map((opportunity) => (
+                        <div key={opportunity.id} className="overflow-hidden rounded-xl border border-border/70 bg-background/40 p-3">
+                          <button type="button" onClick={() => setSelected(opportunity)} className="w-full text-left">
+                            <div className="flex items-start gap-2">
+                              <UserRound className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                              <span className="min-w-0">
+                                <span className="block break-words text-sm font-semibold leading-5 text-foreground">{opportunity.ownerName}</span>
+                                <span className="mt-1 block break-words text-xs leading-5 text-muted-foreground">{opportunity.prospectProperty}</span>
+                              </span>
+                            </div>
+                            <dl className="mt-3 grid grid-cols-[84px_minmax(0,1fr)] gap-x-2 gap-y-2 text-xs">
+                              <dt className="text-muted-foreground">Area</dt><dd className="min-w-0 break-words text-foreground">{opportunity.area}</dd>
+                              <dt className="text-muted-foreground">Monthly revenue</dt><dd className="font-medium text-foreground">{formatAED(opportunity.estimatedMonthlyRevenue)}</dd>
+                              <dt className="text-muted-foreground">Priority</dt><dd><StatusPill status={opportunity.priority} /></dd>
+                              <dt className="text-muted-foreground">Next action</dt><dd className="min-w-0 break-words leading-5 text-foreground">{opportunity.nextAction}</dd>
+                              <dt className="text-muted-foreground">Assignee</dt><dd className="min-w-0 break-words text-foreground">{opportunity.assignedTo}</dd>
+                            </dl>
+                          </button>
+                          <select aria-label={`Move ${opportunity.ownerName} opportunity`} value={opportunity.stage} onChange={(event) => changeStage(opportunity, event.target.value)} className="mt-3 h-9 w-full min-w-0 rounded-md border border-input bg-background px-2 text-xs">
+                            {stages.map((nextStage) => <option key={nextStage}>{nextStage}</option>)}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
       <OpportunityDetail
@@ -408,7 +405,7 @@ export const OwnerPipelineModule = () => {
                 const nextStage = event.target.value;
                 if (isOpportunityStage(nextStage)) setLead((current) => ({ ...current, stage: nextStage }));
               }}
-              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+              className="h-10 max-w-full rounded-md border border-input bg-background px-3 text-sm"
             >
               {stages.map((stage) => (
                 <option key={stage}>{stage}</option>
@@ -421,7 +418,7 @@ export const OwnerPipelineModule = () => {
                 const nextPriority = event.target.value;
                 if (isPriority(nextPriority)) setLead((current) => ({ ...current, priority: nextPriority }));
               }}
-              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+              className="h-10 max-w-full rounded-md border border-input bg-background px-3 text-sm"
             >
               {priorities.map((priority) => (
                 <option key={priority}>{priority}</option>

@@ -1,4 +1,5 @@
 import type { ComplianceItem } from "@/types/paterhaus";
+import { RUSLAN_TSZI, SULTAN_SOVETOV } from "./team";
 
 export const paterhausComplianceItems: ComplianceItem[] = [
   {
@@ -8,7 +9,7 @@ export const paterhausComplianceItems: ComplianceItem[] = [
     title: "DTCM holiday-home licence",
     expiryDate: "2026-04-18",
     status: "Complete",
-    assignedTo: "Amelia Hart",
+    assignedTo: RUSLAN_TSZI.name,
     documentName: "DTCM-Marina-Vista-2204.pdf",
     risk: "Low",
     dueAt: "2025-08-20T09:30:00",
@@ -20,7 +21,7 @@ export const paterhausComplianceItems: ComplianceItem[] = [
     title: "DTCM holiday-home licence renewal",
     expiryDate: "2025-09-04",
     status: "Due soon",
-    assignedTo: "Amelia Hart",
+    assignedTo: RUSLAN_TSZI.name,
     documentName: "DTCM-Bay-Avenue-2024.pdf",
     risk: "High",
     dueAt: "2025-08-20T14:00:00",
@@ -32,7 +33,7 @@ export const paterhausComplianceItems: ComplianceItem[] = [
     title: "Ownership document pack",
     expiryDate: "2025-10-12",
     status: "Missing documents",
-    assignedTo: "Priya Nair",
+    assignedTo: SULTAN_SOVETOV.name,
     documentName: null,
     risk: "High",
     dueAt: "2025-08-22T11:00:00",
@@ -44,7 +45,7 @@ export const paterhausComplianceItems: ComplianceItem[] = [
     title: "Villa safety inspection follow-up",
     expiryDate: "2025-08-30",
     status: "Due soon",
-    assignedTo: "Omar Rahman",
+    assignedTo: SULTAN_SOVETOV.name,
     documentName: "Palm-Crescent-Safety-Inspection.pdf",
     risk: "Medium",
     dueAt: "2025-08-20T15:30:00",
@@ -56,7 +57,7 @@ export const paterhausComplianceItems: ComplianceItem[] = [
     title: "Guest verification process",
     expiryDate: "2025-08-25",
     status: "Complete",
-    assignedTo: "Omar Rahman",
+    assignedTo: SULTAN_SOVETOV.name,
     documentName: "Guest-verification-log-Aug.pdf",
     risk: "Low",
     dueAt: "2025-08-25T10:00:00",

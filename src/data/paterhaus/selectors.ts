@@ -11,6 +11,17 @@ export const PATERHAUS_TODAY = "2025-08-20";
 export const formatAED = (value: number): string =>
   `AED ${new Intl.NumberFormat("en-GB", { maximumFractionDigits: 0 }).format(Math.round(value))}`;
 
+const toDemoDate = (value: string) => new Date(value.includes("T") ? value : `${value}T12:00:00`);
+
+export const formatPaterhausDate = (value: string): string =>
+  new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" }).format(toDemoDate(value));
+
+export const formatPaterhausDateTime = (value: string): string =>
+  new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(toDemoDate(value));
+
+export const formatPaterhausToday = (): string =>
+  new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(toDemoDate(PATERHAUS_TODAY));
+
 export const getActiveProperties = (properties: Property[]): Property[] =>
   properties.filter((property) => property.managementStatus === "Managed");
 

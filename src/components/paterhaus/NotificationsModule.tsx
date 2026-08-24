@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePaterhausWorkspace } from "@/contexts/PaterhausWorkspaceContext";
-import { PATERHAUS_TODAY } from "@/data/paterhaus";
+import { formatPaterhausDateTime, PATERHAUS_TODAY } from "@/data/paterhaus";
 import type { NotificationPriority } from "@/types/paterhaus";
 import { SectionHeader, StatusPill } from "./shared";
 
@@ -156,7 +156,7 @@ export const NotificationsModule = ({
                   </div>
                   <p className="mt-1 text-sm leading-6 text-muted-foreground">{notification.description}</p>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    {notification.createdAt.replace("T", " ")} · {property?.name ?? "Portfolio context"}
+                    {formatPaterhausDateTime(notification.createdAt)} · {property?.name ?? "Portfolio context"}
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {property && (

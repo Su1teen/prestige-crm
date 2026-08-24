@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth, type UserRole } from "@/contexts/AuthContext";
+import { CURRENT_PATERHAUS_USER } from "@/data/paterhaus";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -50,7 +51,7 @@ const LoginPage = () => {
             >
               <span className="flex flex-col items-center gap-3 text-center">
                 <Home className="h-8 w-8 text-amber-300" />
-                <span>Amelia Hart · Operations Director · Paterhaus Property Management</span>
+                <span>{CURRENT_PATERHAUS_USER.name} · {CURRENT_PATERHAUS_USER.role} · Paterhaus Property Management</span>
               </span>
             </Button>
             <Button

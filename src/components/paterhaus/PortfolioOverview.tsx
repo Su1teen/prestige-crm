@@ -24,6 +24,7 @@ import {
 import { usePaterhausWorkspace } from "@/contexts/PaterhausWorkspaceContext";
 import {
   formatAED,
+  formatPaterhausToday,
   getCheckInsToday,
   getCheckOutsToday,
   getDashboardTimeline,
@@ -253,14 +254,17 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
   return (
     <div className="space-y-6">
       <SectionHeader
-        eyebrow="Wednesday · 20 August 2025"
+        eyebrow={formatPaterhausToday()}
         title="Portfolio Overview"
         description="A live local view of readiness, guest movement, owner exposure and the work that needs attention today."
         action={
-          <Button variant="outline" onClick={() => onNavigate("properties")}>
-            <ArrowRight className="h-4 w-4" />
-            Open properties
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <OpsCopilot onOpenProperty={(propertyId) => onNavigate("properties", propertyId)} />
+            <Button variant="outline" onClick={() => onNavigate("properties")}>
+              <ArrowRight className="h-4 w-4" />
+              Open properties
+            </Button>
+          </div>
         }
       />
 
@@ -589,9 +593,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
         </Card>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[1fr_1.4fr]">
-        <OpsCopilot onOpenProperty={(propertyId) => onNavigate("properties", propertyId)} />
-        <Card className="border-border/80 bg-card/80 p-5">
+      <Card className="border-border/80 bg-card/80 p-5">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-semibold text-foreground">Quick actions</h3>
@@ -614,7 +616,6 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
             ))}
           </div>
         </Card>
-      </div>
       <Dialog open={actionKind !== null} onOpenChange={(open) => !open && setActionKind(null)}>
         <DialogContent className="dark max-w-lg border-border bg-background">
           <DialogHeader>

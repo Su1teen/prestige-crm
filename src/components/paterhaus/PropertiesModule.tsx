@@ -28,7 +28,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { usePaterhausWorkspace } from "@/contexts/PaterhausWorkspaceContext";
-import { formatAED, PATERHAUS_TODAY } from "@/data/paterhaus";
+import { formatAED, formatPaterhausDateTime, PATERHAUS_TODAY } from "@/data/paterhaus";
 import type { Property, Snag } from "@/types/paterhaus";
 import { SectionHeader, StatusPill, EmptyState } from "./shared";
 import { OpsCopilot } from "./OpsCopilot";
@@ -135,7 +135,10 @@ const PropertyDetail = ({
                       <p className="text-xs uppercase tracking-[0.16em] text-white/60">{property.community}</p>
                       <h2 className="mt-1 text-2xl font-semibold text-white">{property.name}</h2>
                     </div>
-                    <StatusPill status={property.status} className="bg-black/20" />
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <StatusPill status={property.status} className="bg-black/20" />
+                      <OpsCopilot propertyId={property.id} />
+                    </div>
                   </div>
                 </div>
                 <SheetTitle className="sr-only">{property.name}</SheetTitle>
@@ -176,7 +179,6 @@ const PropertyDetail = ({
                   <TabsTrigger value="activity">Activity</TabsTrigger>
                 </TabsList>
                 <TabsContent value="overview" className="space-y-4">
-                  <OpsCopilot propertyId={property.id} />
                   <Card className="border-border bg-card p-4">
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div>
@@ -307,7 +309,7 @@ const PropertyDetail = ({
                           <div>
                             <p className="font-medium text-foreground">{task.title}</p>
                             <p className="mt-1 text-sm text-muted-foreground">
-                              {task.category} · Due {task.dueAt.replace("T", " ")}
+                              {task.category} · Due {formatPaterhausDateTime(task.dueAt)}
                             </p>
                           </div>
                           <StatusPill status={task.status} />
@@ -475,7 +477,7 @@ const PropertyDetail = ({
                           <div>
                             <p className="text-sm text-foreground">{event.text}</p>
                             <p className="mt-1 text-xs text-muted-foreground">
-                              {event.actor} · {event.timestamp.replace("T", " ")}
+                              {event.actor} · {formatPaterhausDateTime(event.timestamp)}
                             </p>
                           </div>
                         </div>

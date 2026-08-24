@@ -1,14 +1,8 @@
 import { BriefcaseBusiness, Mail, Phone, Star, UsersRound } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { usePaterhausWorkspace } from "@/contexts/PaterhausWorkspaceContext";
+import { formatPaterhausDate, PATERHAUS_TEAM } from "@/data/paterhaus";
 import { SectionHeader, StatusPill } from "./shared";
-
-const internalTeam = [
-  { name: "Amelia Hart", role: "Operations Director", focus: "Portfolio escalation and owner reporting" },
-  { name: "Priya Nair", role: "Compliance & Onboarding Lead", focus: "DTCM, documents and onboarding" },
-  { name: "Omar Rahman", role: "Guest Experience Manager", focus: "Stay readiness and guest incidents" },
-  { name: "Leila Haddad", role: "Finance Coordinator", focus: "Statements, approvals and payout controls" },
-];
 
 export const TeamVendorsModule = () => {
   const workspace = usePaterhausWorkspace();
@@ -25,8 +19,8 @@ export const TeamVendorsModule = () => {
           <UsersRound className="h-5 w-5 text-primary" />
           <h3 className="font-semibold text-foreground">Internal team</h3>
         </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {internalTeam.map((member) => (
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {PATERHAUS_TEAM.map((member) => (
             <div key={member.name} className="rounded-xl border border-border/70 p-4">
               <p className="font-medium text-foreground">{member.name}</p>
               <p className="mt-1 text-xs text-primary">{member.role}</p>
@@ -96,7 +90,7 @@ export const TeamVendorsModule = () => {
                 {activeTasks.length ? (
                   activeTasks.map((task) => (
                     <p key={task.id} className="mt-2 text-xs text-muted-foreground">
-                      {task.title} · {task.status} · {task.dueAt.slice(0, 10)}
+                      {task.title} · {task.status} · {formatPaterhausDate(task.dueAt)}
                     </p>
                   ))
                 ) : (
@@ -110,7 +104,7 @@ export const TeamVendorsModule = () => {
                 {recentWork.length ? (
                   recentWork.map((task) => (
                     <p key={task.id} className="mt-2 text-xs text-muted-foreground">
-                      {task.dueAt.slice(0, 10)} · {task.title} · {task.description}
+                      {formatPaterhausDate(task.dueAt)} · {task.title} · {task.description}
                     </p>
                   ))
                 ) : (

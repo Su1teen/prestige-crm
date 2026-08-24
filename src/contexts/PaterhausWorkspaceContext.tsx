@@ -15,6 +15,7 @@ import {
   paterhausStays,
   paterhausTasks,
   paterhausVendors,
+  CURRENT_PATERHAUS_USER,
   PATERHAUS_TODAY,
 } from "@/data/paterhaus";
 import type {
@@ -114,7 +115,7 @@ interface PaterhausWorkspaceContextValue {
   assignConversation: (conversationId: string, assignedTo: string) => void;
   moveOpportunityStage: (opportunityId: string, stage: OpportunityStage, lostReason?: string) => void;
   addOpportunity: (input: NewOpportunityInput) => void;
-  sendMessage: (conversationId: string, text: string) => void;
+  sendMessage: (conversationId: string, text: string, internal?: boolean) => void;
   createTask: (input: NewTaskInput) => void;
   setTaskStatus: (taskId: string, status: Task["status"]) => void;
   createTaskFromConversation: (conversationId: string) => void;
@@ -195,7 +196,7 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
     if (conversation) {
       addActivity({
         propertyId: conversation.propertyId,
-        actor: "Amelia Hart",
+        actor: CURRENT_PATERHAUS_USER.name,
         text: `${conversation.subject} moved to ${status}`,
         type: "Communication",
       });
@@ -232,7 +233,7 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
     if (opportunity) {
       addActivity({
         propertyId: null,
-        actor: "Amelia Hart",
+        actor: CURRENT_PATERHAUS_USER.name,
         text: `${opportunity.ownerName} moved to ${stage}`,
         type: "Property",
       });
@@ -264,22 +265,22 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
       taskIds: [],
       conversationIds: [],
       followUpAt: `${PATERHAUS_TODAY}T16:00:00`,
-      activity: [`Lead added by Amelia Hart on ${PATERHAUS_TODAY}`],
+      activity: [`Lead added by ${CURRENT_PATERHAUS_USER.name} on ${PATERHAUS_TODAY}`],
     };
     setOpportunities((current) => [opportunity, ...current]);
   };
 
-  const sendMessage = (conversationId: string, text: string) => {
+  const sendMessage = (conversationId: string, text: string, internal = false) => {
     const conversation = conversations.find((item) => item.id === conversationId);
     if (!conversation || !text.trim()) return;
     const message: Message = {
       id: nextId("msg", messages.length),
       conversationId,
-      author: "team",
-      authorName: "Amelia Hart",
+      author: internal ? "internal" : "team",
+      authorName: CURRENT_PATERHAUS_USER.name,
       text: text.trim(),
       timestamp: `${PATERHAUS_TODAY}T12:00:00`,
-      internal: false,
+      internal,
     };
     setMessages((current) => [...current, message]);
     setConversations((current) =>
@@ -288,7 +289,7 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
           ? {
               ...item,
               lastMessageAt: message.timestamp,
-              status: "Waiting for reply",
+              status: internal ? "Waiting for internal action" : "Waiting for reply",
               unread: false,
               messageIds: [...item.messageIds, message.id],
             }
@@ -297,7 +298,7 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
     );
     addActivity({
       propertyId: conversation.propertyId,
-      actor: "Amelia Hart",
+      actor: CURRENT_PATERHAUS_USER.name,
       text: `Message sent to ${conversation.contactName}`,
       type: "Communication",
     });
@@ -322,12 +323,12 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
       complianceItemId: input.complianceItemId ?? null,
       createdAt: `${PATERHAUS_TODAY}T12:00:00`,
       completionProof: null,
-      activityLog: [`Created by Amelia Hart on ${PATERHAUS_TODAY}`],
+      activityLog: [`Created by ${CURRENT_PATERHAUS_USER.name} on ${PATERHAUS_TODAY}`],
     };
     setTasks((current) => [task, ...current]);
     addActivity({
       propertyId: task.propertyId,
-      actor: "Amelia Hart",
+      actor: CURRENT_PATERHAUS_USER.name,
       text: `Task created: ${task.title}`,
       type: "Task",
     });
@@ -353,7 +354,7 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
     );
     addActivity({
       propertyId: task.propertyId,
-      actor: "Amelia Hart",
+      actor: CURRENT_PATERHAUS_USER.name,
       text: `${task.title} marked ${status}`,
       type: "Task",
     });
@@ -382,7 +383,7 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
     if (task && vendor)
       addActivity({
         propertyId: task.propertyId,
-        actor: "Amelia Hart",
+        actor: CURRENT_PATERHAUS_USER.name,
         text: `${task.title} assigned to ${vendor.name}`,
         type: "Task",
       });
@@ -434,7 +435,7 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
     );
     addActivity({
       propertyId: input.propertyId,
-      actor: "Amelia Hart",
+      actor: CURRENT_PATERHAUS_USER.name,
       text: `${snag.id} created in ${input.area}`,
       type: "Property",
     });
@@ -453,7 +454,7 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
       bathrooms: 1,
       capacity: input.type === "Studio" ? 2 : 3,
       ownerId: input.ownerId,
-      manager: "Amelia Hart",
+      manager: CURRENT_PATERHAUS_USER.name,
       managementStatus: "Onboarding",
       status: "Off market",
       listingStatus: "Not listed",
@@ -476,7 +477,7 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
     setProperties((current) => [property, ...current]);
     addActivity({
       propertyId: property.id,
-      actor: "Amelia Hart",
+      actor: CURRENT_PATERHAUS_USER.name,
       text: `${property.name} added to the portfolio`,
       type: "Property",
     });
@@ -509,7 +510,7 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
     setStays((current) => [stay, ...current]);
     addActivity({
       propertyId: stay.propertyId,
-      actor: "Amelia Hart",
+      actor: CURRENT_PATERHAUS_USER.name,
       text: `${stay.reservationId} added to the property calendar`,
       type: "Stay",
     });
@@ -543,7 +544,7 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
     setStatements((current) => [statement, ...current]);
     addActivity({
       propertyId,
-      actor: "Amelia Hart",
+      actor: CURRENT_PATERHAUS_USER.name,
       text: `Draft owner statement created for ${property.name}`,
       type: "Finance",
     });

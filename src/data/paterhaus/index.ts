@@ -12,4 +12,5 @@ export * from "./selectors";
 export * from "./snags";
 export * from "./stays";
 export * from "./tasks";
+export * from "./team";
 export * from "./vendors";

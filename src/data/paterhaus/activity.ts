@@ -1,10 +1,11 @@
 import type { ActivityEvent } from "@/types/paterhaus";
+import { RUSLAN_TSZI, SULTAN_SOVETOV } from "./team";
 
 export const paterhausActivity: ActivityEvent[] = [
   {
     id: "activity-01",
     propertyId: "prop-marina-vista-2204",
-    actor: "Priya Nair",
+    actor: SULTAN_SOVETOV.name,
     text: "Snag #SG-184 assigned to Vertex Technical Services",
     timestamp: "2025-08-18T10:20:00",
     type: "Task",
@@ -12,7 +13,7 @@ export const paterhausActivity: ActivityEvent[] = [
   {
     id: "activity-02",
     propertyId: "prop-marina-vista-2204",
-    actor: "Priya Nair",
+    actor: SULTAN_SOVETOV.name,
     text: "Booking BK-2091 checked in",
     timestamp: "2025-08-17T15:05:00",
     type: "Stay",
@@ -28,7 +29,7 @@ export const paterhausActivity: ActivityEvent[] = [
   {
     id: "activity-04",
     propertyId: "prop-bay-avenue",
-    actor: "Amelia Hart",
+    actor: RUSLAN_TSZI.name,
     text: "DTCM licence renewal due in 15 days",
     timestamp: "2025-08-20T09:05:00",
     type: "Compliance",
@@ -44,7 +45,7 @@ export const paterhausActivity: ActivityEvent[] = [
   {
     id: "activity-06",
     propertyId: "prop-jbr-sands",
-    actor: "Omar Rahman",
+    actor: SULTAN_SOVETOV.name,
     text: "Guest incident escalated to Vertex Technical Services",
     timestamp: "2025-08-20T09:14:00",
     type: "Communication",

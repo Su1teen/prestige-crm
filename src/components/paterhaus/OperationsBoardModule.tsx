@@ -14,7 +14,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { usePaterhausWorkspace } from "@/contexts/PaterhausWorkspaceContext";
-import { PATERHAUS_TODAY, formatAED } from "@/data/paterhaus";
+import { PATERHAUS_TODAY, formatAED, formatPaterhausDateTime } from "@/data/paterhaus";
 import type { Priority, Task, TaskCategory, TaskStatus } from "@/types/paterhaus";
 import { EmptyState, SectionHeader, StatusPill } from "./shared";
 
@@ -126,7 +126,7 @@ const TaskDetail = ({
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <p className="text-sm text-muted-foreground">
                 <span className="block text-xs">SLA / due</span>
-                <span className="text-foreground">{task.dueAt.replace("T", " ")}</span>
+                <span className="text-foreground">{formatPaterhausDateTime(task.dueAt)}</span>
               </p>
               <p className="text-sm text-muted-foreground">
                 <span className="block text-xs">Assignee</span>
@@ -170,7 +170,7 @@ const TaskDetail = ({
           <Card className="border-border bg-card p-4">
             <h3 className="font-medium text-foreground">Activity log</h3>
             <div className="mt-3 space-y-2">
-              {(task.activityLog ?? [`Created on ${task.createdAt.replace("T", " ")}`]).map((event) => (
+              {(task.activityLog ?? [`Created on ${formatPaterhausDateTime(task.createdAt)}`]).map((event) => (
                 <p key={event} className="border-l border-primary/40 pl-3 text-sm text-muted-foreground">
                   {event}
                 </p>
@@ -392,7 +392,7 @@ export const OperationsBoardModule = ({
           </select>
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
-          {filtered.length} tasks shown · overdue status is computed from {PATERHAUS_TODAY}.
+          {filtered.length} tasks shown · {filtered.filter(isOverdue).length} overdue · {filtered.filter((task) => task.status !== "Completed" && task.dueAt.slice(0, 10) === PATERHAUS_TODAY).length} due today
         </p>
       </Card>
       {filtered.length === 0 ? (
@@ -430,7 +430,7 @@ export const OperationsBoardModule = ({
                       <td className="px-4 py-3 text-muted-foreground">{property?.name}</td>
                       <td className="px-4 py-3 text-muted-foreground">{task.category}</td>
                       <td className="px-4 py-3">
-                        <span className="text-muted-foreground">{task.dueAt.replace("T", " ")}</span>
+                        <span className="text-muted-foreground">{formatPaterhausDateTime(task.dueAt)}</span>
                         {isOverdue(task) && <StatusPill status="Overdue" className="ml-2" />}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{task.assignee ?? "Unassigned"}</td>
@@ -474,7 +474,7 @@ export const OperationsBoardModule = ({
                           <StatusPill status={task.priority} />
                         </div>
                         <p className="mt-2 text-[11px] text-muted-foreground">
-                          {task.dueAt.replace("T", " ")}
+                          {formatPaterhausDateTime(task.dueAt)}
                           {isOverdue(task) ? " · overdue" : ""}
                         </p>
                       </button>

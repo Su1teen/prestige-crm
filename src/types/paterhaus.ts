@@ -45,7 +45,7 @@ export type MaintenanceStatus = "Open" | "Awaiting approval" | "Scheduled" | "In
 export type ConversationContactType = "Owner" | "Guest" | "Vendor" | "Internal";
 export type ConversationChannel = "WhatsApp" | "Email" | "Phone note" | "Internal note";
 export type ConversationStatus = "Open" | "Waiting for reply" | "Waiting for internal action" | "Resolved";
-export type MessageAuthor = "contact" | "team" | "internal";
+export type MessageAuthor = "contact" | "ai" | "team" | "internal";
 export type StatementStatus = "Draft" | "Awaiting approval" | "Approved" | "Scheduled" | "Paid" | "Exception";
 export type RenewalState = "Complete" | "Due soon" | "In progress" | "Expired";
 export type NotificationPriority = "Info" | "Attention" | "Critical";
@@ -167,6 +167,11 @@ export interface Message {
   text: string;
   timestamp: string;
   internal: boolean;
+  attachment?: {
+    name: string;
+    size: string;
+    kind: "image" | "document" | "pdf";
+  };
 }
 
 export interface Conversation {
