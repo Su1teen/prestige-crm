@@ -23,6 +23,7 @@ import {
   PATERHAUS_TODAY,
 } from "@/data/paterhaus";
 import type { DemoFile } from "@/data/paterhaus/files";
+import { demoKnowledgeItems, type KnowledgeItem } from "@/data/paterhaus/knowledgeBase";
 import type { Campaign, LeadMessage, MarketingLead } from "@/data/paterhaus/marketing";
 import type {
   ActivityEvent,
@@ -102,8 +103,28 @@ export interface NewDemoFileInput {
   type: DemoFile["type"];
   sizeKb: number;
   leadId?: string;
+  ownerId?: string;
+  guestId?: string;
   propertyId?: string;
+  vendorId?: string;
+  taskId?: string;
   description?: string;
+  category?: DemoFile["category"];
+  source?: DemoFile["source"];
+  entityType?: DemoFile["entityType"];
+  aiSummary?: string;
+  isImportant?: boolean;
+}
+
+export interface NewKnowledgeItemInput {
+  title: string;
+  category: KnowledgeItem["category"];
+  type: KnowledgeItem["type"];
+  summary: string;
+  tags: string[];
+  linkedPropertyId?: string;
+  linkedOwnerId?: string;
+  linkedVendorId?: string;
 }
 
 interface NewPropertyInput {
@@ -149,6 +170,10 @@ interface PaterhausWorkspaceContextValue {
   files: DemoFile[];
   addFile: (input: NewDemoFileInput) => void;
   removeFile: (fileId: string) => void;
+  updateFile: (fileId: string, changes: Partial<DemoFile>) => void;
+  knowledgeItems: KnowledgeItem[];
+  addKnowledgeItem: (input: NewKnowledgeItemInput) => void;
+  updateKnowledgeItem: (itemId: string, changes: Partial<KnowledgeItem>) => void;
   campaigns: Campaign[];
   marketingLeads: MarketingLead[];
   addMarketingLead: (input: NewMarketingLeadInput) => void;
@@ -187,6 +212,7 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
   const [compliance] = useState(paterhausComplianceItems);
   const [activity, setActivity] = useState<ActivityEvent[]>(paterhausActivity);
   const [files, setFiles] = useState<DemoFile[]>(demoFiles);
+  const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeItem[]>(demoKnowledgeItems);
   const [campaigns, setCampaigns] = useState<Campaign[]>(demoCampaigns);
   const [marketingLeads, setMarketingLeads] = useState<MarketingLead[]>(demoMarketingLeads);
   const [leadMessages, setLeadMessages] = useState<LeadMessage[]>(demoLeadMessages);
@@ -319,13 +345,43 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
 
   const addFile = (input: NewDemoFileInput) => {
     setFiles((current) => [
-      { ...input, id: nextId("file", current.length), uploadedAt: PATERHAUS_TODAY },
+      {
+        ...input,
+        id: nextId("file", current.length),
+        uploadedAt: PATERHAUS_TODAY,
+        uploadedBy: CURRENT_PATERHAUS_USER.name,
+        category: input.category ?? "other",
+        source: input.source ?? "manual_upload",
+        entityType: input.entityType ?? (input.leadId ? "lead" : input.propertyId ? "property" : "general"),
+        reviewStatus: "needs_review",
+      },
       ...current,
     ]);
   };
 
   const removeFile = (fileId: string) => {
     setFiles((current) => current.filter((file) => file.id !== fileId));
+  };
+
+  const updateFile = (fileId: string, changes: Partial<DemoFile>) => {
+    setFiles((current) => current.map((file) => (file.id === fileId ? { ...file, ...changes } : file)));
+  };
+
+  const addKnowledgeItem = (input: NewKnowledgeItemInput) => {
+    setKnowledgeItems((current) => [
+      {
+        ...input,
+        id: nextId("kb", current.length),
+        lastUpdated: PATERHAUS_TODAY,
+        updatedBy: CURRENT_PATERHAUS_USER.name,
+        status: "active",
+      },
+      ...current,
+    ]);
+  };
+
+  const updateKnowledgeItem = (itemId: string, changes: Partial<KnowledgeItem>) => {
+    setKnowledgeItems((current) => current.map((item) => (item.id === itemId ? { ...item, ...changes } : item)));
   };
 
   const addMarketingLead = (input: NewMarketingLeadInput) => {
@@ -700,6 +756,10 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
     files,
     addFile,
     removeFile,
+    updateFile,
+    knowledgeItems,
+    addKnowledgeItem,
+    updateKnowledgeItem,
     campaigns,
     marketingLeads,
     addMarketingLead,

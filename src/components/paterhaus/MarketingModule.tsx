@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Facebook, Instagram, Megaphone, Plus } from "lucide-react";
+import { Facebook, Instagram, Megaphone, Plus, Workflow, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -13,7 +13,20 @@ import {
 import { Input } from "@/components/ui/input";
 import { usePaterhausWorkspace, type NewMarketingLeadInput } from "@/contexts/PaterhausWorkspaceContext";
 import { AVERAGE_MANAGEMENT_FEE_USD, formatUSD } from "@/data/paterhaus";
-import type { Campaign, CampaignPlatform, MarketingLead } from "@/data/paterhaus/marketing";
+import {
+  audienceSegments,
+  automationPreviews,
+  campaignMatchesPeriod,
+  followUpPerformance,
+  leadQualityByArea,
+  marketingFunnels,
+  marketingPeriodLabels,
+  scoreMarketingLead,
+  type Campaign,
+  type CampaignPlatform,
+  type MarketingLead,
+  type MarketingPeriod,
+} from "@/data/paterhaus/marketing";
 import { EmptyState, SectionHeader, StatusPill } from "./shared";
 
 type PlatformFilter = "All" | CampaignPlatform;
@@ -35,6 +48,18 @@ const sourceLabels: Record<MarketingLead["source"], string> = {
   website: "Website",
   referral: "Referral",
   manual: "Manual",
+};
+
+const scoreLabels: Record<ReturnType<typeof scoreMarketingLead>["level"], string> = {
+  high: "High intent",
+  medium: "Medium intent",
+  low: "Low intent",
+};
+
+const scoreClasses: Record<ReturnType<typeof scoreMarketingLead>["level"], string> = {
+  high: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+  medium: "border-amber-500/30 bg-amber-500/10 text-amber-300",
+  low: "border-border bg-secondary/50 text-muted-foreground",
 };
 
 const PlatformBadge = ({ platform }: { platform: CampaignPlatform }) => (
@@ -74,14 +99,21 @@ export const MarketingModule = () => {
   const workspace = usePaterhausWorkspace();
   const { campaigns, marketingLeads } = workspace;
   const [platformFilter, setPlatformFilter] = useState<PlatformFilter>("All");
+  const [period, setPeriod] = useState<MarketingPeriod>("this_month");
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [showSimulate, setShowSimulate] = useState(false);
   const [form, setForm] = useState<SimulateLeadForm>(() => emptyLeadForm(campaigns[0]?.id ?? ""));
 
   const filteredCampaigns = useMemo(
-    () => campaigns.filter((campaign) => platformFilter === "All" || campaign.platform === platformFilter),
-    [campaigns, platformFilter],
+    () =>
+      campaigns
+        .filter((campaign) => platformFilter === "All" || campaign.platform === platformFilter)
+        .filter((campaign) => campaignMatchesPeriod(campaign, period)),
+    [campaigns, platformFilter, period],
   );
+
+  const funnel = marketingFunnels[period];
+  const funnelMax = funnel[0]?.value ?? 1;
 
   const metrics = useMemo(() => {
     const totalSpend = filteredCampaigns.reduce((sum, campaign) => sum + campaign.spendUsd, 0);
@@ -146,6 +178,19 @@ export const MarketingModule = () => {
           </Button>
         }
       />
+      <div className="flex flex-wrap items-center gap-1 rounded-xl border border-border/80 bg-card/50 p-1" role="group" aria-label="Reporting period">
+        {(Object.keys(marketingPeriodLabels) as MarketingPeriod[]).map((option) => (
+          <Button
+            key={option}
+            type="button"
+            size="sm"
+            variant={period === option ? "secondary" : "ghost"}
+            onClick={() => setPeriod(option)}
+          >
+            {marketingPeriodLabels[option]}
+          </Button>
+        ))}
+      </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {kpis.map((kpi) => (
           <Card key={kpi.label} className="border-border/80 bg-card/70 p-4">
@@ -159,7 +204,7 @@ export const MarketingModule = () => {
           <div className="flex items-center gap-2">
             <Megaphone className="h-4 w-4 text-primary" />
             <h3 className="font-medium text-foreground">Campaigns</h3>
-            <span className="text-xs text-muted-foreground">Aug 2026</span>
+            <span className="text-xs text-muted-foreground">{marketingPeriodLabels[period]}</span>
           </div>
           <div className="flex gap-1">
             {(["All", "facebook", "instagram"] as const).map((platform) => (
@@ -223,25 +268,142 @@ export const MarketingModule = () => {
           </div>
         )}
       </Card>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card className="border-border/80 bg-card/70 p-4">
+          <h3 className="font-medium text-foreground">Acquisition funnel</h3>
+          <p className="mt-1 text-xs text-muted-foreground">{marketingPeriodLabels[period]}</p>
+          <div className="mt-3 space-y-2">
+            {funnel.map((stage) => (
+              <div key={stage.label}>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">{stage.label}</span>
+                  <span className="font-medium text-foreground">{stage.value.toLocaleString("en-US")}</span>
+                </div>
+                <div className="mt-1 h-2 rounded-full bg-secondary/60">
+                  <div
+                    className="h-2 rounded-full bg-primary/70"
+                    style={{ width: `${Math.max(2, (stage.value / funnelMax) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+        <div className="space-y-4">
+          <Card className="border-border/80 bg-card/70 p-4">
+            <h3 className="font-medium text-foreground">Lead quality by area</h3>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-border text-xs text-muted-foreground">
+                    <th className="px-2 py-2 font-medium">Area</th>
+                    <th className="px-2 py-2 font-medium">Leads</th>
+                    <th className="px-2 py-2 font-medium">Qualified</th>
+                    <th className="px-2 py-2 font-medium">Qual. rate</th>
+                    <th className="px-2 py-2 font-medium">Won</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {leadQualityByArea.map((row) => (
+                    <tr key={row.area} className="border-b border-border/60">
+                      <td className="px-2 py-2 font-medium text-foreground">{row.area}</td>
+                      <td className="px-2 py-2 text-foreground">{row.leads}</td>
+                      <td className="px-2 py-2 text-foreground">{row.qualified}</td>
+                      <td className="px-2 py-2 text-foreground">{((row.qualified / row.leads) * 100).toFixed(0)}%</td>
+                      <td className="px-2 py-2 text-foreground">{row.won}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+          <Card className="border-border/80 bg-card/70 p-4">
+            <h3 className="font-medium text-foreground">Lead Response Performance</h3>
+            <div className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+              {[
+                { label: "New leads awaiting response", value: `${followUpPerformance.newLeadsAwaitingResponse}` },
+                { label: "Contacted within 15 min", value: `${followUpPerformance.contactedWithin15MinPct}%` },
+                { label: "Avg first response", value: `${followUpPerformance.averageFirstResponseMinutes} min` },
+                { label: "Follow-ups overdue", value: `${followUpPerformance.followUpsOverdue}` },
+                { label: "Best performer", value: followUpPerformance.topResponder },
+              ].map((item) => (
+                <div key={item.label} className="rounded-xl border border-border/70 p-3">
+                  <p className="text-xs text-muted-foreground">{item.label}</p>
+                  <p className="mt-1 text-sm font-semibold text-foreground">{item.value}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      </div>
       <Card className="border-border/80 bg-card/70 p-4">
         <h3 className="font-medium text-foreground">Recent marketing leads</h3>
+        <p className="mt-1 text-xs text-muted-foreground">Scored transparently by area, unit details and engagement.</p>
         <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {marketingLeads.slice(0, 9).map((lead) => (
-            <div key={lead.id} className="rounded-xl border border-border/70 bg-background/40 p-3">
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-semibold text-foreground">{lead.name}</p>
-                <StatusPill status={statusLabels[lead.status]} />
+          {marketingLeads.slice(0, 9).map((lead) => {
+            const score = scoreMarketingLead(lead);
+            return (
+              <div key={lead.id} className="rounded-xl border border-border/70 bg-background/40 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-semibold text-foreground">{lead.name}</p>
+                  <StatusPill status={statusLabels[lead.status]} />
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{lead.phone}</p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {sourceLabels[lead.source]}
+                  {lead.propertyArea ? ` · ${lead.propertyArea}` : ""}
+                  {lead.bedrooms !== undefined ? ` · ${lead.bedrooms} BR` : ""}
+                </p>
+                <span className={`mt-2 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${scoreClasses[score.level]}`}>
+                  {scoreLabels[score.level]}
+                </span>
+                <p className="mt-1.5 text-[11px] leading-4 text-muted-foreground/90">{score.reason}</p>
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">{lead.phone}</p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {sourceLabels[lead.source]}
-                {lead.propertyArea ? ` · ${lead.propertyArea}` : ""}
-                {lead.bedrooms !== undefined ? ` · ${lead.bedrooms} BR` : ""}
-              </p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Card>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card className="border-border/80 bg-card/70 p-4">
+          <div className="flex items-center gap-2">
+            <Workflow className="h-4 w-4 text-primary" />
+            <h3 className="font-medium text-foreground">Automations</h3>
+            <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">Preview</span>
+          </div>
+          <div className="mt-3 space-y-2">
+            {automationPreviews.map((automation) => (
+              <div key={automation.id} className="rounded-xl border border-border/70 p-3">
+                <p className="text-sm font-medium text-foreground">When: {automation.trigger}</p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                  {automation.steps.map((step, index) => (
+                    <span key={step} className="inline-flex items-center gap-1.5">
+                      {index > 0 && <span aria-hidden className="text-muted-foreground/60">→</span>}
+                      <span className="rounded-md border border-border/70 bg-secondary/40 px-2 py-0.5">{step}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+        <Card className="border-border/80 bg-card/70 p-4">
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-primary" />
+            <h3 className="font-medium text-foreground">Audience segments</h3>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">Saved views over the current lead list.</p>
+          <div className="mt-3 space-y-2">
+            {audienceSegments.map((segment) => (
+              <div key={segment.id} className="flex items-center justify-between rounded-xl border border-border/70 p-3">
+                <p className="text-sm font-medium text-foreground">{segment.label}</p>
+                <span className="rounded-full border border-primary/30 px-2.5 py-0.5 text-xs font-medium text-primary">
+                  {marketingLeads.filter(segment.matches).length} leads
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
       <Dialog open={selectedCampaign !== null} onOpenChange={(open) => !open && setSelectedCampaign(null)}>
         <DialogContent className="dark max-h-[85vh] overflow-y-auto border-border bg-background">
           {selectedCampaign && (

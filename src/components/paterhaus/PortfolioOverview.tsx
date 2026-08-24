@@ -268,6 +268,32 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
         }
       />
 
+      <Card className="border-primary/20 bg-primary/5 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-semibold text-foreground">Today at Paterhaus</p>
+          <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">Demo workspace</span>
+        </div>
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
+          {[
+            { label: `${workspace.marketingLeads.filter((lead) => lead.status === "new").length} new leads need first response`, section: "marketing" },
+            { label: "2 property inspections scheduled", section: "calendar" },
+            { label: `${workspace.tasks.filter((task) => task.priority === "Urgent" && task.status !== "Completed").length} urgent maintenance task${workspace.tasks.filter((task) => task.priority === "Urgent" && task.status !== "Completed").length === 1 ? "" : "s"}`, section: "operations" },
+            { label: `${workspace.files.filter((file) => file.reviewStatus === "needs_review").length} files need review`, section: "files" },
+            { label: "2 follow-ups overdue", section: "pipeline" },
+          ].map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              onClick={() => onNavigate(item.section)}
+              className="flex items-center justify-between gap-2 rounded-xl border border-border/70 bg-background/40 px-3 py-2 text-left text-sm text-foreground transition-colors hover:border-primary/40 hover:bg-primary/10"
+            >
+              <span className="min-w-0 flex-1">{item.label}</span>
+              <ArrowRight className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground" />
+            </button>
+          ))}
+        </div>
+      </Card>
+
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <KpiCard
           label="Active Properties"
