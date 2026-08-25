@@ -235,6 +235,7 @@ interface PaterhausWorkspaceContextValue {
   deleteCampaign: (campaignId: string) => void;
   deleteMarketingLead: (leadId: string) => void;
   resetMarketingData: () => void;
+  seedMarketingDemoData: () => void;
   isMarketingWorkspace: boolean;
   leadMessages: LeadMessage[];
   sendLeadMessage: (opportunityId: string, text: string) => void;
@@ -629,6 +630,11 @@ export const PaterhausWorkspaceProvider = ({
     setMarketingLeads([]);
     setOpportunities([]);
     setLeadMessages([]);
+  };
+
+  const seedMarketingDemoData = () => {
+    setCampaigns(demoCampaigns.map((c, i) => ({ ...c, id: `seed-camp-${i + 1}` })));
+    setMarketingLeads(demoMarketingLeads.map((l, i) => ({ ...l, id: `seed-mlead-${i + 1}` })));
   };
 
   const sendLeadMessage = (opportunityId: string, text: string) => {
@@ -1254,6 +1260,7 @@ export const PaterhausWorkspaceProvider = ({
     deleteCampaign,
     deleteMarketingLead,
     resetMarketingData,
+    seedMarketingDemoData,
     isMarketingWorkspace: isMarketing,
     leadMessages,
     sendLeadMessage,

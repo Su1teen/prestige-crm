@@ -155,7 +155,7 @@ export const LeadDetailsModal = ({ lead, isOpen, onClose }: LeadDetailsModalProp
     workspace.addTimelineEvent(current.id, {
       type: "note_added",
       timestamp: `${PATERHAUS_TODAY}T12:00:00`,
-      userName: "You",
+      userName: t("lead.you"),
       details: newNote.trim(),
     });
     setNewNote("");
@@ -169,7 +169,7 @@ export const LeadDetailsModal = ({ lead, isOpen, onClose }: LeadDetailsModalProp
       type: "document",
       sizeKb: 256,
       uploadedAt: `${PATERHAUS_TODAY}T12:00:00`,
-      uploadedBy: "You",
+      uploadedBy: t("lead.you"),
     });
     toast.success(t("lead.fileUploaded"));
   };
@@ -396,22 +396,22 @@ export const LeadDetailsModal = ({ lead, isOpen, onClose }: LeadDetailsModalProp
                   <Card className="border-border bg-card/60 p-4">
                     <h3 className="text-sm font-medium text-foreground">{t("lead.source")}</h3>
                     <dl className="mt-3 grid grid-cols-[120px_minmax(0,1fr)] gap-x-2 gap-y-2 text-sm">
-                      <dt className="text-muted-foreground">Original Source</dt>
+                      <dt className="text-muted-foreground">{t("lead.originalSource")}</dt>
                       <dd className="text-foreground">{attribution.originalSource}</dd>
-                      <dt className="text-muted-foreground">Platform</dt>
+                      <dt className="text-muted-foreground">{t("lead.platform")}</dt>
                       <dd className="text-foreground">{attribution.platform ?? "—"}</dd>
                     </dl>
                   </Card>
                   <Card className="border-border bg-card/60 p-4">
                     <h3 className="text-sm font-medium text-foreground">{t("lead.campaign")}</h3>
                     <dl className="mt-3 grid grid-cols-[100px_minmax(0,1fr)] gap-x-2 gap-y-2 text-sm">
-                      <dt className="text-muted-foreground">Campaign</dt>
+                      <dt className="text-muted-foreground">{t("lead.campaign")}</dt>
                       <dd className="text-foreground">{attribution.campaignName ?? "—"}</dd>
-                      <dt className="text-muted-foreground">Ad Set</dt>
+                      <dt className="text-muted-foreground">{t("lead.adSet")}</dt>
                       <dd className="text-foreground">{attribution.adSetName ?? "—"}</dd>
-                      <dt className="text-muted-foreground">Ad</dt>
+                      <dt className="text-muted-foreground">{t("lead.ad")}</dt>
                       <dd className="text-foreground">{attribution.adName ?? "—"}</dd>
-                      <dt className="text-muted-foreground">Lead Form</dt>
+                      <dt className="text-muted-foreground">{t("lead.leadForm")}</dt>
                       <dd className="text-foreground">{attribution.leadFormName ?? "—"}</dd>
                     </dl>
                   </Card>
@@ -431,11 +431,11 @@ export const LeadDetailsModal = ({ lead, isOpen, onClose }: LeadDetailsModalProp
                   <Card className="border-border bg-card/60 p-4">
                     <h3 className="text-sm font-medium text-foreground">{t("lead.timing")}</h3>
                     <dl className="mt-3 grid grid-cols-[100px_minmax(0,1fr)] gap-x-2 gap-y-2 text-sm">
-                      <dt className="text-muted-foreground">First Touch</dt>
+                      <dt className="text-muted-foreground">{t("lead.firstTouch")}</dt>
                       <dd className="text-foreground">
                         {attribution.firstTouchAt ? formatTimestamp(attribution.firstTouchAt) : "—"}
                       </dd>
-                      <dt className="text-muted-foreground">Captured</dt>
+                      <dt className="text-muted-foreground">{t("lead.captured")}</dt>
                       <dd className="text-foreground">
                         {attribution.capturedAt ? formatTimestamp(attribution.capturedAt) : "—"}
                       </dd>
@@ -466,7 +466,7 @@ export const LeadDetailsModal = ({ lead, isOpen, onClose }: LeadDetailsModalProp
                         <div className="min-w-0 flex-1">
                           <p className="text-sm text-foreground">{event.details}</p>
                           <p className="mt-0.5 text-xs text-muted-foreground">
-                            {formatTimestamp(event.timestamp)} · {event.userName ?? "System"}
+                            {formatTimestamp(event.timestamp)} · {event.userName ?? t("lead.system")}
                           </p>
                         </div>
                       </li>
@@ -548,7 +548,7 @@ export const LeadDetailsModal = ({ lead, isOpen, onClose }: LeadDetailsModalProp
                   <p className="text-xs font-medium text-foreground">{t("lead.addTask")}</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <select
-                      aria-label="Task type"
+                      aria-label={t("lead.taskType")}
                       value={newTaskType}
                       onChange={(event) => setNewTaskType(event.target.value as LeadTaskType)}
                       className="h-9 rounded-md border border-input bg-background px-2 text-xs"

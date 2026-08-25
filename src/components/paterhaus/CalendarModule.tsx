@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { usePaterhausWorkspace } from "@/contexts/PaterhausWorkspaceContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { PATERHAUS_TODAY } from "@/data/paterhaus";
 import type { Task } from "@/types/paterhaus";
 import { EmptyState, SectionHeader, StatusPill } from "./shared";
@@ -75,6 +76,7 @@ const EventDetail = ({
   onPropertySelect?: (propertyId: string) => void;
 }) => {
   const workspace = usePaterhausWorkspace();
+  const { t } = useLanguage();
   if (!event) return null;
   const property = event.propertyId ? workspace.properties.find((item) => item.id === event.propertyId) : undefined;
   const task = workspace.tasks.find((item) => item.id === event.sourceId);
@@ -91,7 +93,7 @@ const EventDetail = ({
         </SheetHeader>
         <div className="mt-6 space-y-3 text-sm">
           <p className="text-muted-foreground">
-            Scheduled for {event.date} at {event.time}
+            {t("calendar.scheduledFor", { date: event.date, time: event.time })}
           </p>
           {property && (
             <button
@@ -99,27 +101,27 @@ const EventDetail = ({
               className="text-left text-primary hover:underline"
               onClick={() => onPropertySelect?.(property.id)}
             >
-              Property · {property.name}
+              {t("operations.property")} · {property.name}
             </button>
           )}
           {task && (
             <p className="text-muted-foreground">
-              Task · <span className="text-foreground">{task.title}</span>
+              {t("operations.task")} · <span className="text-foreground">{task.title}</span>
             </p>
           )}
           {stay && (
             <p className="text-muted-foreground">
-              Reservation · <span className="text-foreground">{stay.reservationId}</span>
+              {t("calendar.reservation")} · <span className="text-foreground">{stay.reservationId}</span>
             </p>
           )}
           {compliance && (
             <p className="text-muted-foreground">
-              Compliance · <span className="text-foreground">{compliance.title}</span>
+              {t("operations.compliance")} · <span className="text-foreground">{compliance.title}</span>
             </p>
           )}
           {booking && (
             <div className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 p-3">
-              <p className="text-xs font-medium text-indigo-200">Lead booking</p>
+              <p className="text-xs font-medium text-indigo-200">{t("calendar.leadBooking")}</p>
               <p className="mt-1 text-sm text-foreground">{booking.leadName}</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 {booking.type.replace(/_/g, " ")} · {booking.status}
@@ -155,6 +157,7 @@ const eventForTask = (task: Task): CalendarEvent => {
 
 export const CalendarModule = ({ onPropertySelect }: { onPropertySelect?: (propertyId: string) => void }) => {
   const workspace = usePaterhausWorkspace();
+  const { t } = useLanguage();
   const [view, setView] = useState<CalendarView>("month");
   const [propertyFilter, setPropertyFilter] = useState("All");
   const [communityFilter, setCommunityFilter] = useState("All");
@@ -242,16 +245,16 @@ export const CalendarModule = ({ onPropertySelect }: { onPropertySelect?: (prope
   return (
     <div className="space-y-6">
       <SectionHeader
-        eyebrow="Property-centric operational calendar"
-        title="Calendar"
-        description="Reservations, operational events, vendor visits and compliance deadlines across the Dubai portfolio."
+        eyebrow={t("calendar.eyebrow")}
+        title={t("calendar.title")}
+        description={t("calendar.description")}
         action={
           <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-1">
             <Button variant={view === "month" ? "secondary" : "ghost"} size="sm" onClick={() => setView("month")}>
-              Month
+              {t("calendar.month")}
             </Button>
             <Button variant={view === "week" ? "secondary" : "ghost"} size="sm" onClick={() => setView("week")}>
-              Week
+              {t("calendar.week")}
             </Button>
           </div>
         }
@@ -259,12 +262,12 @@ export const CalendarModule = ({ onPropertySelect }: { onPropertySelect?: (prope
       <Card className="border-border/80 bg-card/70 p-4">
         <div className="flex flex-wrap gap-2">
           <select
-            aria-label="Calendar property filter"
+            aria-label={t("calendar.propertyFilter")}
             value={propertyFilter}
             onChange={(event) => setPropertyFilter(event.target.value)}
-            className="h-10 rounded-md border border-input bg-background px-2 text-xs"
+            className="h-10 min-w-[120px] rounded-md border border-input bg-background px-2 text-xs"
           >
-            <option value="All">All properties</option>
+            <option value="All">{t("calendar.allProperties")}</option>
             {workspace.properties.map((property) => (
               <option key={property.id} value={property.id}>
                 {property.name}
@@ -272,23 +275,23 @@ export const CalendarModule = ({ onPropertySelect }: { onPropertySelect?: (prope
             ))}
           </select>
           <select
-            aria-label="Calendar community filter"
+            aria-label={t("calendar.communityFilter")}
             value={communityFilter}
             onChange={(event) => setCommunityFilter(event.target.value)}
-            className="h-10 rounded-md border border-input bg-background px-2 text-xs"
+            className="h-10 min-w-[120px] rounded-md border border-input bg-background px-2 text-xs"
           >
-            <option value="All">All communities</option>
+            <option value="All">{t("calendar.allCommunities")}</option>
             {communities.map((community) => (
               <option key={community}>{community}</option>
             ))}
           </select>
           <select
-            aria-label="Calendar task type filter"
+            aria-label={t("calendar.taskTypeFilter")}
             value={taskTypeFilter}
             onChange={(event) => setTaskTypeFilter(event.target.value)}
-            className="h-10 rounded-md border border-input bg-background px-2 text-xs"
+            className="h-10 min-w-[120px] rounded-md border border-input bg-background px-2 text-xs"
           >
-            <option value="All">All task types</option>
+            <option value="All">{t("calendar.allTaskTypes")}</option>
             {taskTypes.map((taskType) => (
               <option key={taskType}>{taskType}</option>
             ))}
@@ -298,7 +301,7 @@ export const CalendarModule = ({ onPropertySelect }: { onPropertySelect?: (prope
               <Button
                 size="sm"
                 variant="ghost"
-                aria-label="Previous month"
+                aria-label={t("calendar.prevMonth")}
                 onClick={() => setMonthAnchor((value) => addMonths(value, -1))}
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -307,7 +310,7 @@ export const CalendarModule = ({ onPropertySelect }: { onPropertySelect?: (prope
               <Button
                 size="sm"
                 variant="ghost"
-                aria-label="Next month"
+                aria-label={t("calendar.nextMonth")}
                 onClick={() => setMonthAnchor((value) => addMonths(value, 1))}
               >
                 <ChevronRight className="h-4 w-4" />
@@ -318,16 +321,16 @@ export const CalendarModule = ({ onPropertySelect }: { onPropertySelect?: (prope
               <Button
                 size="sm"
                 variant="ghost"
-                aria-label="Previous week"
+                aria-label={t("calendar.prevWeek")}
                 onClick={() => setWeekAnchor((value) => addDays(value, -7))}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span className="px-2 text-xs text-muted-foreground">Week of {weekDays[0]}</span>
+              <span className="px-2 text-xs text-muted-foreground">{t("calendar.weekOf", { date: weekDays[0] })}</span>
               <Button
                 size="sm"
                 variant="ghost"
-                aria-label="Next week"
+                aria-label={t("calendar.nextWeek")}
                 onClick={() => setWeekAnchor((value) => addDays(value, 7))}
               >
                 <ChevronRight className="h-4 w-4" />
@@ -338,34 +341,35 @@ export const CalendarModule = ({ onPropertySelect }: { onPropertySelect?: (prope
         <div className="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
           <span>
             <i className="mr-1 inline-block h-2 w-2 rounded-full bg-blue-400" />
-            Occupied dates
+            {t("calendar.occupied")}
           </span>
           <span>
             <i className="mr-1 inline-block h-2 w-2 rounded-full bg-slate-400" />
-            Blocked dates
+            {t("calendar.blocked")}
           </span>
           <span>
             <i className="mr-1 inline-block h-2 w-2 rounded-full bg-primary" />
-            Operational events
+            {t("calendar.operational")}
           </span>
           <span>
             <i className="mr-1 inline-block h-2 w-2 rounded-full bg-red-400" />
-            Risks / overdue
+            {t("calendar.risks")}
           </span>
           <span>
             <i className="mr-1 inline-block h-2 w-2 rounded-full bg-indigo-400" />
-            Lead bookings
+            {t("calendar.bookings")}
           </span>
         </div>
       </Card>
       {filteredEvents.length === 0 ? (
         <EmptyState
-          title="No calendar events match"
-          description="Adjust the property, community or task-type filters."
+          title={t("calendar.noEvents")}
+          description={t("calendar.noEventsDescription")}
         />
       ) : (
         <Card className="border-border/80 bg-card/80 p-4">
-          <div className="grid grid-cols-7 gap-2">
+          <div className="overflow-x-auto pb-2">
+          <div className="grid min-w-[700px] grid-cols-7 gap-2">
             {view === "month" &&
               dayLabels.map((day) => (
                 <p key={day} className="p-2 text-center text-xs font-medium text-muted-foreground">
@@ -404,12 +408,13 @@ export const CalendarModule = ({ onPropertySelect }: { onPropertySelect?: (prope
                       </button>
                     ))}
                     {dateEvents.length > 3 && (
-                      <p className="text-[10px] text-muted-foreground">+{dateEvents.length - 3} more</p>
+                      <p className="text-[10px] text-muted-foreground">+{dateEvents.length - 3} {t("calendar.more")}</p>
                     )}
                   </div>
                 </div>
               );
             })}
+          </div>
           </div>
         </Card>
       )}

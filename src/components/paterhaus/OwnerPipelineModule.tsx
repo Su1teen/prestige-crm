@@ -813,7 +813,6 @@ export const OwnerPipelineModule = () => {
             <span aria-hidden="true">Shift + wheel →</span>
           </div>
           <div className="overflow-x-auto overscroll-x-contain pb-4">
-            <p className="mb-2 text-xs text-muted-foreground">{t("pipeline.scrollHint")}</p>
             <div className="flex w-max min-w-full gap-5">
               {stages.map((stage) => {
                 const opportunities = filtered.filter((opportunity) => opportunity.stage === stage);
@@ -921,33 +920,33 @@ export const OwnerPipelineModule = () => {
           <DialogHeader>
             <DialogTitle>{t("pipeline.addOwnerLead")}</DialogTitle>
             <DialogDescription>
-              Create a typed local opportunity with an initial stage and follow-up reminder.
+              {t("pipeline.addOwnerLeadDescription")}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-3 sm:grid-cols-2">
             <Input
-              placeholder="Owner name"
+              placeholder={t("pipeline.ownerNamePlaceholder")}
               value={lead.ownerName}
               onChange={(event) => setLead((current) => ({ ...current, ownerName: event.target.value }))}
             />
             <Input
-              placeholder="Prospect property"
+              placeholder={t("pipeline.prospectPropertyPlaceholder")}
               value={lead.prospectProperty}
               onChange={(event) => setLead((current) => ({ ...current, prospectProperty: event.target.value }))}
             />
             <Input
-              placeholder="Phone (+971 XX XXX XXXX)"
+              placeholder={t("pipeline.phonePlaceholder")}
               value={lead.phone}
               onChange={(event) => setLead((current) => ({ ...current, phone: event.target.value }))}
             />
             <Input
               type="email"
-              placeholder="Email"
+              placeholder={t("pipeline.emailPlaceholder")}
               value={lead.email}
               onChange={(event) => setLead((current) => ({ ...current, email: event.target.value }))}
             />
             <select
-              aria-label="Lead source"
+              aria-label={t("pipeline.leadSourceLabel")}
               value={lead.leadSource}
               onChange={(event) => setLead((current) => ({ ...current, leadSource: event.target.value }))}
               className="h-10 max-w-full rounded-md border border-input bg-background px-3 text-sm"
@@ -957,12 +956,12 @@ export const OwnerPipelineModule = () => {
               ))}
             </select>
             <select
-              aria-label="Campaign"
+              aria-label={t("pipeline.campaignLabel")}
               value={lead.campaignId}
               onChange={(event) => setLead((current) => ({ ...current, campaignId: event.target.value }))}
               className="h-10 max-w-full rounded-md border border-input bg-background px-3 text-sm"
             >
-              <option value="">No campaign</option>
+              <option value="">{t("pipeline.noCampaign")}</option>
               {workspace.campaigns.map((campaign) => (
                 <option key={campaign.id} value={campaign.id}>
                   {campaign.name}
@@ -970,12 +969,12 @@ export const OwnerPipelineModule = () => {
               ))}
             </select>
             <Input
-              placeholder="Area"
+              placeholder={t("pipeline.areaPlaceholder")}
               value={lead.area}
               onChange={(event) => setLead((current) => ({ ...current, area: event.target.value }))}
             />
             <select
-              aria-label="Property type"
+              aria-label={t("pipeline.propertyTypeLabel")}
               value={lead.type}
               onChange={(event) =>
                 setLead((current) => ({ ...current, type: event.target.value as LeadForm["type"] }))
@@ -989,19 +988,19 @@ export const OwnerPipelineModule = () => {
             <Input
               type="number"
               min="0"
-              placeholder="Bedrooms"
+              placeholder={t("pipeline.bedroomsPlaceholder")}
               value={lead.bedrooms}
               onChange={(event) => setLead((current) => ({ ...current, bedrooms: event.target.value }))}
             />
             <Input
               type="number"
               min="0"
-              placeholder="Monthly revenue"
+              placeholder={t("pipeline.monthlyRevenuePlaceholder")}
               value={lead.estimatedMonthlyRevenue}
               onChange={(event) => setLead((current) => ({ ...current, estimatedMonthlyRevenue: event.target.value }))}
             />
             <select
-              aria-label="Lead stage"
+              aria-label={t("pipeline.leadStageLabel")}
               value={lead.stage}
               onChange={(event) => {
                 const nextStage = event.target.value;
@@ -1014,7 +1013,7 @@ export const OwnerPipelineModule = () => {
               ))}
             </select>
             <select
-              aria-label="Lead priority"
+              aria-label={t("pipeline.leadPriorityLabel")}
               value={lead.priority}
               onChange={(event) => {
                 const nextPriority = event.target.value;
@@ -1027,13 +1026,13 @@ export const OwnerPipelineModule = () => {
               ))}
             </select>
             <Input
-              placeholder="Comment (optional)"
+              placeholder={t("pipeline.commentPlaceholder")}
               value={lead.comment}
               onChange={(event) => setLead((current) => ({ ...current, comment: event.target.value }))}
               className="sm:col-span-2"
             />
             <select
-              aria-label="Direction"
+              aria-label={t("pipeline.directionLabel")}
               value={lead.direction}
               onChange={(event) => setLead((current) => ({ ...current, direction: event.target.value as Direction }))}
               className="h-10 max-w-full rounded-md border border-input bg-background px-3 text-sm sm:col-span-2"
@@ -1047,10 +1046,10 @@ export const OwnerPipelineModule = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowLeadDialog(false)}>
-              Cancel
+              {t("pipeline.cancel")}
             </Button>
             <Button onClick={createLead} disabled={!lead.ownerName.trim() || !lead.prospectProperty.trim()}>
-              Add lead
+              {t("pipeline.addLeadButton")}
             </Button>
           </DialogFooter>
         </DialogContent>

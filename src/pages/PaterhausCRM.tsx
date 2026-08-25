@@ -59,6 +59,7 @@ import { NotificationsModule } from "@/components/paterhaus/NotificationsModule"
 import { SettingsModule } from "@/components/paterhaus/SettingsModule";
 import { FilesHubModule } from "@/components/paterhaus/FilesHubModule";
 import { KnowledgeBaseModule } from "@/components/paterhaus/KnowledgeBaseModule";
+import { CreateDialog } from "@/components/paterhaus/CreateDialog";
 import { Card } from "@/components/ui/card";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -377,19 +378,21 @@ const GlobalSearch = ({
   role: UserRole;
 }) => {
   const workspace = usePaterhausWorkspace();
+  const { t } = useLanguage();
   const go = (section: PaterhausSection, propertyId?: string) => {
+    if (!isSectionAllowed(section, role)) return;
     onOpenChange(false);
     onNavigate(section, propertyId);
   };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="dark overflow-hidden border-border bg-background p-0">
-        <DialogTitle className="sr-only">Global search</DialogTitle>
+        <DialogTitle className="sr-only">{t("shell.search")}</DialogTitle>
         <Command className="bg-background">
-          <CommandInput placeholder="Search owners, leads, properties, guests, files, tasks, knowledge…" />
+          <CommandInput placeholder={t("shell.searchPlaceholder")} />
           <CommandList className="max-h-[420px]">
-            <CommandEmpty>No results found.</CommandEmpty>
-            <CommandGroup heading="Owners & Leads">
+            <CommandEmpty>{t("shell.noResults")}</CommandEmpty>
+            <CommandGroup heading={t("search.ownersLeads")}>
               {workspace.opportunities.slice(0, 6).map((lead) => (
                 <CommandItem key={lead.id} value={`lead ${lead.ownerName} ${lead.prospectProperty}`} onSelect={() => go("pipeline")}>
                   <UsersRound className="h-4 w-4" /> {lead.ownerName} · {lead.stage}
@@ -397,39 +400,47 @@ const GlobalSearch = ({
               ))}
               {workspace.owners.slice(0, 4).map((owner) => (
                 <CommandItem key={owner.id} value={`owner ${owner.name}`} onSelect={() => go("pipeline")}>
-                  <UsersRound className="h-4 w-4" /> {owner.name} · Owner
+                  <UsersRound className="h-4 w-4" /> {owner.name} · {t("pipeline.owner")}
                 </CommandItem>
               ))}
             </CommandGroup>
-            <CommandGroup heading="Properties">
-              {workspace.properties.map((property) => (
-                <CommandItem key={property.id} value={`property ${property.name} ${property.area}`} onSelect={() => go("properties", property.id)}>
-                  <Home className="h-4 w-4" /> {property.name}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-            <CommandGroup heading="Guests">
-              {workspace.guests.slice(0, 5).map((guest) => (
-                <CommandItem key={guest.id} value={`guest ${guest.name}`} onSelect={() => go("stays")}>
-                  <UsersRound className="h-4 w-4" /> {guest.name}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-            <CommandGroup heading="Files">
-              {workspace.files.slice(0, 6).map((file) => (
-                <CommandItem key={file.id} value={`file ${file.name}`} onSelect={() => go("files")}>
-                  <FolderOpen className="h-4 w-4" /> {file.name}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-            <CommandGroup heading="Tasks">
-              {workspace.tasks.filter((task) => task.status !== "Completed").slice(0, 6).map((task) => (
-                <CommandItem key={task.id} value={`task ${task.title}`} onSelect={() => go("operations")}>
-                  <BriefcaseBusiness className="h-4 w-4" /> {task.title}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-            <CommandGroup heading="Knowledge">
+            {isSectionAllowed("properties", role) && (
+              <CommandGroup heading={t("search.properties")}>
+                {workspace.properties.map((property) => (
+                  <CommandItem key={property.id} value={`property ${property.name} ${property.area}`} onSelect={() => go("properties", property.id)}>
+                    <Home className="h-4 w-4" /> {property.name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+            {isSectionAllowed("stays", role) && (
+              <CommandGroup heading={t("search.guests")}>
+                {workspace.guests.slice(0, 5).map((guest) => (
+                  <CommandItem key={guest.id} value={`guest ${guest.name}`} onSelect={() => go("stays")}>
+                    <UsersRound className="h-4 w-4" /> {guest.name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+            {isSectionAllowed("files", role) && (
+              <CommandGroup heading={t("search.files")}>
+                {workspace.files.slice(0, 6).map((file) => (
+                  <CommandItem key={file.id} value={`file ${file.name}`} onSelect={() => go("files")}>
+                    <FolderOpen className="h-4 w-4" /> {file.name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+            {isSectionAllowed("operations", role) && (
+              <CommandGroup heading={t("search.tasks")}>
+                {workspace.tasks.filter((task) => task.status !== "Completed").slice(0, 6).map((task) => (
+                  <CommandItem key={task.id} value={`task ${task.title}`} onSelect={() => go("operations")}>
+                    <BriefcaseBusiness className="h-4 w-4" /> {task.title}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+            <CommandGroup heading={t("search.knowledge")}>
               {workspace.knowledgeItems.slice(0, 6).map((item) => (
                 <CommandItem key={item.id} value={`knowledge ${item.title} ${item.tags.join(" ")}`} onSelect={() => go("knowledge")}>
                   <BookOpenText className="h-4 w-4" /> {item.title}
@@ -451,6 +462,8 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createKind, setCreateKind] = useState<"knowledge" | "ownerNote">("knowledge");
   const [targetPropertyId, setTargetPropertyId] = useState<string>();
   const [targetTaskId, setTargetTaskId] = useState<string>();
   const [targetConversationId, setTargetConversationId] = useState<string>();
@@ -482,6 +495,17 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
 
   const quickCreate = (target: PaterhausSection, message: string) => {
     if (!isSectionAllowed(target, role)) return;
+    if (target === "knowledge") {
+      setCreateKind("knowledge");
+      setCreateOpen(true);
+      return;
+    }
+    if (target === "pipeline") {
+      // "Log Owner Note" navigates to pipeline and opens the create dialog
+      setCreateKind("ownerNote");
+      setCreateOpen(true);
+      return;
+    }
     setActiveSection(target);
     toast.info(message);
   };
@@ -579,6 +603,14 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
           if (isSectionAllowed(section, role)) setActiveSection(section);
         }}
         role={role}
+      />
+      <CreateDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        defaultKind={createKind}
+        onNavigate={(section) => {
+          if (isSectionAllowed(section, role)) setActiveSection(section);
+        }}
       />
       <Sheet open={notificationsOpen} onOpenChange={setNotificationsOpen}>
         <SheetContent className="dark w-full overflow-y-auto border-border bg-background sm:max-w-xl">

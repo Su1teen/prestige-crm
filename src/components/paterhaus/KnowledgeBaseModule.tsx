@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { usePaterhausWorkspace, type NewKnowledgeItemInput } from "@/contexts/PaterhausWorkspaceContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import {
   knowledgeCategoryLabels,
   knowledgeTypeLabels,
@@ -33,6 +34,7 @@ const emptyForm: NewKnowledgeItemInput = {
 
 export const KnowledgeBaseModule = () => {
   const workspace = usePaterhausWorkspace();
+  const { t } = useLanguage();
   const { knowledgeItems } = workspace;
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<"all" | KnowledgeCategory>("all");
@@ -89,7 +91,7 @@ export const KnowledgeBaseModule = () => {
     setShowAdd(false);
     setForm(emptyForm);
     setTagsInput("");
-    toast.success("Knowledge item added to the workspace.");
+    toast.success(t("knowledge.itemAdded"));
   };
 
   const filterSelectClass = "h-9 rounded-md border border-input bg-background px-2 text-xs";
@@ -284,18 +286,18 @@ export const KnowledgeBaseModule = () => {
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent className="dark max-h-[85vh] overflow-y-auto border-border bg-background">
           <DialogHeader>
-            <DialogTitle>Add knowledge</DialogTitle>
-            <DialogDescription>New items are stored locally in this demo workspace.</DialogDescription>
+            <DialogTitle>{t("knowledge.addTitle")}</DialogTitle>
+            <DialogDescription>{t("knowledge.addDescription")}</DialogDescription>
           </DialogHeader>
           <div className="grid gap-3">
             <Input
-              placeholder="Title"
+              placeholder={t("knowledge.titlePlaceholder")}
               value={form.title}
               onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
             />
             <div className="grid grid-cols-2 gap-3">
               <select
-                aria-label="Knowledge category"
+                aria-label={t("knowledge.categoryLabel")}
                 value={form.category}
                 onChange={(event) => setForm((current) => ({ ...current, category: event.target.value as KnowledgeCategory }))}
                 className="h-10 rounded-md border border-input bg-background px-3 text-sm"
@@ -305,7 +307,7 @@ export const KnowledgeBaseModule = () => {
                 ))}
               </select>
               <select
-                aria-label="Knowledge type"
+                aria-label={t("knowledge.typeLabel")}
                 value={form.type}
                 onChange={(event) => setForm((current) => ({ ...current, type: event.target.value as KnowledgeItem["type"] }))}
                 className="h-10 rounded-md border border-input bg-background px-3 text-sm"
@@ -316,26 +318,26 @@ export const KnowledgeBaseModule = () => {
               </select>
             </div>
             <textarea
-              aria-label="Summary"
-              placeholder="Summary / key instructions"
+              aria-label={t("knowledge.summaryLabel")}
+              placeholder={t("knowledge.summaryPlaceholder")}
               value={form.summary}
               onChange={(event) => setForm((current) => ({ ...current, summary: event.target.value }))}
               className="min-h-24 rounded-md border border-input bg-background p-3 text-sm"
             />
             <Input
-              placeholder="Tags (comma separated)"
+              placeholder={t("knowledge.tagsPlaceholder")}
               value={tagsInput}
               onChange={(event) => setTagsInput(event.target.value)}
             />
             <select
-              aria-label="Linked property"
+              aria-label={t("knowledge.linkedPropertyLabel")}
               value={form.linkedPropertyId ?? ""}
               onChange={(event) =>
                 setForm((current) => ({ ...current, linkedPropertyId: event.target.value || undefined }))
               }
               className="h-10 rounded-md border border-input bg-background px-3 text-sm"
             >
-              <option value="">No linked property</option>
+              <option value="">{t("knowledge.noLinkedProperty")}</option>
               {workspace.properties.map((property) => (
                 <option key={property.id} value={property.id}>{property.name}</option>
               ))}
@@ -343,10 +345,10 @@ export const KnowledgeBaseModule = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAdd(false)}>
-              Cancel
+              {t("knowledge.cancel")}
             </Button>
             <Button onClick={submitKnowledge} disabled={!form.title.trim() || !form.summary.trim()}>
-              Add item
+              {t("knowledge.addItem")}
             </Button>
           </DialogFooter>
         </DialogContent>

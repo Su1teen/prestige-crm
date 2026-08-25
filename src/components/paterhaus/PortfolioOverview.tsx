@@ -22,6 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { usePaterhausWorkspace } from "@/contexts/PaterhausWorkspaceContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import {
   formatUSD,
   formatPaterhausToday,
@@ -57,14 +58,14 @@ interface ActionDraft {
   bookingValue: string;
 }
 
-const actionTitles: Record<Exclude<ActionKind, null>, string> = {
-  property: "Add Property",
-  snag: "Create Snag Report",
-  turnover: "Schedule Turnover",
-  maintenance: "Log Maintenance Issue",
-  conversation: "Start Owner Conversation",
-  statement: "Create Owner Statement",
-  stay: "Add Stay",
+const actionTitleKeys: Record<Exclude<ActionKind, null>, string> = {
+  property: "portfolio.addProperty",
+  snag: "portfolio.createSnagReport",
+  turnover: "portfolio.scheduleTurnover",
+  maintenance: "portfolio.logMaintenanceIssue",
+  conversation: "portfolio.startOwnerConversation",
+  statement: "portfolio.createOwnerStatement",
+  stay: "portfolio.addStay",
 };
 
 const formatTime = (value: string) =>
@@ -72,6 +73,7 @@ const formatTime = (value: string) =>
 
 export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string, propertyId?: string) => void }) => {
   const workspace = usePaterhausWorkspace();
+  const { t } = useLanguage();
   const [actionKind, setActionKind] = useState<ActionKind>(null);
   const [actionDraft, setActionDraft] = useState<ActionDraft>({
     propertyId: workspace.properties[0]?.id ?? "",
@@ -153,7 +155,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
         ownerId: owner.id,
         type: "Apartment",
       });
-      toast.success("Property added to the local portfolio.");
+      toast.success(t("portfolio.propertyAdded"));
     }
     if (actionKind === "snag" && property) {
       workspace.createSnag({
@@ -164,7 +166,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
         costEstimate: Number(actionDraft.cost) || 0,
         deadline: PATERHAUS_TODAY,
       });
-      toast.success(`Snag recorded for ${property.name}.`);
+      toast.success(t("portfolio.snagRecorded", { name: property.name }));
     }
     if (actionKind === "turnover" && property) {
       workspace.createTask({
@@ -177,7 +179,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
         vendorId: vendor?.id,
         assignee: "Maya Fernandes",
       });
-      toast.success(`Turnover task created for ${property.name}.`);
+      toast.success(t("portfolio.turnoverCreated", { name: property.name }));
     }
     if (actionKind === "maintenance" && property) {
       workspace.createTask({
@@ -191,15 +193,15 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
         costEstimate: Number(actionDraft.cost) || 0,
         assignee: "Faisal Nadeem",
       });
-      toast.success(`Maintenance task created for ${property.name}.`);
+      toast.success(t("portfolio.maintenanceCreated", { name: property.name }));
     }
     if (actionKind === "conversation" && conversation) {
       workspace.sendMessage(conversation.id, actionDraft.message.trim());
-      toast.success(`Message sent to ${conversation.contactName}.`);
+      toast.success(t("portfolio.messageSent", { name: conversation.contactName }));
     }
     if (actionKind === "statement" && property) {
       workspace.createOwnerStatement(property.id);
-      toast.success(`Draft statement created for ${property.name}.`);
+      toast.success(t("portfolio.statementCreated", { name: property.name }));
     }
     if (actionKind === "stay" && property && guest) {
       workspace.addStay({
@@ -209,43 +211,43 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
         checkOut: actionDraft.checkOut,
         bookingValue: Number(actionDraft.bookingValue) || 0,
       });
-      toast.success(`Stay added for ${guest.name} at ${property.name}.`);
+      toast.success(t("portfolio.stayAdded", { guest: guest.name, property: property.name }));
     }
     setActionKind(null);
   };
   const quickActions = [
     {
-      label: "Add Property",
+      label: t("portfolio.addProperty"),
       icon: Plus,
       onClick: () => openAction("property"),
     },
     {
-      label: "Create Snag Report",
+      label: t("portfolio.createSnagReport"),
       icon: ClipboardPlus,
       onClick: () => openAction("snag"),
     },
     {
-      label: "Schedule Turnover",
+      label: t("portfolio.scheduleTurnover"),
       icon: CalendarClock,
       onClick: () => openAction("turnover"),
     },
     {
-      label: "Log Maintenance Issue",
+      label: t("portfolio.logMaintenanceIssue"),
       icon: Wrench,
       onClick: () => openAction("maintenance"),
     },
     {
-      label: "Start Owner Conversation",
+      label: t("portfolio.startOwnerConversation"),
       icon: MessageCircle,
       onClick: () => openAction("conversation"),
     },
     {
-      label: "Create Owner Statement",
+      label: t("portfolio.createOwnerStatement"),
       icon: FileText,
       onClick: () => openAction("statement"),
     },
     {
-      label: "Add Stay",
+      label: t("portfolio.addStay"),
       icon: CircleDollarSign,
       onClick: () => openAction("stay"),
     },
@@ -255,14 +257,14 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
     <div className="space-y-6">
       <SectionHeader
         eyebrow={formatPaterhausToday()}
-        title="Portfolio Overview"
-        description="A live local view of readiness, guest movement, owner exposure and the work that needs attention today."
+        title={t("portfolio.title")}
+        description={t("portfolio.description")}
         action={
           <div className="flex flex-wrap gap-2">
             <OpsCopilot onOpenProperty={(propertyId) => onNavigate("properties", propertyId)} />
             <Button variant="outline" onClick={() => onNavigate("properties")}>
               <ArrowRight className="h-4 w-4" />
-              Open properties
+              {t("portfolio.openProperties")}
             </Button>
           </div>
         }
@@ -270,16 +272,16 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
 
       <Card className="border-primary/20 bg-primary/5 p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="font-semibold text-foreground">Today at Paterhaus</p>
-          <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">Demo workspace</span>
+          <p className="font-semibold text-foreground">{t("portfolio.todayAtPaterhaus")}</p>
+          <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">{t("portfolio.demoWorkspace")}</span>
         </div>
         <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
           {[
-            { label: `${workspace.marketingLeads.filter((lead) => lead.status === "new").length} new leads need first response`, section: "marketing" },
-            { label: "2 property inspections scheduled", section: "calendar" },
-            { label: `${workspace.tasks.filter((task) => task.priority === "Urgent" && task.status !== "Completed").length} urgent maintenance task${workspace.tasks.filter((task) => task.priority === "Urgent" && task.status !== "Completed").length === 1 ? "" : "s"}`, section: "operations" },
-            { label: `${workspace.files.filter((file) => file.reviewStatus === "needs_review").length} files need review`, section: "files" },
-            { label: "2 follow-ups overdue", section: "pipeline" },
+            { label: t("portfolio.newLeadsNeedResponse", { count: workspace.marketingLeads.filter((lead) => lead.status === "new").length }), section: "marketing" },
+            { label: t("portfolio.inspectionsScheduled"), section: "calendar" },
+            { label: t("portfolio.urgentMaintenanceTasks", { count: workspace.tasks.filter((task) => task.priority === "Urgent" && task.status !== "Completed").length }), section: "operations" },
+            { label: t("portfolio.filesNeedReview", { count: workspace.files.filter((file) => file.reviewStatus === "needs_review").length }), section: "files" },
+            { label: t("portfolio.followUpsOverdue"), section: "pipeline" },
           ].map((item) => (
             <button
               key={item.label}
@@ -296,72 +298,72 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <KpiCard
-          label="Active Properties"
+          label={t("portfolio.activeProperties")}
           value={`${metrics.activeProperties}`}
-          detail={`${workspace.properties.length} total in workspace`}
+          detail={t("portfolio.totalInWorkspace", { count: workspace.properties.length })}
           tone="good"
           icon={<MetricIcon kind="check" />}
         />
         <KpiCard
-          label="Occupied Tonight"
+          label={t("portfolio.occupiedTonight")}
           value={`${metrics.occupiedTonight}`}
-          detail={`${metrics.activeProperties - metrics.occupiedTonight} available or blocked`}
+          detail={t("portfolio.availableOrBlocked", { count: metrics.activeProperties - metrics.occupiedTonight })}
           tone="info"
           icon={<MetricIcon kind="up" />}
         />
         <KpiCard
-          label="Check-ins Today"
+          label={t("portfolio.checkInsToday")}
           value={`${metrics.checkInsToday}`}
-          detail={`${checkIns.filter((stay) => stay.checkInStatus === "Ready").length} readiness-approved`}
+          detail={t("portfolio.readinessApproved", { count: checkIns.filter((stay) => stay.checkInStatus === "Ready").length })}
           tone="info"
           icon={<MetricIcon kind="clock" />}
         />
         <KpiCard
-          label="Check-outs Today"
+          label={t("portfolio.checkOutsToday")}
           value={`${metrics.checkOutsToday}`}
-          detail="Turnover windows created"
+          detail={t("portfolio.turnoverWindowsCreated")}
           tone="warning"
           icon={<MetricIcon kind="clock" />}
         />
         <KpiCard
-          label="Occupancy Rate"
+          label={t("portfolio.occupancyRate")}
           value={`${metrics.occupancyRate}%`}
-          detail="Portfolio average"
+          detail={t("portfolio.portfolioAverage")}
           tone="good"
           icon={<MetricIcon kind="up" />}
         />
         <KpiCard
-          label="MTD Revenue"
+          label={t("portfolio.mtdRevenue")}
           value={formatUSD(metrics.monthToDateRevenue)}
-          detail={`${Math.round((metrics.monthToDateRevenue / metrics.revenueTarget) * 100)}% of target`}
+          detail={t("portfolio.ofTarget", { percent: Math.round((metrics.monthToDateRevenue / metrics.revenueTarget) * 100) })}
           tone="good"
           icon={<MetricIcon kind="up" />}
         />
         <KpiCard
-          label="Net Payouts Due"
+          label={t("portfolio.netPayoutsDue")}
           value={formatUSD(metrics.netOwnerPayoutsDue)}
           detail="September run · 5 Sep"
           tone="neutral"
           icon={<MetricIcon kind="flat" />}
         />
         <KpiCard
-          label="Open Issues"
+          label={t("portfolio.openIssues")}
           value={`${metrics.openOperationalIssues}`}
-          detail={`${metrics.overdueTasks} overdue task${metrics.overdueTasks === 1 ? "" : "s"}`}
+          detail={t("portfolio.overdueTasks", { count: metrics.overdueTasks })}
           tone="critical"
           icon={<MetricIcon kind="alert" />}
         />
         <KpiCard
-          label="Critical Compliance"
+          label={t("portfolio.criticalCompliance")}
           value={`${metrics.criticalComplianceItems}`}
-          detail="Due soon or missing documents"
+          detail={t("portfolio.dueSoonOrMissing")}
           tone="warning"
           icon={<MetricIcon kind="alert" />}
         />
         <KpiCard
-          label="Not Listing-Ready"
+          label={t("portfolio.notListingReady")}
           value={`${metrics.notListingReady}`}
-          detail="Needs setup or documentation"
+          detail={t("portfolio.needsSetup")}
           tone="critical"
           icon={<MetricIcon kind="alert" />}
         />
@@ -371,14 +373,14 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
         <Card className="border-border/80 bg-card/80 p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h3 className="font-semibold text-foreground">Revenue vs target</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Weekly portfolio performance · USD</p>
+              <h3 className="font-semibold text-foreground">{t("portfolio.revenueVsTarget")}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{t("portfolio.weeklyPerformance")}</p>
             </div>
             <div className="text-right">
               <p className="text-lg font-semibold text-foreground">{formatUSD(metrics.monthToDateRevenue)}</p>
               <p className={revenueDelta >= 0 ? "text-xs text-emerald-300" : "text-xs text-red-300"}>
                 {revenueDelta >= 0 ? "+" : ""}
-                {revenueDelta.toFixed(1)}% vs previous period
+                {t("portfolio.vsPreviousPeriod", { delta: revenueDelta.toFixed(1) })}
               </p>
             </div>
           </div>
@@ -407,7 +409,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
                 <Tooltip
                   formatter={(value: number, name: string) => [
                     formatUSD(value),
-                    name === "target" ? "Target" : "Revenue",
+                    name === "target" ? t("portfolio.target") : t("portfolio.revenue"),
                   ]}
                   contentStyle={{
                     background: "hsl(var(--card))",
@@ -435,30 +437,30 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
           <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
             <span className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-primary" />
-              Revenue
+              {t("portfolio.revenue")}
             </span>
             <span className="flex items-center gap-2">
               <span className="h-px w-4 border-t border-dashed border-muted-foreground" />
-              Target
+              {t("portfolio.target")}
             </span>
           </div>
         </Card>
         <Card className="border-border/80 bg-card/80 p-5">
           <div className="flex items-start justify-between">
             <div>
-              <h3 className="font-semibold text-foreground">Portfolio health</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Current operating state by property</p>
+              <h3 className="font-semibold text-foreground">{t("portfolio.portfolioHealth")}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{t("portfolio.operatingState")}</p>
             </div>
-            <StatusPill status={`${workspace.properties.length} assets`} />
+            <StatusPill status={`${workspace.properties.length} ${t("portfolio.assets")}`} />
           </div>
           <div className="mt-5 space-y-3">
             {[
-              ["Ready", "emerald"],
-              ["Occupied", "blue"],
-              ["Turnover in progress", "amber"],
-              ["Maintenance required", "red"],
-              ["Compliance risk", "amber"],
-              ["Off market", "slate"],
+              [t("portfolio.ready"), "emerald"],
+              [t("portfolio.occupied"), "blue"],
+              [t("portfolio.turnoverInProgress"), "amber"],
+              [t("portfolio.maintenanceRequired"), "red"],
+              [t("portfolio.complianceRisk"), "amber"],
+              [t("portfolio.offMarket"), "slate"],
             ].map(([label, tone]) => {
               const count = health[label] ?? 0;
               const toneClass =
@@ -487,8 +489,9 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
             })}
           </div>
           <div className="mt-5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-xs leading-5 text-amber-200">
-            {decisionProperties.size} {decisionProperties.size === 1 ? "property needs" : "properties need"} a decision
-            today based on open urgent work, approvals and compliance risk.
+            {decisionProperties.size === 1
+              ? t("portfolio.propertyNeedsDecision", { count: decisionProperties.size })
+              : t("portfolio.propertiesNeedDecision", { count: decisionProperties.size })}
           </div>
         </Card>
       </div>
@@ -497,10 +500,10 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
         <Card className="border-border/80 bg-card/80 p-5">
           <div className="flex items-start justify-between">
             <div>
-              <h3 className="font-semibold text-foreground">Priority feed</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Unread events requiring an operational decision</p>
+              <h3 className="font-semibold text-foreground">{t("portfolio.priorityFeed")}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{t("portfolio.unreadEvents")}</p>
             </div>
-            <StatusPill status={`${priorityNotifications.length} unread`} />
+            <StatusPill status={`${priorityNotifications.length} ${t("portfolio.unread")}`} />
           </div>
           <div className="mt-3 divide-y divide-border/60">
             {priorityNotifications.map((notification) => (
@@ -518,8 +521,8 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
         <Card className="border-border/80 bg-card/80 p-5">
           <div className="flex items-start justify-between">
             <div>
-              <h3 className="font-semibold text-foreground">Today's critical timeline</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Guest movement and operational hand-offs</p>
+              <h3 className="font-semibold text-foreground">{t("portfolio.criticalTimeline")}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{t("portfolio.guestMovement")}</p>
             </div>
             <StatusPill status={PATERHAUS_TODAY} />
           </div>
@@ -542,9 +545,9 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
       <div className="grid gap-5 xl:grid-cols-[1.2fr_1fr_1fr]">
         <Card className="border-border/80 bg-card/80 p-5">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-foreground">Properties requiring attention</h3>
+            <h3 className="font-semibold text-foreground">{t("portfolio.propertiesRequiringAttention")}</h3>
             <Button variant="ghost" size="sm" onClick={() => onNavigate("properties")}>
-              View all <ArrowRight className="h-4 w-4" />
+              {t("portfolio.viewAll")} <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
           <div className="mt-3 space-y-2">
@@ -561,8 +564,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium text-foreground">{property.name}</span>
                   <span className="block text-xs text-muted-foreground">
-                    {property.community} · {property.openIssueCount} open issue
-                    {property.openIssueCount === 1 ? "" : "s"}
+                    {property.community} · {property.openIssueCount} {property.openIssueCount === 1 ? t("portfolio.openIssue") : t("portfolio.openIssues")}
                   </span>
                 </span>
                 <StatusPill status={property.status} />
@@ -571,7 +573,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
           </div>
         </Card>
         <Card className="border-border/80 bg-card/80 p-5">
-          <h3 className="font-semibold text-foreground">Recent owner communications</h3>
+          <h3 className="font-semibold text-foreground">{t("portfolio.recentOwnerCommunications")}</h3>
           <div className="mt-3 space-y-3">
             {ownerCommunications.map((conversation) => (
               <button
@@ -597,7 +599,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
           </div>
         </Card>
         <Card className="border-border/80 bg-card/80 p-5">
-          <h3 className="font-semibold text-foreground">Financial events</h3>
+          <h3 className="font-semibold text-foreground">{t("portfolio.financialEvents")}</h3>
           <div className="mt-3 space-y-3">
             {workspace.statements
               .filter((statement) => statement.status === "Awaiting approval" || statement.status === "Exception")
@@ -608,9 +610,9 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
                     <FileText className="h-4 w-4" />
                   </span>
                   <div>
-                    <p className="text-sm font-medium text-foreground">{statement.period} statement</p>
+                    <p className="text-sm font-medium text-foreground">{statement.period} {t("portfolio.statement")}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {formatUSD(statement.netPayout)} net payout · {statement.status}
+                      {formatUSD(statement.netPayout)} {t("portfolio.netPayout")} · {statement.status}
                     </p>
                   </div>
                 </div>
@@ -622,8 +624,8 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
       <Card className="border-border/80 bg-card/80 p-5">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-semibold text-foreground">Quick actions</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Every action updates the local workspace state.</p>
+              <h3 className="font-semibold text-foreground">{t("portfolio.quickActions")}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{t("portfolio.everyActionUpdates")}</p>
             </div>
             <CheckCircle2 className="h-5 w-5 text-emerald-300" />
           </div>
@@ -645,9 +647,9 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
       <Dialog open={actionKind !== null} onOpenChange={(open) => !open && setActionKind(null)}>
         <DialogContent className="dark max-w-lg border-border bg-background">
           <DialogHeader>
-            <DialogTitle>{actionKind ? actionTitles[actionKind] : "Confirm action"}</DialogTitle>
+            <DialogTitle>{actionKind ? t(actionTitleKeys[actionKind]) : t("portfolio.confirmAction")}</DialogTitle>
             <DialogDescription>
-              Choose the related workspace records before applying this local demo action.
+              {t("portfolio.chooseRecords")}
             </DialogDescription>
           </DialogHeader>
           {actionKind && (
@@ -655,7 +657,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
               {actionKind === "property" && (
                 <>
                   <label className="block text-sm text-foreground">
-                    Property name
+                    {t("portfolio.propertyName")}
                     <input
                       value={actionDraft.name}
                       onChange={(event) => updateActionDraft("name", event.target.value)}
@@ -664,7 +666,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
                     />
                   </label>
                   <label className="block text-sm text-foreground">
-                    Unit identifier
+                    {t("portfolio.unitIdentifier")}
                     <input
                       value={actionDraft.unitIdentifier}
                       onChange={(event) => updateActionDraft("unitIdentifier", event.target.value)}
@@ -673,7 +675,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
                     />
                   </label>
                   <label className="block text-sm text-foreground">
-                    Community / area
+                    {t("portfolio.communityArea")}
                     <input
                       value={actionDraft.area}
                       onChange={(event) => updateActionDraft("area", event.target.value)}
@@ -682,7 +684,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
                     />
                   </label>
                   <label className="block text-sm text-foreground">
-                    Owner
+                    {t("portfolio.owner")}
                     <select
                       value={actionDraft.ownerId}
                       onChange={(event) => updateActionDraft("ownerId", event.target.value)}
@@ -699,7 +701,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
               )}
               {actionKind !== "property" && actionKind !== "conversation" && (
                 <label className="block text-sm text-foreground">
-                  Property
+                  {t("portfolio.property")}
                   <select
                     value={actionDraft.propertyId}
                     onChange={(event) => updateActionDraft("propertyId", event.target.value)}
@@ -716,7 +718,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
               {(actionKind === "turnover" || actionKind === "maintenance") && (
                 <>
                   <label className="block text-sm text-foreground">
-                    Vendor
+                    {t("portfolio.vendor")}
                     <select
                       value={actionDraft.vendorId}
                       onChange={(event) => updateActionDraft("vendorId", event.target.value)}
@@ -730,7 +732,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
                     </select>
                   </label>
                   <label className="block text-sm text-foreground">
-                    {actionKind === "maintenance" ? "Issue description" : "Turnover note"}
+                    {actionKind === "maintenance" ? t("portfolio.issueDescription") : t("portfolio.turnoverNote")}
                     <textarea
                       value={actionDraft.description}
                       onChange={(event) => updateActionDraft("description", event.target.value)}
@@ -739,7 +741,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
                   </label>
                   {actionKind === "maintenance" && (
                     <label className="block text-sm text-foreground">
-                      Cost estimate (USD)
+                      {t("portfolio.costEstimate")}
                       <input
                         type="number"
                         min="0"
@@ -754,7 +756,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
               {actionKind === "snag" && (
                 <>
                   <label className="block text-sm text-foreground">
-                    Area
+                    {t("portfolio.area")}
                     <input
                       value={actionDraft.area}
                       onChange={(event) => updateActionDraft("area", event.target.value)}
@@ -762,7 +764,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
                     />
                   </label>
                   <label className="block text-sm text-foreground">
-                    Description
+                    {t("portfolio.description")}
                     <textarea
                       value={actionDraft.description}
                       onChange={(event) => updateActionDraft("description", event.target.value)}
@@ -770,7 +772,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
                     />
                   </label>
                   <label className="block text-sm text-foreground">
-                    Cost estimate (USD)
+                    {t("portfolio.costEstimate")}
                     <input
                       type="number"
                       min="0"
@@ -784,7 +786,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
               {actionKind === "conversation" && (
                 <>
                   <label className="block text-sm text-foreground">
-                    Owner conversation
+                    {t("portfolio.ownerConversation")}
                     <select
                       value={actionDraft.conversationId}
                       onChange={(event) => updateActionDraft("conversationId", event.target.value)}
@@ -800,7 +802,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
                     </select>
                   </label>
                   <label className="block text-sm text-foreground">
-                    Message
+                    {t("portfolio.message")}
                     <textarea
                       value={actionDraft.message}
                       onChange={(event) => updateActionDraft("message", event.target.value)}
@@ -812,7 +814,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
               {actionKind === "stay" && (
                 <>
                   <label className="block text-sm text-foreground">
-                    Guest
+                    {t("portfolio.guest")}
                     <select
                       value={actionDraft.guestId}
                       onChange={(event) => updateActionDraft("guestId", event.target.value)}
@@ -827,7 +829,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
                   </label>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="block text-sm text-foreground">
-                      Check-in
+                      {t("portfolio.checkIn")}
                       <input
                         type="date"
                         value={actionDraft.checkIn}
@@ -836,7 +838,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
                       />
                     </label>
                     <label className="block text-sm text-foreground">
-                      Check-out
+                      {t("portfolio.checkOut")}
                       <input
                         type="date"
                         value={actionDraft.checkOut}
@@ -846,7 +848,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
                     </label>
                   </div>
                   <label className="block text-sm text-foreground">
-                    Booking value (USD)
+                    {t("portfolio.bookingValue")}
                     <input
                       type="number"
                       min="0"
@@ -861,9 +863,9 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setActionKind(null)}>
-              Cancel
+              {t("portfolio.cancel")}
             </Button>
-            <Button onClick={confirmAction}>Confirm local action</Button>
+            <Button onClick={confirmAction}>{t("portfolio.confirmLocalAction")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

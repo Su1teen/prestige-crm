@@ -85,6 +85,7 @@ const TaskDetail = ({
   onStatusChange: (status: TaskStatus) => void;
 }) => {
   const workspace = usePaterhausWorkspace();
+  const { t } = useLanguage();
   if (!task) return null;
   const property = workspace.properties.find((item) => item.id === task.propertyId);
   const stay = workspace.stays.find((item) => item.id === task.stayId);
@@ -110,9 +111,9 @@ const TaskDetail = ({
               {isOverdue(task) && <StatusPill status="Overdue" />}
             </div>
             <label className="mt-4 block text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
-              Update status
+              {t("operations.updateStatus")}
               <select
-                aria-label="Update task status"
+                aria-label={t("operations.updateTaskStatus")}
                 value={task.status}
                 onChange={(event) => {
                   if (isTaskStatus(event.target.value)) onStatusChange(event.target.value);
@@ -126,27 +127,27 @@ const TaskDetail = ({
             </label>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <p className="text-sm text-muted-foreground">
-                <span className="block text-xs">SLA / due</span>
+                <span className="block text-xs">{t("operations.slaDue")}</span>
                 <span className="text-foreground">{formatPaterhausDateTime(task.dueAt)}</span>
               </p>
               <p className="text-sm text-muted-foreground">
-                <span className="block text-xs">Assignee</span>
-                <span className="text-foreground">{task.assignee ?? "Unassigned"}</span>
+                <span className="block text-xs">{t("operations.assignee")}</span>
+                <span className="text-foreground">{task.assignee ?? t("operations.unassigned")}</span>
               </p>
               <p className="text-sm text-muted-foreground">
-                <span className="block text-xs">Vendor</span>
-                <span className="text-foreground">{vendor?.name ?? "Not assigned"}</span>
+                <span className="block text-xs">{t("operations.vendor")}</span>
+                <span className="text-foreground">{vendor?.name ?? t("operations.notAssigned")}</span>
               </p>
               <p className="text-sm text-muted-foreground">
-                <span className="block text-xs">Cost estimate</span>
+                <span className="block text-xs">{t("operations.costEstimate")}</span>
                 <span className="text-foreground">
-                  {task.costEstimate ? formatUSD(task.costEstimate) : "Not estimated"}
+                  {task.costEstimate ? formatUSD(task.costEstimate) : t("operations.notEstimated")}
                 </span>
               </p>
             </div>
           </Card>
           <Card className="border-border bg-card p-4">
-            <h3 className="font-medium text-foreground">Linked entities</h3>
+            <h3 className="font-medium text-foreground">{t("operations.linkedEntities")}</h3>
             <div className="mt-3 space-y-2 text-sm">
               {property && (
                 <button
@@ -154,22 +155,22 @@ const TaskDetail = ({
                   className="block text-left text-primary hover:underline"
                   onClick={() => onPropertySelect?.(property.id)}
                 >
-                  Property · {property.name}
+                  {t("operations.property")} · {property.name}
                 </button>
               )}
-              {stay && <p className="text-muted-foreground">Stay · {stay.reservationId}</p>}
-              {guest && <p className="text-muted-foreground">Guest · {guest.name}</p>}
-              {owner && <p className="text-muted-foreground">Owner · {owner.name}</p>}
+              {stay && <p className="text-muted-foreground">{t("operations.stay")} · {stay.reservationId}</p>}
+              {guest && <p className="text-muted-foreground">{t("operations.guest")} · {guest.name}</p>}
+              {owner && <p className="text-muted-foreground">{t("pipeline.owner")} · {owner.name}</p>}
               {snag && (
                 <p className="text-muted-foreground">
-                  Snag · {snag.id} · {snag.area}
+                  {t("operations.snag")} · {snag.id} · {snag.area}
                 </p>
               )}
-              {compliance && <p className="text-muted-foreground">Compliance · {compliance.title}</p>}
+              {compliance && <p className="text-muted-foreground">{t("operations.compliance")} · {compliance.title}</p>}
             </div>
           </Card>
           <Card className="border-border bg-card p-4">
-            <h3 className="font-medium text-foreground">Activity log</h3>
+            <h3 className="font-medium text-foreground">{t("operations.activityLog")}</h3>
             <div className="mt-3 space-y-2">
               {(task.activityLog ?? [`Created on ${formatPaterhausDateTime(task.createdAt)}`]).map((event) => (
                 <p key={event} className="border-l border-primary/40 pl-3 text-sm text-muted-foreground">
@@ -179,10 +180,9 @@ const TaskDetail = ({
             </div>
           </Card>
           <Card className="border-dashed border-border bg-card/50 p-4">
-            <h3 className="font-medium text-foreground">Completion proof</h3>
+            <h3 className="font-medium text-foreground">{t("operations.completionProof")}</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              {task.completionProof ??
-                "Evidence upload placeholder · attach photos, invoice or guest confirmation here."}
+              {task.completionProof ?? t("operations.completionProofPlaceholder")}
             </p>
           </Card>
         </div>
@@ -283,24 +283,26 @@ export const OperationsBoardModule = ({
             />
           </div>
           <select
-            aria-label="Time filter"
+            aria-label={t("operations.timeFilter")}
             value={timeFilter}
             onChange={(event) => {
               if (isTimeFilter(event.target.value)) setTimeFilter(event.target.value);
             }}
-            className="h-10 rounded-md border border-input bg-background px-2 text-xs"
+            className="h-10 min-w-[100px] rounded-md border border-input bg-background px-2 text-xs"
           >
             {timeFilters.map((filter) => (
-              <option key={filter}>{filter}</option>
+              <option key={filter} value={filter}>
+                {filter === "All" ? t("operations.all") : filter === "Today" ? t("operations.today") : filter === "Tomorrow" ? t("operations.tomorrow") : t("operations.thisWeek")}
+              </option>
             ))}
           </select>
           <select
-            aria-label="Property filter"
+            aria-label={t("operations.propertyFilter")}
             value={propertyFilter}
             onChange={(event) => setPropertyFilter(event.target.value)}
-            className="h-10 rounded-md border border-input bg-background px-2 text-xs"
+            className="h-10 min-w-[120px] rounded-md border border-input bg-background px-2 text-xs"
           >
-            <option>All</option>
+            <option value="All">{t("operations.all")}</option>
             {workspace.properties.map((property) => (
               <option key={property.id} value={property.id}>
                 {property.name}
@@ -308,48 +310,48 @@ export const OperationsBoardModule = ({
             ))}
           </select>
           <select
-            aria-label="Community filter"
+            aria-label={t("operations.communityFilter")}
             value={communityFilter}
             onChange={(event) => setCommunityFilter(event.target.value)}
-            className="h-10 rounded-md border border-input bg-background px-2 text-xs"
+            className="h-10 min-w-[120px] rounded-md border border-input bg-background px-2 text-xs"
           >
-            <option>All</option>
+            <option value="All">{t("operations.all")}</option>
             {communities.map((community) => (
               <option key={community}>{community}</option>
             ))}
           </select>
           <select
-            aria-label="Task type filter"
+            aria-label={t("operations.taskTypeFilter")}
             value={categoryFilter}
             onChange={(event) => {
               if (event.target.value === "All" || isTaskCategory(event.target.value))
                 setCategoryFilter(event.target.value);
             }}
-            className="h-10 rounded-md border border-input bg-background px-2 text-xs"
+            className="h-10 min-w-[120px] rounded-md border border-input bg-background px-2 text-xs"
           >
-            <option>All</option>
+            <option value="All">{t("operations.all")}</option>
             {categories.map((category) => (
               <option key={category}>{category}</option>
             ))}
           </select>
           <select
-            aria-label="Assignee filter"
+            aria-label={t("operations.assigneeFilter")}
             value={assigneeFilter}
             onChange={(event) => setAssigneeFilter(event.target.value)}
-            className="h-10 rounded-md border border-input bg-background px-2 text-xs"
+            className="h-10 min-w-[120px] rounded-md border border-input bg-background px-2 text-xs"
           >
-            <option>All</option>
+            <option value="All">{t("operations.all")}</option>
             {assignees.map((assignee) => (
               <option key={assignee}>{assignee}</option>
             ))}
           </select>
           <select
-            aria-label="Vendor filter"
+            aria-label={t("operations.vendorFilter")}
             value={vendorFilter}
             onChange={(event) => setVendorFilter(event.target.value)}
-            className="h-10 rounded-md border border-input bg-background px-2 text-xs"
+            className="h-10 min-w-[120px] rounded-md border border-input bg-background px-2 text-xs"
           >
-            <option>All</option>
+            <option value="All">{t("operations.all")}</option>
             {workspace.vendors.map((vendor) => (
               <option key={vendor.id} value={vendor.id}>
                 {vendor.name}
@@ -357,50 +359,50 @@ export const OperationsBoardModule = ({
             ))}
           </select>
           <select
-            aria-label="Priority filter"
+            aria-label={t("operations.priorityFilter")}
             value={priorityFilter}
             onChange={(event) => {
               if (event.target.value === "All" || isPriority(event.target.value)) setPriorityFilter(event.target.value);
             }}
-            className="h-10 rounded-md border border-input bg-background px-2 text-xs"
+            className="h-10 min-w-[100px] rounded-md border border-input bg-background px-2 text-xs"
           >
-            <option>All</option>
+            <option value="All">{t("operations.all")}</option>
             {priorities.map((priority) => (
               <option key={priority}>{priority}</option>
             ))}
           </select>
           <select
-            aria-label="Overdue filter"
+            aria-label={t("operations.overdueFilter")}
             value={overdueFilter}
             onChange={(event) => setOverdueFilter(event.target.value)}
-            className="h-10 rounded-md border border-input bg-background px-2 text-xs"
+            className="h-10 min-w-[100px] rounded-md border border-input bg-background px-2 text-xs"
           >
-            <option>All</option>
-            <option>Overdue</option>
-            <option>On time</option>
+            <option value="All">{t("operations.all")}</option>
+            <option value="Overdue">{t("operations.overdue")}</option>
+            <option value="On time">{t("operations.onTime")}</option>
           </select>
           <select
-            aria-label="Status filter"
+            aria-label={t("operations.statusFilter")}
             value={statusFilter}
             onChange={(event) => {
               if (event.target.value === "All" || isTaskStatus(event.target.value)) setStatusFilter(event.target.value);
             }}
-            className="h-10 rounded-md border border-input bg-background px-2 text-xs"
+            className="h-10 min-w-[120px] rounded-md border border-input bg-background px-2 text-xs"
           >
-            <option>All</option>
+            <option value="All">{t("operations.all")}</option>
             {statuses.map((status) => (
               <option key={status}>{status}</option>
             ))}
           </select>
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
-          {filtered.length} tasks shown · {filtered.filter(isOverdue).length} overdue · {filtered.filter((task) => task.status !== "Completed" && task.dueAt.slice(0, 10) === PATERHAUS_TODAY).length} due today
+          {filtered.length} {t("operations.tasksShown")} · {filtered.filter(isOverdue).length} {t("operations.overdueCount")} · {filtered.filter((task) => task.status !== "Completed" && task.dueAt.slice(0, 10) === PATERHAUS_TODAY).length} {t("operations.dueToday")}
         </p>
       </Card>
       {filtered.length === 0 ? (
         <EmptyState
-          title="No operational work matches"
-          description="Adjust the filters to bring more work into view."
+          title={t("operations.noTasksMatch")}
+          description={t("operations.noTasksMatchDescription")}
         />
       ) : view === "table" ? (
         <Card className="overflow-hidden border-border/80 bg-card/80">
@@ -408,12 +410,12 @@ export const OperationsBoardModule = ({
             <table className="w-full text-sm">
               <thead className="border-b border-border bg-secondary/40 text-left text-xs text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3">Task</th>
-                  <th className="px-4 py-3">Property</th>
-                  <th className="px-4 py-3">Category</th>
-                  <th className="px-4 py-3">Due / SLA</th>
-                  <th className="px-4 py-3">Assignee</th>
-                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">{t("operations.task")}</th>
+                  <th className="px-4 py-3">{t("operations.property")}</th>
+                  <th className="px-4 py-3">{t("operations.category")}</th>
+                  <th className="px-4 py-3">{t("operations.dueSla")}</th>
+                  <th className="px-4 py-3">{t("operations.assignee")}</th>
+                  <th className="px-4 py-3">{t("operations.status")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -435,7 +437,7 @@ export const OperationsBoardModule = ({
                         <span className="text-muted-foreground">{formatPaterhausDateTime(task.dueAt)}</span>
                         {isOverdue(task) && <StatusPill status="Overdue" className="ml-2" />}
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">{task.assignee ?? "Unassigned"}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{task.assignee ?? t("operations.unassigned")}</td>
                       <td className="px-4 py-3">
                         <StatusPill status={task.status} />
                       </td>

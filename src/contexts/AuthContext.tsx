@@ -25,14 +25,14 @@ const CREDENTIALS: Record<string, CredentialEntry> = {
   // B2B Sales
   "admin@sales.com": { workspace: "b2b", role: "admin", passwordRequired: false },
   // Paterhaus Admin
-  "admin@paterhaus.com": {
+  "info@paterhaus.com": {
     workspace: "paterhaus",
     role: "admin",
     passwordRequired: true,
     password: "admin2026_pater",
   },
   // Paterhaus Marketing
-  "marketing@paterhaus.com": {
+  "r_tszi@paterhaus.com": {
     workspace: "paterhaus",
     role: "marketing",
     passwordRequired: true,
