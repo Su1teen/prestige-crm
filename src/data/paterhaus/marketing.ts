@@ -1,6 +1,6 @@
 import type { Direction } from "@/components/paterhaus/p0Shared";
 
-export type CampaignPlatform = "facebook" | "instagram";
+export type CampaignPlatform = "facebook" | "instagram" | "google" | "whatsapp" | "referral" | "other";
 
 export type Campaign = {
   id: string;

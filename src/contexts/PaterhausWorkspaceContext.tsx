@@ -26,7 +26,7 @@ import {
 } from "@/data/paterhaus";
 import type { DemoFile } from "@/data/paterhaus/files";
 import { demoKnowledgeItems, type KnowledgeItem } from "@/data/paterhaus/knowledgeBase";
-import type { Campaign, LeadMessage, MarketingLead } from "@/data/paterhaus/marketing";
+import type { Campaign, CampaignPlatform, LeadMessage, MarketingLead } from "@/data/paterhaus/marketing";
 import type {
   ActivityEvent,
   Booking,
@@ -108,6 +108,15 @@ export interface NewMarketingLeadInput {
   propertyType?: MarketingLead["propertyType"];
   bedrooms?: number;
   comment?: string;
+}
+
+export interface NewCampaignInput {
+  name: string;
+  platform: CampaignPlatform;
+  direction: Direction;
+  period: string;
+  spendUsd: number;
+  notes?: string;
 }
 
 export interface NewDemoFileInput {
@@ -222,6 +231,11 @@ interface PaterhausWorkspaceContextValue {
   campaigns: Campaign[];
   marketingLeads: MarketingLead[];
   addMarketingLead: (input: NewMarketingLeadInput) => void;
+  addCampaign: (input: NewCampaignInput) => void;
+  deleteCampaign: (campaignId: string) => void;
+  deleteMarketingLead: (leadId: string) => void;
+  resetMarketingData: () => void;
+  isMarketingWorkspace: boolean;
   leadMessages: LeadMessage[];
   sendLeadMessage: (opportunityId: string, text: string) => void;
   sendMessage: (conversationId: string, text: string, internal?: boolean) => void;
@@ -240,13 +254,48 @@ const PaterhausWorkspaceContext = createContext<PaterhausWorkspaceContextValue |
 
 const nextId = (prefix: string, length: number) => `${prefix}-${String(length + 1).padStart(3, "0")}`;
 
-export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }) => {
+export const PaterhausWorkspaceProvider = ({
+  children,
+  role = "admin",
+}: {
+  children: ReactNode;
+  role?: "admin" | "marketing" | "manager";
+}) => {
+  const isMarketing = role === "marketing";
+
+  // Marketing workspace uses separate localStorage-persisted state for marketing entities.
+  // Admin workspace uses the rich demo dataset (in-memory, not persisted).
+  const marketingStorageKey = (entity: string) => `paterhaus:paterhaus_marketing:${entity}`;
+
+  const loadMarketingState = <T,>(entity: string, fallback: T): T => {
+    try {
+      const raw = localStorage.getItem(marketingStorageKey(entity));
+      if (raw) return JSON.parse(raw) as T;
+    } catch {
+      /* ignore */
+    }
+    return fallback;
+  };
+  const saveMarketingState = (entity: string, value: unknown) => {
+    try {
+      localStorage.setItem(marketingStorageKey(entity), JSON.stringify(value));
+    } catch {
+      /* ignore */
+    }
+  };
+
   const [properties, setProperties] = useState<Property[]>(paterhausProperties);
   const [owners] = useState<Owner[]>(paterhausOwners);
-  const [opportunities, setOpportunities] = useState<OwnerOpportunity[]>(
-    // P1.1: enrich base opportunities with timeline, tasks, files, attribution
-    () => enrichOpportunitiesWithP1(paterhausOpportunities),
+  const [opportunities, setOpportunitiesState] = useState<OwnerOpportunity[]>(
+    () => (isMarketing ? loadMarketingState<OwnerOpportunity[]>("opportunities", []) : enrichOpportunitiesWithP1(paterhausOpportunities)),
   );
+  const setOpportunities = (next: OwnerOpportunity[] | ((prev: OwnerOpportunity[]) => OwnerOpportunity[])) => {
+    setOpportunitiesState((prev) => {
+      const value = typeof next === "function" ? (next as (p: OwnerOpportunity[]) => OwnerOpportunity[])(prev) : next;
+      if (isMarketing) saveMarketingState("opportunities", value);
+      return value;
+    });
+  };
   const [bookings, setBookings] = useState<Booking[]>(demoBookings);
   const [stays, setStays] = useState<Stay[]>(paterhausStays);
   const [guests] = useState<Guest[]>(paterhausGuests);
@@ -262,9 +311,31 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
   const [activity, setActivity] = useState<ActivityEvent[]>(paterhausActivity);
   const [files, setFiles] = useState<DemoFile[]>(demoFiles);
   const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeItem[]>(demoKnowledgeItems);
-  const [campaigns, setCampaigns] = useState<Campaign[]>(demoCampaigns);
-  const [marketingLeads, setMarketingLeads] = useState<MarketingLead[]>(demoMarketingLeads);
-  const [leadMessages, setLeadMessages] = useState<LeadMessage[]>(demoLeadMessages);
+  const [campaigns, setCampaignsState] = useState<Campaign[]>(
+    () => (isMarketing ? loadMarketingState<Campaign[]>("campaigns", []) : demoCampaigns),
+  );
+  const [marketingLeads, setMarketingLeadsState] = useState<MarketingLead[]>(
+    () => (isMarketing ? loadMarketingState<MarketingLead[]>("leads", []) : demoMarketingLeads),
+  );
+  const [leadMessages, setLeadMessages] = useState<LeadMessage[]>(
+    () => (isMarketing ? loadMarketingState<LeadMessage[]>("leadMessages", []) : demoLeadMessages),
+  );
+
+  // Persist marketing state to localStorage on change
+  const setCampaigns = (next: Campaign[] | ((prev: Campaign[]) => Campaign[])) => {
+    setCampaignsState((prev) => {
+      const value = typeof next === "function" ? (next as (p: Campaign[]) => Campaign[])(prev) : next;
+      if (isMarketing) saveMarketingState("campaigns", value);
+      return value;
+    });
+  };
+  const setMarketingLeads = (next: MarketingLead[] | ((prev: MarketingLead[]) => MarketingLead[])) => {
+    setMarketingLeadsState((prev) => {
+      const value = typeof next === "function" ? (next as (p: MarketingLead[]) => MarketingLead[])(prev) : next;
+      if (isMarketing) saveMarketingState("leads", value);
+      return value;
+    });
+  };
   const [settings, setSettings] = useState<PaterhausSettings>({
     workspaceName: "Paterhaus Property Management",
     expenseApprovalThreshold: 1000,
@@ -526,6 +597,38 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
       bedrooms: input.bedrooms,
       notes: input.comment,
     });
+  };
+
+  const addCampaign = (input: NewCampaignInput) => {
+    setCampaigns((current) => [
+      {
+        id: nextId("camp", current.length),
+        name: input.name,
+        platform: input.platform,
+        spendUsd: input.spendUsd,
+        leads: 0,
+        qualified: 0,
+        won: 0,
+        period: input.period,
+        direction: input.direction,
+      },
+      ...current,
+    ]);
+  };
+
+  const deleteCampaign = (campaignId: string) => {
+    setCampaigns((current) => current.filter((campaign) => campaign.id !== campaignId));
+  };
+
+  const deleteMarketingLead = (leadId: string) => {
+    setMarketingLeads((current) => current.filter((lead) => lead.id !== leadId));
+  };
+
+  const resetMarketingData = () => {
+    setCampaigns([]);
+    setMarketingLeads([]);
+    setOpportunities([]);
+    setLeadMessages([]);
   };
 
   const sendLeadMessage = (opportunityId: string, text: string) => {
@@ -1147,6 +1250,11 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
     campaigns,
     marketingLeads,
     addMarketingLead,
+    addCampaign,
+    deleteCampaign,
+    deleteMarketingLead,
+    resetMarketingData,
+    isMarketingWorkspace: isMarketing,
     leadMessages,
     sendLeadMessage,
     sendMessage,

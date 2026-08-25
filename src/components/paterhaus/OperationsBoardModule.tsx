@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { usePaterhausWorkspace } from "@/contexts/PaterhausWorkspaceContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { PATERHAUS_TODAY, formatUSD, formatPaterhausDateTime } from "@/data/paterhaus";
 import type { Priority, Task, TaskCategory, TaskStatus } from "@/types/paterhaus";
 import { EmptyState, SectionHeader, StatusPill } from "./shared";
@@ -198,6 +199,7 @@ export const OperationsBoardModule = ({
   initialTaskId?: string;
 }) => {
   const workspace = usePaterhausWorkspace();
+  const { t } = useLanguage();
   const [view, setView] = useState<ViewMode>("board");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("All");
   const [propertyFilter, setPropertyFilter] = useState("All");
@@ -253,18 +255,18 @@ export const OperationsBoardModule = ({
   return (
     <div className="space-y-6">
       <SectionHeader
-        eyebrow="Operations command centre"
-        title="Operations Board"
-        description="Coordinate turnovers, maintenance, guest requests, compliance and owner approvals against real local demo records."
+        eyebrow={t("operations.eyebrow")}
+        title={t("operations.title")}
+        description={t("operations.description")}
         action={
           <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-1">
             <Button variant={view === "board" ? "secondary" : "ghost"} size="sm" onClick={() => setView("board")}>
               <ClipboardList className="h-4 w-4" />
-              Board
+              {t("operations.board")}
             </Button>
             <Button variant={view === "table" ? "secondary" : "ghost"} size="sm" onClick={() => setView("table")}>
               <Table2 className="h-4 w-4" />
-              Table
+              {t("operations.table")}
             </Button>
           </div>
         }
@@ -276,7 +278,7 @@ export const OperationsBoardModule = ({
             <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search task or property"
+              placeholder={t("operations.searchPlaceholder")}
               className="pl-9"
             />
           </div>
@@ -445,45 +447,49 @@ export const OperationsBoardModule = ({
           </div>
         </Card>
       ) : (
-        <div className="grid gap-3 overflow-x-auto pb-3 xl:grid-cols-7">
-          {statuses.map((status) => {
-            const tasks = filtered.filter((task) => task.status === status);
-            return (
-              <Card key={status} className="min-w-[230px] border-border/80 bg-card/60 p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-semibold text-foreground">{status}</p>
-                  <StatusPill status={`${tasks.length}`} />
-                </div>
-                <div className="mt-3 space-y-2">
-                  {tasks.map((task) => {
-                    const property = workspace.properties.find((item) => item.id === task.propertyId);
-                    return (
-                      <button
-                        key={task.id}
-                        type="button"
-                        onClick={() => setSelected(task)}
-                        className="w-full rounded-xl border border-border/70 bg-background/40 p-3 text-left hover:border-primary/40"
-                      >
-                        <div className="flex items-start gap-2">
-                          <CalendarClock className="mt-0.5 h-4 w-4 text-primary" />
-                          <span className="text-sm font-medium text-foreground">{task.title}</span>
-                        </div>
-                        <p className="mt-2 text-xs text-muted-foreground">{property?.name}</p>
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          <StatusPill status={task.category} />
-                          <StatusPill status={task.priority} />
-                        </div>
-                        <p className="mt-2 text-[11px] text-muted-foreground">
-                          {formatPaterhausDateTime(task.dueAt)}
-                          {isOverdue(task) ? " · overdue" : ""}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </Card>
-            );
-          })}
+        <div className="overflow-x-auto pb-4">
+          <div className="flex min-w-max items-start gap-4">
+            {statuses.map((status) => {
+              const tasks = filtered.filter((task) => task.status === status);
+              return (
+                <section key={status} className="w-[300px] min-w-[300px] shrink-0">
+                  <Card className="min-h-[120px] border-border/80 bg-card/60 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-foreground">{status}</p>
+                      <StatusPill status={`${tasks.length}`} />
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {tasks.map((task) => {
+                        const property = workspace.properties.find((item) => item.id === task.propertyId);
+                        return (
+                          <button
+                            key={task.id}
+                            type="button"
+                            onClick={() => setSelected(task)}
+                            className="w-full rounded-xl border border-border/70 bg-background/40 p-3 text-left hover:border-primary/40"
+                          >
+                            <div className="flex min-w-0 items-start gap-2">
+                              <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                              <span className="min-w-0 break-words whitespace-normal text-sm font-medium leading-snug text-foreground">{task.title}</span>
+                            </div>
+                            <p className="mt-2 break-words text-xs text-muted-foreground">{property?.name}</p>
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              <StatusPill status={task.category} />
+                              <StatusPill status={task.priority} />
+                            </div>
+                            <p className="mt-2 text-[11px] text-muted-foreground">
+                              {formatPaterhausDateTime(task.dueAt)}
+                              {isOverdue(task) ? ` · ${t("operations.overdueLabel")}` : ""}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </Card>
+                </section>
+              );
+            })}
+          </div>
         </div>
       )}
       <TaskDetail

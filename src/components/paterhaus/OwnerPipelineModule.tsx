@@ -151,7 +151,7 @@ const OpportunityDetail = ({
         <SheetHeader>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs uppercase tracking-[0.16em] text-primary">Owner opportunity</p>
+              <p className="text-xs uppercase tracking-[0.16em] text-primary">{t("pipeline.ownerOpportunity")}</p>
               <SheetTitle className="mt-1 text-2xl">{opportunity.ownerName}</SheetTitle>
               <SheetDescription>
                 {opportunity.prospectProperty} · {opportunity.area} · {opportunity.type}
@@ -164,7 +164,7 @@ const OpportunityDetail = ({
               <Button asChild variant="outline" size="sm" className="gap-1.5">
                 <a href={waLink(opportunity.phone)} target="_blank" rel="noreferrer">
                   <MessageCircle className="h-4 w-4 text-emerald-400" />
-                  Chat on WhatsApp
+                  {t("pipeline.chatWhatsApp")}
                 </a>
               </Button>
             )}
@@ -188,48 +188,48 @@ const OpportunityDetail = ({
         </SheetHeader>
         <div className="mt-6 space-y-4">
           <Card className="border-border bg-card p-4">
-            <h3 className="font-medium text-foreground">Contact profile</h3>
+            <h3 className="font-medium text-foreground">{t("pipeline.contactProfile")}</h3>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <p className="text-sm text-muted-foreground">
-                <span className="block text-xs">Owner</span>
+                <span className="block text-xs">{t("pipeline.owner")}</span>
                 <span className="text-foreground">{opportunity.ownerName}</span>
               </p>
               <p className="text-sm text-muted-foreground">
-                <span className="block text-xs">Assigned account manager</span>
+                <span className="block text-xs">{t("pipeline.assignedManager")}</span>
                 <span className="text-foreground">{opportunity.assignedTo}</span>
               </p>
               <p className="text-sm text-muted-foreground">
-                <span className="block text-xs">Lead source</span>
+                <span className="block text-xs">{t("pipeline.leadSource")}</span>
                 <span className="text-foreground">{opportunity.leadSource}</span>
               </p>
               <p className="text-sm text-muted-foreground">
-                <span className="block text-xs">Last communication</span>
+                <span className="block text-xs">{t("pipeline.lastCommunication")}</span>
                 <span className="text-foreground">{opportunity.lastCommunication}</span>
               </p>
               <p className="text-sm text-muted-foreground">
-                <span className="block text-xs">Phone</span>
-                <span className="text-foreground">{opportunity.phone ?? "Not captured"}</span>
+                <span className="block text-xs">{t("pipeline.phone")}</span>
+                <span className="text-foreground">{opportunity.phone ?? "—"}</span>
               </p>
               <p className="text-sm text-muted-foreground">
-                <span className="block text-xs">Email</span>
-                <span className="break-all text-foreground">{opportunity.email ?? "Not captured"}</span>
+                <span className="block text-xs">{t("pipeline.email")}</span>
+                <span className="break-all text-foreground">{opportunity.email ?? "—"}</span>
               </p>
               <p className="text-sm text-muted-foreground">
-                <span className="block text-xs">Campaign</span>
+                <span className="block text-xs">{t("pipeline.campaign")}</span>
                 <span className="text-foreground">{campaign?.name ?? "—"}</span>
               </p>
               <p className="text-sm text-muted-foreground">
-                <span className="block text-xs">Bedrooms</span>
+                <span className="block text-xs">{t("pipeline.bedrooms")}</span>
                 <span className="text-foreground">{opportunity.bedrooms !== undefined ? `${opportunity.bedrooms} BR` : "—"}</span>
               </p>
               <p className="text-sm text-muted-foreground">
-                <span className="block text-xs">Direction</span>
+                <span className="block text-xs">{t("pipeline.direction")}</span>
                 <span className="text-foreground">
                   {opportunity.direction ? (t(directionLabelKey[opportunity.direction]) || directionDefaultLabel[opportunity.direction]) : "—"}
                 </span>
               </p>
               <p className="text-sm text-muted-foreground">
-                <span className="block text-xs">First response SLA</span>
+                <span className="block text-xs">{t("pipeline.firstResponseSla")}</span>
                 <span className="text-foreground">
                   {opportunity.slaStatus ? (
                     <SlaBadge status={opportunity.slaStatus} minutes={opportunity.firstResponseMinutes} />
@@ -241,22 +241,22 @@ const OpportunityDetail = ({
             </div>
           </Card>
           <Card className="border-border bg-card p-4">
-            <h3 className="font-medium text-foreground">Property prospect and proposal</h3>
+            <h3 className="font-medium text-foreground">{t("pipeline.propertyProspect")}</h3>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
               <div>
-                <p className="text-xs text-muted-foreground">Monthly revenue</p>
+                <p className="text-xs text-muted-foreground">{t("pipeline.monthlyRevenueLabel")}</p>
                 <p className="mt-1 text-sm font-semibold text-foreground">
                   {formatUSD(opportunity.estimatedMonthlyRevenue)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Annual revenue</p>
+                <p className="text-xs text-muted-foreground">{t("pipeline.annualRevenue")}</p>
                 <p className="mt-1 text-sm font-semibold text-foreground">
                   {formatUSD(opportunity.estimatedAnnualRevenue)}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Potential fee</p>
+                <p className="text-xs text-muted-foreground">{t("pipeline.potentialFee")}</p>
                 <p className="mt-1 text-sm font-semibold text-foreground">
                   {formatUSD(opportunity.potentialManagementFee)}
                 </p>
@@ -272,7 +272,7 @@ const OpportunityDetail = ({
             </p>
           </Card>
           <Card className="border-border bg-card p-4">
-            <h3 className="font-medium text-foreground">Documents and follow-up</h3>
+            <h3 className="font-medium text-foreground">{t("pipeline.documentsFollowUp")}</h3>
             <div className="mt-3 space-y-2">
               {(opportunity.documents ?? ["Revenue proposal", "Management agreement draft"]).map((document) => (
                 <div key={document} className="flex items-center gap-2 rounded-lg border border-border/70 p-2 text-sm">
@@ -288,7 +288,7 @@ const OpportunityDetail = ({
           </Card>
           <Card className="border-border bg-card p-4">
             <div className="flex items-center justify-between gap-2">
-              <h3 className="font-medium text-foreground">Attachments</h3>
+              <h3 className="font-medium text-foreground">{t("pipeline.attachments")}</h3>
               <Button
                 variant="outline"
                 size="sm"
@@ -345,7 +345,7 @@ const OpportunityDetail = ({
           </Card>
           <Card className="border-border bg-card p-4">
             <div className="flex items-center justify-between gap-2">
-              <h3 className="font-medium text-foreground">Conversation</h3>
+              <h3 className="font-medium text-foreground">{t("pipeline.conversation")}</h3>
               {opportunity.phone && (
                 <a
                   href={waLink(opportunity.phone)}
@@ -394,7 +394,7 @@ const OpportunityDetail = ({
           </Card>
           {checklist.length > 0 && (
             <Card className="border-primary/30 bg-primary/5 p-4">
-              <h3 className="font-medium text-foreground">Onboarding checklist</h3>
+              <h3 className="font-medium text-foreground">{t("pipeline.onboardingChecklist")}</h3>
               <div className="mt-3 space-y-2">
                 {checklist.map((item, index) => (
                   <div key={item} className="flex items-center gap-2 text-sm text-foreground">
@@ -408,7 +408,7 @@ const OpportunityDetail = ({
             </Card>
           )}
           <Card className="border-border bg-card p-4">
-            <h3 className="font-medium text-foreground">Linked work and conversation history</h3>
+            <h3 className="font-medium text-foreground">{t("pipeline.linkedWork")}</h3>
             <div className="mt-3 space-y-2">
               {linkedTasks.map((task) => (
                 <p key={task.id} className="text-sm text-muted-foreground">
@@ -426,7 +426,7 @@ const OpportunityDetail = ({
             </div>
           </Card>
           <Card className="border-border bg-card p-4">
-            <h3 className="font-medium text-foreground">Activity timeline</h3>
+            <h3 className="font-medium text-foreground">{t("pipeline.activityTimeline")}</h3>
             <div className="mt-3 space-y-2">
               {(opportunity.activity ?? [`Lead created on ${opportunity.lastCommunication}`]).map((event) => (
                 <p key={event} className="border-l border-primary/40 pl-3 text-sm text-muted-foreground">
@@ -781,7 +781,7 @@ export const OwnerPipelineModule = () => {
             }}
             className="h-10 max-w-full rounded-md border border-input bg-background px-3 text-sm"
           >
-            <option>All</option>
+            <option>{t("pipeline.all")}</option>
             {stages.map((stage) => (
               <option key={stage}>{stage}</option>
             ))}
@@ -794,7 +794,7 @@ export const OwnerPipelineModule = () => {
             }}
             className="h-10 max-w-full rounded-md border border-input bg-background px-3 text-sm"
           >
-            <option>All</option>
+            <option>{t("pipeline.all")}</option>
             {priorities.map((priority) => (
               <option key={priority}>{priority}</option>
             ))}
@@ -809,15 +809,16 @@ export const OwnerPipelineModule = () => {
       ) : (
         <div>
           <div className="mb-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-            <span>Scroll horizontally to review every stage</span>
+            <span>{t("pipeline.scrollHorizontal")}</span>
             <span aria-hidden="true">Shift + wheel →</span>
           </div>
           <div className="overflow-x-auto overscroll-x-contain pb-4">
-            <div className="flex w-max min-w-full gap-4">
+            <p className="mb-2 text-xs text-muted-foreground">{t("pipeline.scrollHint")}</p>
+            <div className="flex w-max min-w-full gap-5">
               {stages.map((stage) => {
                 const opportunities = filtered.filter((opportunity) => opportunity.stage === stage);
                 return (
-                  <Card key={stage} className="w-[300px] min-w-[300px] border-border/80 bg-card/60 p-3">
+                  <Card key={stage} className="w-[340px] min-w-[340px] shrink-0 border-border/80 bg-card/60 p-3">
                     <div className="flex min-h-12 items-start justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-2">
                         <Checkbox
@@ -834,7 +835,7 @@ export const OwnerPipelineModule = () => {
                         />
                         <div className="min-w-0">
                           <p className="text-sm font-semibold leading-5 text-foreground">{stage}</p>
-                          <p className="mt-1 text-xs text-muted-foreground">{opportunities.length} opportunities</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{opportunities.length} {t("pipeline.opportunities")}</p>
                         </div>
                       </div>
                       <StatusPill status={`${opportunities.length}`} />
@@ -843,7 +844,7 @@ export const OwnerPipelineModule = () => {
                       {opportunities.map((opportunity) => (
                         <div
                           key={opportunity.id}
-                          className={`overflow-hidden rounded-xl border bg-background/40 p-3 transition-colors ${
+                          className={`rounded-xl border bg-background/40 p-3 transition-colors ${
                             selectedIds.includes(opportunity.id) ? "border-primary/60 bg-primary/5" : "border-border/70"
                           }`}
                         >
@@ -858,21 +859,21 @@ export const OwnerPipelineModule = () => {
                               <div className="flex items-start gap-2">
                                 <UserRound className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
                                 <span className="min-w-0 flex-1">
-                                  <span className="block break-words text-sm font-semibold leading-5 text-foreground">{opportunity.ownerName}</span>
-                                  <span className="mt-1 block break-words text-xs leading-5 text-muted-foreground">{opportunity.prospectProperty}</span>
+                                  <span className="block break-words whitespace-normal text-sm font-semibold leading-snug text-foreground">{opportunity.ownerName}</span>
+                                  <span className="mt-1 block break-words whitespace-normal text-xs leading-5 text-muted-foreground">{opportunity.prospectProperty}</span>
                                 </span>
                                 {opportunity.direction && (
-                                  <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                                  <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
                                     {t(directionLabelKey[opportunity.direction]) || directionDefaultLabel[opportunity.direction]}
                                   </span>
                                 )}
                               </div>
-                              <dl className="mt-3 grid grid-cols-[84px_minmax(0,1fr)] gap-x-2 gap-y-2 text-xs">
-                                <dt className="text-muted-foreground">Area</dt><dd className="min-w-0 break-words text-foreground">{opportunity.area}</dd>
-                                <dt className="text-muted-foreground">Monthly revenue</dt><dd className="font-medium text-foreground">{formatUSD(opportunity.estimatedMonthlyRevenue)}</dd>
-                                <dt className="text-muted-foreground">Source</dt><dd className="min-w-0 break-words text-foreground">{opportunity.leadSource}</dd>
-                                <dt className="text-muted-foreground">Priority</dt><dd><StatusPill status={opportunity.priority} /></dd>
-                                <dt className="text-muted-foreground">SLA</dt>
+                              <dl className="mt-3 grid grid-cols-[110px_minmax(0,1fr)] gap-x-3 gap-y-2 text-xs">
+                                <dt className="text-muted-foreground">{t("pipeline.area")}</dt><dd className="min-w-0 break-words text-foreground">{opportunity.area}</dd>
+                                <dt className="text-muted-foreground">{t("pipeline.monthlyRevenue")}</dt><dd className="font-medium text-foreground">{formatUSD(opportunity.estimatedMonthlyRevenue)}</dd>
+                                <dt className="text-muted-foreground">{t("pipeline.source")}</dt><dd className="min-w-0 break-words text-foreground">{opportunity.leadSource}</dd>
+                                <dt className="text-muted-foreground">{t("pipeline.priority")}</dt><dd><StatusPill status={opportunity.priority} /></dd>
+                                <dt className="text-muted-foreground">{t("pipeline.sla")}</dt>
                                 <dd>
                                   {opportunity.slaStatus ? (
                                     <SlaBadge status={opportunity.slaStatus} minutes={opportunity.firstResponseMinutes} />
@@ -880,12 +881,12 @@ export const OwnerPipelineModule = () => {
                                     <span className="text-muted-foreground">—</span>
                                   )}
                                 </dd>
-                                <dt className="text-muted-foreground">Next action</dt><dd className="min-w-0 break-words leading-5 text-foreground">{opportunity.nextAction}</dd>
-                                <dt className="text-muted-foreground">Assignee</dt><dd className="min-w-0 break-words text-foreground">{opportunity.assignedTo}</dd>
+                                <dt className="text-muted-foreground">{t("pipeline.nextAction")}</dt><dd className="min-w-0 break-words leading-5 text-foreground">{opportunity.nextAction}</dd>
+                                <dt className="text-muted-foreground">{t("pipeline.assignee")}</dt><dd className="min-w-0 break-words text-foreground">{opportunity.assignedTo}</dd>
                               </dl>
                             </button>
                           </div>
-                          <div className="mt-3 flex gap-2">
+                          <div className="mt-3 flex flex-wrap gap-2">
                             <select aria-label={`Move ${opportunity.ownerName} opportunity`} value={opportunity.stage} onChange={(event) => changeStage(opportunity, event.target.value)} className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs">
                               {stages.map((nextStage) => <option key={nextStage}>{nextStage}</option>)}
                             </select>
@@ -918,7 +919,7 @@ export const OwnerPipelineModule = () => {
       <Dialog open={showLeadDialog} onOpenChange={setShowLeadDialog}>
         <DialogContent className="dark border-border bg-background">
           <DialogHeader>
-            <DialogTitle>Add owner lead</DialogTitle>
+            <DialogTitle>{t("pipeline.addOwnerLead")}</DialogTitle>
             <DialogDescription>
               Create a typed local opportunity with an initial stage and follow-up reminder.
             </DialogDescription>

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Download, Facebook, Filter, Instagram, Megaphone, Plus, TrendingDown, Workflow, Users } from "lucide-react";
+import { Download, Facebook, Filter, Instagram, Megaphone, Plus, TrendingDown, Trash2, Workflow, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -333,13 +333,22 @@ const LostReasonsAnalytics = () => {
 export const MarketingModule = () => {
   const workspace = usePaterhausWorkspace();
   const { t } = useLanguage();
-  const { campaigns, marketingLeads } = workspace;
+  const { campaigns, marketingLeads, isMarketingWorkspace } = workspace;
   const [platformFilter, setPlatformFilter] = useState<PlatformFilter>("All");
   const [period, setPeriod] = useState<MarketingPeriod>("this_month");
   const [funnelDirection, setFunnelDirection] = useState<Direction>("property_management");
   const [selectedSegment, setSelectedSegment] = useState<SavedSegment | null>(null);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [showSimulate, setShowSimulate] = useState(false);
+  const [showCampaignForm, setShowCampaignForm] = useState(false);
+  const [campaignForm, setCampaignForm] = useState({
+    name: "",
+    platform: "facebook" as CampaignPlatform,
+    direction: "property_management" as Direction,
+    period: "this_month",
+    spendUsd: "",
+    notes: "",
+  });
   const [form, setForm] = useState<SimulateLeadForm>(() => emptyLeadForm(campaigns[0]?.id ?? ""));
 
   const filteredCampaigns = useMemo(
@@ -380,14 +389,16 @@ export const MarketingModule = () => {
     };
   }, [filteredCampaigns, segmentLeads]);
 
+  const hasData = campaigns.length > 0 || marketingLeads.length > 0;
+  const dash = "—";
   const kpis = [
-    { label: t("marketing.spend"), value: formatUSD(metrics.totalSpend) },
+    { label: t("marketing.spend"), value: hasData ? formatUSD(metrics.totalSpend) : formatUSD(0) },
     { label: t("marketing.leads"), value: `${metrics.totalLeads}` },
-    { label: t("marketing.cpl"), value: formatUSD(metrics.cpl) },
+    { label: t("marketing.cpl"), value: hasData && metrics.cpl > 0 ? formatUSD(metrics.cpl) : dash },
     { label: t("marketing.qualified"), value: `${metrics.qualified}` },
-    { label: t("marketing.conversion"), value: `${metrics.qualifiedRate.toFixed(0)}%` },
+    { label: t("marketing.conversion"), value: hasData && metrics.qualifiedRate > 0 ? `${metrics.qualifiedRate.toFixed(0)}%` : dash },
     { label: t("marketing.won"), value: `${metrics.won}` },
-    { label: t("marketing.cost_per_won"), value: formatUSD(metrics.costPerWon) },
+    { label: t("marketing.cost_per_won"), value: hasData && metrics.costPerWon > 0 ? formatUSD(metrics.costPerWon) : dash },
     { label: t("marketing.pipeline_value"), value: formatUSD(metrics.pipelineValue) },
   ];
 
@@ -454,6 +465,21 @@ export const MarketingModule = () => {
     setForm(emptyLeadForm(campaigns[0]?.id ?? ""));
   };
 
+  const submitCampaign = () => {
+    if (!campaignForm.name.trim()) return;
+    workspace.addCampaign({
+      name: campaignForm.name.trim(),
+      platform: campaignForm.platform,
+      direction: campaignForm.direction,
+      period: campaignForm.period,
+      spendUsd: Number(campaignForm.spendUsd) || 0,
+      notes: campaignForm.notes.trim() || undefined,
+    });
+    setShowCampaignForm(false);
+    setCampaignForm({ name: "", platform: "facebook", direction: "property_management", period: "this_month", spendUsd: "", notes: "" });
+    toast.success(t("marketing.campaignCreated"));
+  };
+
   return (
     <div className="space-y-6">
       <SectionHeader
@@ -470,10 +496,21 @@ export const MarketingModule = () => {
               <Download className="h-4 w-4" />
               {t("export.leads")}
             </Button>
+            {isMarketingWorkspace && (
+              <Button variant="outline" onClick={() => setShowCampaignForm(true)}>
+                <Plus className="h-4 w-4" />
+                {t("marketing.addCampaign")}
+              </Button>
+            )}
             <Button onClick={() => setShowSimulate(true)}>
               <Plus className="h-4 w-4" />
-              {t("marketing.simulate")}
+              {t("marketing.addLead")}
             </Button>
+            {isMarketingWorkspace && hasData && (
+              <Button variant="ghost" onClick={() => { workspace.resetMarketingData(); toast.success(t("marketing.dataReset")); }}>
+                {t("marketing.resetData")}
+              </Button>
+            )}
           </div>
         }
       />
@@ -516,31 +553,41 @@ export const MarketingModule = () => {
             ))}
           </div>
         </div>
-        <ConversionFunnelCard funnel={conversionFunnel} />
-        <DirectionMetricsTable />
+        {isMarketingWorkspace && !hasData ? (
+          <Card className="border-border/80 bg-card/70 p-6">
+            <EmptyState title={t("marketing.noDataTitle")} description={t("marketing.noDataDescription")} />
+          </Card>
+        ) : (
+          <>
+            <ConversionFunnelCard funnel={conversionFunnel} />
+            <DirectionMetricsTable />
+          </>
+        )}
       </div>
 
-      {/* P0.6 — Segments */}
-      <SegmentsList
-        selectedSegment={selectedSegment}
-        onSelect={(segment) => {
-          setSelectedSegment(segment);
-          toast.success(`${t("segment.applied")}: ${segment.nameKey ? t(segment.nameKey) : segment.name}`);
-        }}
-        onClear={() => setSelectedSegment(null)}
-      />
+      {/* P0.6 — Segments (Admin only — relies on demo data) */}
+      {!isMarketingWorkspace && (
+        <SegmentsList
+          selectedSegment={selectedSegment}
+          onSelect={(segment) => {
+            setSelectedSegment(segment);
+            toast.success(`${t("segment.applied")}: ${segment.nameKey ? t(segment.nameKey) : segment.name}`);
+          }}
+          onClear={() => setSelectedSegment(null)}
+        />
+      )}
 
-      {/* P1.3 — Lost reasons analytics */}
-      <LostReasonsAnalytics />
+      {/* P1.3 — Lost reasons analytics (Admin only) */}
+      {!isMarketingWorkspace && <LostReasonsAnalytics />}
       <Card className="border-border/80 bg-card/70 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Megaphone className="h-4 w-4 text-primary" />
-            <h3 className="font-medium text-foreground">Campaigns</h3>
+            <h3 className="font-medium text-foreground">{t("marketing.campaigns")}</h3>
             <span className="text-xs text-muted-foreground">{marketingPeriodLabels[period]}</span>
           </div>
           <div className="flex gap-1">
-            {(["All", "facebook", "instagram"] as const).map((platform) => (
+            {(["All", "facebook", "instagram", "google", "whatsapp", "referral", "other"] as const).map((platform) => (
               <Button
                 key={platform}
                 type="button"
@@ -556,21 +603,22 @@ export const MarketingModule = () => {
         </div>
         {filteredCampaigns.length === 0 ? (
           <div className="mt-4">
-            <EmptyState title="No campaigns" description="Adjust the platform filter to see campaigns." />
+            <EmptyState title={t("marketing.noCampaignsTitle")} description={t("marketing.noCampaignsDescription")} />
           </div>
         ) : (
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[560px] text-left text-sm">
               <thead>
                 <tr className="border-b border-border text-xs text-muted-foreground">
-                  <th className="px-3 py-2 font-medium">Campaign</th>
-                  <th className="hidden px-3 py-2 font-medium md:table-cell">Platform</th>
-                  <th className="px-3 py-2 font-medium">Spend</th>
-                  <th className="px-3 py-2 font-medium">Leads</th>
+                  <th className="px-3 py-2 font-medium">{t("marketing.campaign")}</th>
+                  <th className="hidden px-3 py-2 font-medium md:table-cell">{t("marketing.platform")}</th>
+                  <th className="px-3 py-2 font-medium">{t("marketing.spend")}</th>
+                  <th className="px-3 py-2 font-medium">{t("marketing.leads")}</th>
                   <th className="hidden px-3 py-2 font-medium md:table-cell">CPL</th>
-                  <th className="px-3 py-2 font-medium">Qualified</th>
-                  <th className="px-3 py-2 font-medium">Won</th>
-                  <th className="hidden px-3 py-2 font-medium lg:table-cell">Pipeline value</th>
+                  <th className="px-3 py-2 font-medium">{t("marketing.qualified")}</th>
+                  <th className="px-3 py-2 font-medium">{t("marketing.won")}</th>
+                  <th className="hidden px-3 py-2 font-medium lg:table-cell">{t("marketing.pipeline_value")}</th>
+                  {isMarketingWorkspace && <th className="px-3 py-2 font-medium" />}
                 </tr>
               </thead>
               <tbody>
@@ -594,6 +642,21 @@ export const MarketingModule = () => {
                     <td className="hidden px-3 py-3 text-foreground lg:table-cell">
                       {formatUSD(campaign.won * AVERAGE_MANAGEMENT_FEE_USD)}
                     </td>
+                    {isMarketingWorkspace && (
+                      <td className="px-3 py-3 text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            workspace.deleteCampaign(campaign.id);
+                            toast.success(t("marketing.campaignDeleted"));
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -874,6 +937,78 @@ export const MarketingModule = () => {
             </Button>
             <Button onClick={submitLead} disabled={!form.name.trim() || !form.phone.trim() || !form.campaignId}>
               Create Lead
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* P1 — Campaign creation dialog (Marketing workspace) */}
+      <Dialog open={showCampaignForm} onOpenChange={setShowCampaignForm}>
+        <DialogContent className="dark border-border bg-background">
+          <DialogHeader>
+            <DialogTitle>{t("marketing.addCampaign")}</DialogTitle>
+            <DialogDescription>{t("marketing.addCampaignDescription")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              placeholder={t("marketing.campaignName")}
+              value={campaignForm.name}
+              onChange={(event) => setCampaignForm((prev) => ({ ...prev, name: event.target.value }))}
+            />
+            <select
+              aria-label={t("marketing.platform")}
+              value={campaignForm.platform}
+              onChange={(event) => setCampaignForm((prev) => ({ ...prev, platform: event.target.value as CampaignPlatform }))}
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="facebook">Facebook</option>
+              <option value="instagram">Instagram</option>
+              <option value="google">Google</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="referral">Referral</option>
+              <option value="other">{t("marketing.other")}</option>
+            </select>
+            <select
+              aria-label={t("marketing.direction")}
+              value={campaignForm.direction}
+              onChange={(event) => setCampaignForm((prev) => ({ ...prev, direction: event.target.value as Direction }))}
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              {DIRECTIONS.map((direction) => (
+                <option key={direction} value={direction}>
+                  {t(directionLabelKey[direction]) || directionDefaultLabel[direction]}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label={t("marketing.period")}
+              value={campaignForm.period}
+              onChange={(event) => setCampaignForm((prev) => ({ ...prev, period: event.target.value }))}
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              {(Object.keys(marketingPeriodLabels) as MarketingPeriod[]).map((option) => (
+                <option key={option} value={option}>
+                  {marketingPeriodLabels[option]}
+                </option>
+              ))}
+            </select>
+            <Input
+              type="number"
+              placeholder={t("marketing.spendUsd")}
+              value={campaignForm.spendUsd}
+              onChange={(event) => setCampaignForm((prev) => ({ ...prev, spendUsd: event.target.value }))}
+            />
+            <Input
+              placeholder={t("marketing.notes")}
+              value={campaignForm.notes}
+              onChange={(event) => setCampaignForm((prev) => ({ ...prev, notes: event.target.value }))}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCampaignForm(false)}>
+              {t("common.close")}
+            </Button>
+            <Button onClick={submitCampaign} disabled={!campaignForm.name.trim()}>
+              {t("marketing.createCampaign")}
             </Button>
           </DialogFooter>
         </DialogContent>

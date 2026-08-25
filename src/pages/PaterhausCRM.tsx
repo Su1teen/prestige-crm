@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
   BookOpenText,
@@ -14,13 +14,11 @@ import {
   LogOut,
   Megaphone,
   Menu,
-  MessageCircle,
   MessageSquare,
   Plus,
   Search,
   Settings,
   ShieldCheck,
-  Sparkles,
   UsersRound,
   Wrench,
   type LucideIcon,
@@ -45,7 +43,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { usePaterhausWorkspace, PaterhausWorkspaceProvider } from "@/contexts/PaterhausWorkspaceContext";
-import { CURRENT_PATERHAUS_USER } from "@/data/paterhaus";
+import { useAuth, type UserRole } from "@/contexts/AuthContext";
 import { PortfolioOverview } from "@/components/paterhaus/PortfolioOverview";
 import { PropertiesModule } from "@/components/paterhaus/PropertiesModule";
 import { OwnerPipelineModule } from "@/components/paterhaus/OwnerPipelineModule";
@@ -54,7 +52,6 @@ import { OperationsBoardModule } from "@/components/paterhaus/OperationsBoardMod
 import { CalendarModule } from "@/components/paterhaus/CalendarModule";
 import { GuestsStaysModule } from "@/components/paterhaus/GuestsStaysModule";
 import { ConversationsModule } from "@/components/paterhaus/ConversationsModule";
-import { WhatsAppBotModule } from "@/components/paterhaus/WhatsAppBotModule";
 import { FinanceModule } from "@/components/paterhaus/FinanceModule";
 import { ComplianceModule } from "@/components/paterhaus/ComplianceModule";
 import { TeamVendorsModule } from "@/components/paterhaus/TeamVendorsModule";
@@ -62,7 +59,6 @@ import { NotificationsModule } from "@/components/paterhaus/NotificationsModule"
 import { SettingsModule } from "@/components/paterhaus/SettingsModule";
 import { FilesHubModule } from "@/components/paterhaus/FilesHubModule";
 import { KnowledgeBaseModule } from "@/components/paterhaus/KnowledgeBaseModule";
-import { OpsCopilot } from "@/components/paterhaus/OpsCopilot";
 import { Card } from "@/components/ui/card";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -77,11 +73,9 @@ export type PaterhausSection =
   | "files"
   | "stays"
   | "conversations"
-  | "whatsapp"
   | "finance"
   | "compliance"
   | "team"
-  | "copilot"
   | "knowledge"
   | "notifications"
   | "settings";
@@ -98,7 +92,23 @@ interface NavGroup {
   items: NavItem[];
 }
 
-const navGroups: NavGroup[] = [
+/** Sections visible to the Marketing role (restricted workspace). */
+const MARKETING_SECTIONS: ReadonlySet<PaterhausSection> = new Set([
+  "overview",
+  "pipeline",
+  "marketing",
+  "conversations",
+  "calendar",
+  "knowledge",
+  "notifications",
+  "settings",
+]);
+
+const isSectionAllowed = (section: PaterhausSection, role: UserRole): boolean =>
+  role === "admin" || MARKETING_SECTIONS.has(section);
+
+/** Full nav groups for Admin. Marketing gets a filtered subset. */
+const adminNavGroups: NavGroup[] = [
   {
     id: "overview",
     label: "nav.overview",
@@ -111,7 +121,6 @@ const navGroups: NavGroup[] = [
       { id: "pipeline", label: "nav.owner_pipeline", icon: UsersRound },
       { id: "marketing", label: "nav.marketing", icon: Megaphone },
       { id: "conversations", label: "nav.conversations", icon: MessageSquare },
-      { id: "whatsapp", label: "nav.whatsapp_bot", icon: MessageCircle },
     ],
   },
   {
@@ -129,7 +138,6 @@ const navGroups: NavGroup[] = [
     id: "intelligence",
     label: "nav.intelligence",
     items: [
-      { id: "copilot", label: "nav.ops_copilot", icon: Sparkles },
       { id: "knowledge", label: "nav.knowledge_base", icon: BookOpenText },
     ],
   },
@@ -152,13 +160,58 @@ const navGroups: NavGroup[] = [
   },
 ];
 
-const allNavItems = navGroups.flatMap((group) => group.items);
+/** Compact nav groups for Marketing role. */
+const marketingNavGroups: NavGroup[] = [
+  {
+    id: "overview",
+    label: "nav.overview",
+    items: [{ id: "overview", label: "nav.portfolio", icon: LayoutDashboard }],
+  },
+  {
+    id: "sales",
+    label: "nav.sales_marketing",
+    items: [
+      { id: "pipeline", label: "nav.owner_pipeline", icon: UsersRound },
+      { id: "marketing", label: "nav.marketing", icon: Megaphone },
+      { id: "conversations", label: "nav.conversations", icon: MessageSquare },
+    ],
+  },
+  {
+    id: "operations",
+    label: "nav.operations",
+    items: [
+      { id: "calendar", label: "nav.calendar", icon: CalendarDays },
+    ],
+  },
+  {
+    id: "intelligence",
+    label: "nav.intelligence",
+    items: [
+      { id: "knowledge", label: "nav.knowledge_base", icon: BookOpenText },
+    ],
+  },
+  {
+    id: "system",
+    label: "nav.system",
+    items: [
+      { id: "notifications", label: "nav.notifications", icon: Bell },
+      { id: "settings", label: "nav.settings", icon: Settings },
+    ],
+  },
+];
+
+const getNavGroups = (role: UserRole): NavGroup[] =>
+  role === "marketing" ? marketingNavGroups : adminNavGroups;
+
+const allNavItems = adminNavGroups.flatMap((group) => group.items);
 
 const sectionIds: string[] = allNavItems.map((item) => item.id);
 const isPaterhausSection = (value: string): value is PaterhausSection => sectionIds.includes(value);
 
-const groupForSection = (section: PaterhausSection): NavGroup =>
-  navGroups.find((group) => group.items.some((item) => item.id === section)) ?? navGroups[0];
+const groupForSection = (section: PaterhausSection, role: UserRole): NavGroup => {
+  const groups = getNavGroups(role);
+  return groups.find((group) => group.items.some((item) => item.id === section)) ?? groups[0];
+};
 
 const sectionLabelKey: Partial<Record<PaterhausSection, string>> = Object.fromEntries(
   allNavItems.map((item) => [item.id, item.label]),
@@ -173,16 +226,31 @@ const descriptionKeys: Record<string, string> = {
   more: "group.more",
 };
 
+/** User identity per role. */
+const getUserIdentity = (role: UserRole, email: string) => {
+  if (role === "marketing") {
+    return { name: "Paterhaus Marketing", roleLabel: "Marketing", initials: "PM", email };
+  }
+  return { name: "Sultan Sovetov", roleLabel: "Administrator", initials: "SS", email };
+};
+
+/** Workspace title per role. */
+const getWorkspaceTitle = (role: UserRole): string =>
+  role === "marketing" ? "Paterhaus Marketing" : "Paterhaus";
+
 const GroupedNav = ({
   section,
   onSectionChange,
   urgent,
+  role,
 }: {
   section: PaterhausSection;
   onSectionChange: (section: PaterhausSection) => void;
   urgent: number;
+  role: UserRole;
 }) => {
-  const activeGroup = groupForSection(section);
+  const navGroups = getNavGroups(role);
+  const activeGroup = groupForSection(section, role);
   const { t } = useLanguage();
   const [openGroups, setOpenGroups] = useState<string[]>(
     navGroups.filter((group) => group.id !== "more").map((group) => group.id),
@@ -240,15 +308,20 @@ const WorkspaceSidebar = ({
   collapsed,
   onSectionChange,
   onCollapse,
+  role,
 }: {
   section: PaterhausSection;
   collapsed: boolean;
   onSectionChange: (section: PaterhausSection) => void;
   onCollapse: () => void;
+  role: UserRole;
 }) => {
   const { tasks } = usePaterhausWorkspace();
   const { t } = useLanguage();
+  const navGroups = getNavGroups(role);
+  const visibleItems = navGroups.flatMap((group) => group.items);
   const urgent = tasks.filter((task) => task.priority === "Urgent" && task.status !== "Completed").length;
+  const workspaceTitle = getWorkspaceTitle(role);
   return (
     <motion.aside
       animate={{ width: collapsed ? 76 : 248 }}
@@ -257,12 +330,12 @@ const WorkspaceSidebar = ({
     >
       <div className="flex h-16 items-center gap-3 border-b border-border px-5">
         <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-primary/40 bg-primary/10 text-sm font-semibold text-primary">PH</div>
-        {!collapsed && <div className="min-w-0"><p className="font-semibold text-foreground">Paterhaus</p><p className="truncate text-xs text-muted-foreground">{t("ops.property_management")}</p></div>}
+        {!collapsed && <div className="min-w-0"><p className="font-semibold text-foreground">{workspaceTitle}</p><p className="truncate text-xs text-muted-foreground">{t("ops.property_management")}</p></div>}
       </div>
       <div className="flex-1 overflow-y-auto px-3 py-4">
         {collapsed ? (
           <nav className="space-y-1" aria-label="Primary navigation">
-            {allNavItems.map((item) => {
+            {visibleItems.map((item) => {
               const Icon = item.icon;
               const active = section === item.id;
               return (
@@ -280,7 +353,7 @@ const WorkspaceSidebar = ({
             })}
           </nav>
         ) : (
-          <GroupedNav section={section} onSectionChange={onSectionChange} urgent={urgent} />
+          <GroupedNav section={section} onSectionChange={onSectionChange} urgent={urgent} role={role} />
         )}
       </div>
       <div className="border-t border-border p-3">
@@ -296,10 +369,12 @@ const GlobalSearch = ({
   open,
   onOpenChange,
   onNavigate,
+  role,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onNavigate: (section: PaterhausSection, propertyId?: string) => void;
+  role: UserRole;
 }) => {
   const workspace = usePaterhausWorkspace();
   const go = (section: PaterhausSection, propertyId?: string) => {
@@ -368,40 +443,9 @@ const GlobalSearch = ({
   );
 };
 
-const CopilotSection = ({ onOpenProperty }: { onOpenProperty: (propertyId: string) => void }) => (
-  <div className="space-y-6">
-    <div>
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Intelligence</p>
-      <h2 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">Ops Copilot</h2>
-      <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-        Ask operational questions across properties, stays, tasks and owners. Answers are grounded in the workspace data and the Knowledge Base.
-      </p>
-    </div>
-    <Card className="border-primary/25 bg-primary/5 p-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="min-w-0">
-          <p className="font-semibold text-foreground">Open the Copilot panel</p>
-          <p className="mt-1 text-sm text-muted-foreground">Summaries, drafts and follow-up actions for the current portfolio context.</p>
-        </div>
-        <OpsCopilot onOpenProperty={onOpenProperty} />
-      </div>
-    </Card>
-    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-      {[
-        { title: "Operational summaries", text: "Today's risks, readiness gaps and overdue work in one answer." },
-        { title: "Owner & guest drafts", text: "Maintenance approvals, weekly updates and incident responses drafted for review." },
-        { title: "Grounded in knowledge", text: "SOPs, property profiles and vendor rules from the Knowledge Base shape every reply." },
-      ].map((item) => (
-        <Card key={item.title} className="border-border/80 bg-card/70 p-4">
-          <p className="font-medium text-foreground">{item.title}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{item.text}</p>
-        </Card>
-      ))}
-    </div>
-  </div>
-);
-
 const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
+  const { user } = useAuth();
+  const role: UserRole = user?.role ?? "admin";
   const [activeSection, setActiveSection] = useState<PaterhausSection>("overview");
   const [collapsed, setCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -414,11 +458,13 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
   const { t } = useLanguage();
   const unread = notifications.filter((notification) => !notification.read).length;
   const urgent = tasks.filter((task) => task.priority === "Urgent" && task.status !== "Completed").length;
-  const activeGroup = groupForSection(activeSection);
+  const activeGroup = groupForSection(activeSection, role);
+  const userIdentity = getUserIdentity(role, user?.email ?? "");
   const openProperty = (propertyId: string) => { setTargetPropertyId(propertyId); setActiveSection("properties"); setNotificationsOpen(false); };
   const openConversation = (conversationId: string) => { setTargetConversationId(conversationId); setActiveSection("conversations"); setNotificationsOpen(false); };
   const openTask = (taskId: string) => { setTargetTaskId(taskId); setActiveSection("operations"); setNotificationsOpen(false); };
   const changeSection = (section: PaterhausSection) => {
+    if (!isSectionAllowed(section, role)) return;
     setActiveSection(section);
     setMobileNavOpen(false);
   };
@@ -435,13 +481,14 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
   }, []);
 
   const quickCreate = (target: PaterhausSection, message: string) => {
+    if (!isSectionAllowed(target, role)) return;
     setActiveSection(target);
     toast.info(message);
   };
 
   const renderSection = () => {
     if (activeSection === "overview") return <PortfolioOverview onNavigate={(section, propertyId) => {
-      if (isPaterhausSection(section)) setActiveSection(section);
+      if (isPaterhausSection(section) && isSectionAllowed(section, role)) setActiveSection(section);
       setTargetPropertyId(propertyId);
     }} />;
     if (activeSection === "properties") return <PropertiesModule initialPropertyId={targetPropertyId} />;
@@ -451,10 +498,8 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
     if (activeSection === "calendar") return <CalendarModule onPropertySelect={openProperty} />;
     if (activeSection === "files") return <FilesHubModule onOpenProperty={openProperty} />;
     if (activeSection === "knowledge") return <KnowledgeBaseModule />;
-    if (activeSection === "copilot") return <CopilotSection onOpenProperty={openProperty} />;
     if (activeSection === "stays") return <GuestsStaysModule onPropertySelect={openProperty} />;
     if (activeSection === "conversations") return <ConversationsModule onPropertySelect={openProperty} initialConversationId={targetConversationId} />;
-    if (activeSection === "whatsapp") return <WhatsAppBotModule />;
     if (activeSection === "finance") return <FinanceModule />;
     if (activeSection === "compliance") return <ComplianceModule />;
     if (activeSection === "team") return <TeamVendorsModule />;
@@ -465,7 +510,7 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
   return (
     <div className="paterhaus dark min-h-screen overflow-x-hidden bg-background text-foreground">
       <div className="flex min-h-screen min-w-0">
-        <WorkspaceSidebar section={activeSection} collapsed={collapsed} onSectionChange={setActiveSection} onCollapse={() => setCollapsed((value) => !value)} />
+        <WorkspaceSidebar section={activeSection} collapsed={collapsed} onSectionChange={setActiveSection} onCollapse={() => setCollapsed((value) => !value)} role={role} />
         <div className="min-w-0 flex-1">
           <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
             <div className="flex min-h-16 items-center justify-between gap-3 px-4 py-2 lg:px-6">
@@ -494,18 +539,18 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="dark border-border bg-background">
-                    <DropdownMenuItem onClick={() => quickCreate("pipeline", "Use “New Lead” in the Owner Pipeline to add a lead.")}>{t("create.newLead")}</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => quickCreate("operations", "Use “New task” on the Operations Board to create a task.")}>{t("create.newTask")}</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => quickCreate("files", "Use “Upload file” in Files & Documents to add a document.")}>{t("create.uploadFile")}</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => quickCreate("knowledge", "Use “Add knowledge” to record a new knowledge item.")}>{t("create.addKnowledge")}</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => quickCreate("pipeline", "Open a lead and add an internal note to log owner context.")}>{t("create.logOwnerNote")}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => quickCreate("pipeline", t("create.newLeadHint"))}>{t("create.newLead")}</DropdownMenuItem>
+                    {isSectionAllowed("operations", role) && <DropdownMenuItem onClick={() => quickCreate("operations", t("create.newTaskHint"))}>{t("create.newTask")}</DropdownMenuItem>}
+                    {isSectionAllowed("files", role) && <DropdownMenuItem onClick={() => quickCreate("files", t("create.uploadFileHint"))}>{t("create.uploadFile")}</DropdownMenuItem>}
+                    <DropdownMenuItem onClick={() => quickCreate("knowledge", t("create.addKnowledgeHint"))}>{t("create.addKnowledge")}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => quickCreate("pipeline", t("create.logOwnerNoteHint"))}>{t("create.logOwnerNote")}</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <Button type="button" variant="ghost" size="icon" className="relative" aria-label={t("shell.notificationsUnread", { count: unread })} onClick={() => setNotificationsOpen(true)}>
                   <Bell className="h-4 w-4" />
                   {unread > 0 && <span className="absolute right-1 top-1 min-w-4 rounded-full bg-primary px-1 text-[10px] leading-4 text-primary-foreground">{unread}</span>}
                 </Button>
-                <div className="hidden items-center gap-2 text-right lg:flex"><div><p className="text-sm font-medium text-foreground">{CURRENT_PATERHAUS_USER.name}</p><p className="text-xs text-muted-foreground">{CURRENT_PATERHAUS_USER.role}</p></div><div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">{CURRENT_PATERHAUS_USER.initials}</div></div>
+                <div className="hidden items-center gap-2 text-right lg:flex"><div><p className="text-sm font-medium text-foreground">{userIdentity.name}</p><p className="text-xs text-muted-foreground">{userIdentity.roleLabel}</p></div><div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">{userIdentity.initials}</div></div>
                 <Button type="button" variant="outline" size="sm" onClick={onLogout}><LogOut className="h-4 w-4" /><span className="hidden sm:inline">{t("shell.logOut")}</span></Button>
               </div>
             </div>
@@ -522,7 +567,7 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
             </SheetTitle>
           </SheetHeader>
           <div className="mt-4">
-            <GroupedNav section={activeSection} onSectionChange={changeSection} urgent={urgent} />
+            <GroupedNav section={activeSection} onSectionChange={changeSection} urgent={urgent} role={role} />
           </div>
         </SheetContent>
       </Sheet>
@@ -531,8 +576,9 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
         onOpenChange={setSearchOpen}
         onNavigate={(section, propertyId) => {
           if (propertyId) setTargetPropertyId(propertyId);
-          setActiveSection(section);
+          if (isSectionAllowed(section, role)) setActiveSection(section);
         }}
+        role={role}
       />
       <Sheet open={notificationsOpen} onOpenChange={setNotificationsOpen}>
         <SheetContent className="dark w-full overflow-y-auto border-border bg-background sm:max-w-xl">
@@ -544,6 +590,14 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
   );
 };
 
-const PaterhausCRM = ({ onLogout }: { onLogout: () => void }) => <PaterhausWorkspaceProvider><PaterhausWorkspace onLogout={onLogout} /></PaterhausWorkspaceProvider>;
+const PaterhausCRM = ({ onLogout }: { onLogout: () => void }) => {
+  const { user } = useAuth();
+  const role: UserRole = user?.role ?? "admin";
+  return (
+    <PaterhausWorkspaceProvider role={role}>
+      <PaterhausWorkspace onLogout={onLogout} />
+    </PaterhausWorkspaceProvider>
+  );
+};
 
 export default PaterhausCRM;
