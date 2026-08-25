@@ -1,9 +1,11 @@
 import { createContext, type ReactNode, useContext, useState } from "react";
 import {
+  demoBookings,
   demoCampaigns,
   demoFiles,
   demoLeadMessages,
   demoMarketingLeads,
+  enrichOpportunitiesWithP1,
   paterhausActivity,
   paterhausComplianceItems,
   paterhausConversations,
@@ -27,8 +29,14 @@ import { demoKnowledgeItems, type KnowledgeItem } from "@/data/paterhaus/knowled
 import type { Campaign, LeadMessage, MarketingLead } from "@/data/paterhaus/marketing";
 import type {
   ActivityEvent,
+  Booking,
+  BookingType,
   Conversation,
+  Direction,
   Guest,
+  LeadFileAttachment,
+  LeadTask,
+  LostReason,
   MaintenanceIssue,
   Message,
   Notification,
@@ -39,10 +47,12 @@ import type {
   Snag,
   Stay,
   Task,
+  TimelineEvent,
   Vendor,
   OpportunityStage,
   PaterhausSettings,
 } from "@/types/paterhaus";
+import { FIRST_RESPONSE_SLA_MINUTES, PIPELINE_STAGES } from "@/components/paterhaus/p0Shared";
 
 interface NewSnagInput {
   propertyId: string;
@@ -85,6 +95,8 @@ export interface NewOpportunityInput {
   campaignId?: string;
   bedrooms?: number;
   notes?: string;
+  /** P0.2: business direction. Defaults to property_management. */
+  direction?: Direction;
 }
 
 export interface NewMarketingLeadInput {
@@ -147,6 +159,7 @@ interface PaterhausWorkspaceContextValue {
   properties: Property[];
   owners: Owner[];
   opportunities: OwnerOpportunity[];
+  bookings: Booking[];
   stays: Stay[];
   guests: Guest[];
   conversations: Conversation[];
@@ -165,8 +178,40 @@ interface PaterhausWorkspaceContextValue {
   markConversationRead: (conversationId: string) => void;
   setConversationStatus: (conversationId: string, status: Conversation["status"]) => void;
   assignConversation: (conversationId: string, assignedTo: string) => void;
-  moveOpportunityStage: (opportunityId: string, stage: OpportunityStage, lostReason?: string) => void;
+  moveOpportunityStage: (
+    opportunityId: string,
+    stage: OpportunityStage,
+    lostReason?: string,
+    lostReasonCode?: LostReason,
+  ) => void;
   addOpportunity: (input: NewOpportunityInput) => void;
+  updateOpportunity: (opportunityId: string, changes: Partial<OwnerOpportunity>) => void;
+  addTimelineEvent: (
+    opportunityId: string,
+    event: Omit<TimelineEvent, "id">,
+  ) => void;
+  addLeadTask: (opportunityId: string, task: Omit<LeadTask, "id">) => void;
+  toggleLeadTask: (opportunityId: string, taskId: string) => void;
+  addLeadFile: (
+    opportunityId: string,
+    file: Omit<LeadFileAttachment, "id">,
+  ) => void;
+  removeLeadFile: (opportunityId: string, fileId: string) => void;
+  createBooking: (input: {
+    leadId: string;
+    leadName: string;
+    type: BookingType;
+    proposedSlots: string[];
+    selectedSlot?: string;
+    area?: string;
+    notes?: string;
+  }) => void;
+  confirmBooking: (bookingId: string, selectedSlot: string) => void;
+  cancelBooking: (bookingId: string) => void;
+  bulkAssignOpportunities: (opportunityIds: string[], assignedTo: string) => void;
+  bulkChangeStage: (opportunityIds: string[], stage: OpportunityStage) => void;
+  bulkAddTag: (opportunityIds: string[], tag: string) => void;
+  bulkRemoveTag: (opportunityIds: string[], tag: string) => void;
   files: DemoFile[];
   addFile: (input: NewDemoFileInput) => void;
   removeFile: (fileId: string) => void;
@@ -198,7 +243,11 @@ const nextId = (prefix: string, length: number) => `${prefix}-${String(length + 
 export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }) => {
   const [properties, setProperties] = useState<Property[]>(paterhausProperties);
   const [owners] = useState<Owner[]>(paterhausOwners);
-  const [opportunities, setOpportunities] = useState<OwnerOpportunity[]>(paterhausOpportunities);
+  const [opportunities, setOpportunities] = useState<OwnerOpportunity[]>(
+    // P1.1: enrich base opportunities with timeline, tasks, files, attribution
+    () => enrichOpportunitiesWithP1(paterhausOpportunities),
+  );
+  const [bookings, setBookings] = useState<Booking[]>(demoBookings);
   const [stays, setStays] = useState<Stay[]>(paterhausStays);
   const [guests] = useState<Guest[]>(paterhausGuests);
   const [conversations, setConversations] = useState<Conversation[]>(paterhausConversations);
@@ -276,7 +325,12 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
     setConversations((current) => current.map((item) => (item.id === conversationId ? { ...item, assignedTo } : item)));
   };
 
-  const moveOpportunityStage = (opportunityId: string, stage: OpportunityStage, lostReason?: string) => {
+  const moveOpportunityStage = (
+    opportunityId: string,
+    stage: OpportunityStage,
+    lostReason?: string,
+    lostReasonCode?: LostReason,
+  ) => {
     setOpportunities((current) =>
       current.map((opportunity) =>
         opportunity.id === opportunityId
@@ -284,6 +338,8 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
               ...opportunity,
               stage,
               lostReason: stage === "Lost / Not Proceeding" ? (lostReason ?? opportunity.lostReason) : undefined,
+              lostReasonCode: stage === "Lost / Not Proceeding" ? (lostReasonCode ?? opportunity.lostReasonCode) : undefined,
+              lostAt: stage === "Lost / Not Proceeding" ? `${PATERHAUS_TODAY}T17:00:00` : undefined,
               onboardingChecklist:
                 stage === "Agreement Signed"
                   ? (opportunity.onboardingChecklist ?? [
@@ -294,6 +350,19 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
                       "Schedule photography",
                     ])
                   : opportunity.onboardingChecklist,
+              timeline: [
+                ...(opportunity.timeline ?? []),
+                {
+                  id: nextId("tl", opportunity.timeline?.length ?? 0),
+                  type: stage === "Lost / Not Proceeding" ? ("lost" as const) : ("stage_changed" as const),
+                  timestamp: `${PATERHAUS_TODAY}T12:00:00`,
+                  userName: CURRENT_PATERHAUS_USER.name,
+                  details:
+                    stage === "Lost / Not Proceeding"
+                      ? `Lead closed: ${lostReason ?? "Lost / Not Proceeding"}`
+                      : `Stage changed → ${stage}`,
+                },
+              ],
             }
           : opportunity,
       ),
@@ -310,6 +379,7 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
   };
 
   const addOpportunity = (input: NewOpportunityInput) => {
+    const direction: Direction = input.direction ?? "property_management";
     const opportunity: OwnerOpportunity = {
       id: nextId("opp", opportunities.length),
       ownerId: `owner-lead-${String(opportunities.length + 1).padStart(3, "0")}`,
@@ -339,6 +409,30 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
       conversationIds: [],
       followUpAt: `${PATERHAUS_TODAY}T16:00:00`,
       activity: [`Lead added by ${CURRENT_PATERHAUS_USER.name} on ${PATERHAUS_TODAY}`],
+      direction,
+      stageId: PIPELINE_STAGES[direction][0],
+      firstResponseSlaMinutes: FIRST_RESPONSE_SLA_MINUTES,
+      slaStatus: "warning",
+      createdAt: `${PATERHAUS_TODAY}T10:00:00`,
+      timeline: [
+        {
+          id: nextId("tl", 0),
+          type: "lead_created",
+          timestamp: `${PATERHAUS_TODAY}T10:00:00`,
+          userName: CURRENT_PATERHAUS_USER.name,
+          details: `Lead created by ${CURRENT_PATERHAUS_USER.name}`,
+        },
+        {
+          id: nextId("tl", 1),
+          type: "assigned",
+          timestamp: `${PATERHAUS_TODAY}T10:01:00`,
+          userName: CURRENT_PATERHAUS_USER.name,
+          details: `Assigned to ${input.assignedTo}`,
+        },
+      ],
+      leadTasks: [],
+      leadFiles: [],
+      tags: [],
     };
     setOpportunities((current) => [opportunity, ...current]);
   };
@@ -729,10 +823,287 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
     });
   };
 
+  /* ---------------------------------------------------------------- */
+  /* P1.1 — Lead card: timeline, tasks, files, opportunity updates    */
+  /* ---------------------------------------------------------------- */
+
+  const updateOpportunity = (opportunityId: string, changes: Partial<OwnerOpportunity>) => {
+    setOpportunities((current) =>
+      current.map((opportunity) => (opportunity.id === opportunityId ? { ...opportunity, ...changes } : opportunity)),
+    );
+  };
+
+  const addTimelineEvent = (
+    opportunityId: string,
+    event: Omit<OwnerOpportunity["timeline"] extends infer T
+      ? T extends Array<infer E>
+        ? E
+        : never
+      : never,
+      "id">,
+  ) => {
+    setOpportunities((current) =>
+      current.map((opportunity) =>
+        opportunity.id === opportunityId
+          ? {
+              ...opportunity,
+              timeline: [
+                ...(opportunity.timeline ?? []),
+                { ...event, id: nextId("tl", opportunity.timeline?.length ?? 0) },
+              ],
+            }
+          : opportunity,
+      ),
+    );
+  };
+
+  const addLeadTask = (opportunityId: string, task: Omit<LeadTask, "id">) => {
+    setOpportunities((current) =>
+      current.map((opportunity) =>
+        opportunity.id === opportunityId
+          ? {
+              ...opportunity,
+              leadTasks: [...(opportunity.leadTasks ?? []), { ...task, id: nextId("lt", opportunity.leadTasks?.length ?? 0) }],
+              timeline: [
+                ...(opportunity.timeline ?? []),
+                {
+                  id: nextId("tl", opportunity.timeline?.length ?? 0),
+                  type: "task_created",
+                  timestamp: `${PATERHAUS_TODAY}T12:00:00`,
+                  userName: CURRENT_PATERHAUS_USER.name,
+                  details: `Task created: ${task.title}`,
+                },
+              ],
+            }
+          : opportunity,
+      ),
+    );
+  };
+
+  const toggleLeadTask = (opportunityId: string, taskId: string) => {
+    setOpportunities((current) =>
+      current.map((opportunity) => {
+        if (opportunity.id !== opportunityId) return opportunity;
+        const tasks = opportunity.leadTasks ?? [];
+        const target = tasks.find((item) => item.id === taskId);
+        if (!target) return opportunity;
+        const nowCompleted = target.status !== "completed";
+        const updatedTasks = tasks.map((item) =>
+          item.id === taskId
+            ? {
+                ...item,
+                status: (nowCompleted ? "completed" : "pending") as LeadTask["status"],
+                completedAt: nowCompleted ? `${PATERHAUS_TODAY}T12:00:00` : undefined,
+              }
+            : item,
+        );
+        return {
+          ...opportunity,
+          leadTasks: updatedTasks,
+          timeline: nowCompleted
+            ? [
+                ...(opportunity.timeline ?? []),
+                {
+                  id: nextId("tl", opportunity.timeline?.length ?? 0),
+                  type: "task_completed",
+                  timestamp: `${PATERHAUS_TODAY}T12:00:00`,
+                  userName: CURRENT_PATERHAUS_USER.name,
+                  details: `Task completed: ${target.title}`,
+                },
+              ]
+            : opportunity.timeline,
+        };
+      }),
+    );
+  };
+
+  const addLeadFile = (
+    opportunityId: string,
+    file: Omit<OwnerOpportunity["leadFiles"] extends infer T ? (T extends Array<infer F> ? F : never) : never, "id">,
+  ) => {
+    setOpportunities((current) =>
+      current.map((opportunity) =>
+        opportunity.id === opportunityId
+          ? {
+              ...opportunity,
+              leadFiles: [
+                ...(opportunity.leadFiles ?? []),
+                { ...file, id: nextId("lf", opportunity.leadFiles?.length ?? 0) },
+              ],
+              timeline: [
+                ...(opportunity.timeline ?? []),
+                {
+                  id: nextId("tl", opportunity.timeline?.length ?? 0),
+                  type: "file_uploaded",
+                  timestamp: `${PATERHAUS_TODAY}T12:00:00`,
+                  userName: file.uploadedBy,
+                  details: `File uploaded: ${file.name}`,
+                },
+              ],
+            }
+          : opportunity,
+      ),
+    );
+  };
+
+  const removeLeadFile = (opportunityId: string, fileId: string) => {
+    setOpportunities((current) =>
+      current.map((opportunity) =>
+        opportunity.id === opportunityId
+          ? { ...opportunity, leadFiles: (opportunity.leadFiles ?? []).filter((file) => file.id !== fileId) }
+          : opportunity,
+      ),
+    );
+  };
+
+  /* ---------------------------------------------------------------- */
+  /* P1.2 — Bookings                                                  */
+  /* ---------------------------------------------------------------- */
+
+  const createBooking = (input: {
+    leadId: string;
+    leadName: string;
+    type: BookingType;
+    proposedSlots: string[];
+    selectedSlot?: string;
+    area?: string;
+    notes?: string;
+  }) => {
+    const booking: Booking = {
+      id: nextId("book", bookings.length),
+      leadId: input.leadId,
+      leadName: input.leadName,
+      type: input.type,
+      proposedSlots: input.proposedSlots,
+      selectedSlot: input.selectedSlot,
+      status: input.selectedSlot ? "confirmed" : "pending",
+      createdAt: `${PATERHAUS_TODAY}T12:00:00`,
+      confirmedAt: input.selectedSlot ? `${PATERHAUS_TODAY}T12:05:00` : undefined,
+      area: input.area,
+      notes: input.notes,
+    };
+    setBookings((current) => [booking, ...current]);
+    // Add a timeline event to the linked opportunity
+    setOpportunities((current) =>
+      current.map((opportunity) =>
+        opportunity.id === input.leadId
+          ? {
+              ...opportunity,
+              timeline: [
+                ...(opportunity.timeline ?? []),
+                {
+                  id: nextId("tl", opportunity.timeline?.length ?? 0),
+                  type: "booking_scheduled",
+                  timestamp: `${PATERHAUS_TODAY}T12:00:00`,
+                  userName: CURRENT_PATERHAUS_USER.name,
+                  details: `Booking scheduled: ${input.type.replace(/_/g, " ")}${
+                    input.selectedSlot ? ` · ${input.selectedSlot}` : ""
+                  }`,
+                },
+              ],
+            }
+          : opportunity,
+      ),
+    );
+    addActivity({
+      propertyId: null,
+      actor: CURRENT_PATERHAUS_USER.name,
+      text: `Booking created for ${input.leadName} (${input.type})`,
+      type: "Property",
+    });
+  };
+
+  const confirmBooking = (bookingId: string, selectedSlot: string) => {
+    setBookings((current) =>
+      current.map((booking) =>
+        booking.id === bookingId
+          ? { ...booking, selectedSlot, status: "confirmed", confirmedAt: `${PATERHAUS_TODAY}T12:05:00` }
+          : booking,
+      ),
+    );
+  };
+
+  const cancelBooking = (bookingId: string) => {
+    setBookings((current) =>
+      current.map((booking) => (booking.id === bookingId ? { ...booking, status: "cancelled" } : booking)),
+    );
+  };
+
+  /* ---------------------------------------------------------------- */
+  /* P1.4 — Bulk actions                                              */
+  /* ---------------------------------------------------------------- */
+
+  const bulkAssignOpportunities = (opportunityIds: string[], assignedTo: string) => {
+    setOpportunities((current) =>
+      current.map((opportunity) =>
+        opportunityIds.includes(opportunity.id)
+          ? {
+              ...opportunity,
+              assignedTo,
+              timeline: [
+                ...(opportunity.timeline ?? []),
+                {
+                  id: nextId("tl", opportunity.timeline?.length ?? 0),
+                  type: "assigned",
+                  timestamp: `${PATERHAUS_TODAY}T12:00:00`,
+                  userName: CURRENT_PATERHAUS_USER.name,
+                  details: `Bulk reassign → ${assignedTo}`,
+                },
+              ],
+            }
+          : opportunity,
+      ),
+    );
+  };
+
+  const bulkChangeStage = (opportunityIds: string[], stage: OpportunityStage) => {
+    setOpportunities((current) =>
+      current.map((opportunity) =>
+        opportunityIds.includes(opportunity.id)
+          ? {
+              ...opportunity,
+              stage,
+              timeline: [
+                ...(opportunity.timeline ?? []),
+                {
+                  id: nextId("tl", opportunity.timeline?.length ?? 0),
+                  type: "stage_changed",
+                  timestamp: `${PATERHAUS_TODAY}T12:00:00`,
+                  userName: CURRENT_PATERHAUS_USER.name,
+                  details: `Bulk stage change → ${stage}`,
+                },
+              ],
+            }
+          : opportunity,
+      ),
+    );
+  };
+
+  const bulkAddTag = (opportunityIds: string[], tag: string) => {
+    setOpportunities((current) =>
+      current.map((opportunity) =>
+        opportunityIds.includes(opportunity.id)
+          ? { ...opportunity, tags: Array.from(new Set([...(opportunity.tags ?? []), tag])) }
+          : opportunity,
+      ),
+    );
+  };
+
+  const bulkRemoveTag = (opportunityIds: string[], tag: string) => {
+    setOpportunities((current) =>
+      current.map((opportunity) =>
+        opportunityIds.includes(opportunity.id)
+          ? { ...opportunity, tags: (opportunity.tags ?? []).filter((item) => item !== tag) }
+          : opportunity,
+      ),
+    );
+  };
+
   const value: PaterhausWorkspaceContextValue = {
     properties,
     owners,
     opportunities,
+    bookings,
     stays,
     guests,
     conversations,
@@ -753,6 +1124,19 @@ export const PaterhausWorkspaceProvider = ({ children }: { children: ReactNode }
     assignConversation,
     moveOpportunityStage,
     addOpportunity,
+    updateOpportunity,
+    addTimelineEvent,
+    addLeadTask,
+    toggleLeadTask,
+    addLeadFile,
+    removeLeadFile,
+    createBooking,
+    confirmBooking,
+    cancelBooking,
+    bulkAssignOpportunities,
+    bulkChangeStage,
+    bulkAddTag,
+    bulkRemoveTag,
     files,
     addFile,
     removeFile,

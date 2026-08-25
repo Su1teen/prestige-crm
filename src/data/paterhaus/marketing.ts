@@ -1,3 +1,5 @@
+import type { Direction } from "@/components/paterhaus/p0Shared";
+
 export type CampaignPlatform = "facebook" | "instagram";
 
 export type Campaign = {
@@ -9,6 +11,8 @@ export type Campaign = {
   qualified: number;
   won: number;
   period: string;
+  /** P0.2: which business direction this campaign feeds. */
+  direction: Direction;
 };
 
 export type MarketingLeadSource = "meta_lead_ads" | "instagram_dm" | "website" | "referral" | "manual";
@@ -52,6 +56,7 @@ export const demoCampaigns: Campaign[] = [
     qualified: 19,
     won: 3,
     period: "Aug 2026",
+    direction: "property_management",
   },
   {
     id: "camp-002",
@@ -62,6 +67,7 @@ export const demoCampaigns: Campaign[] = [
     qualified: 11,
     won: 2,
     period: "Aug 2026",
+    direction: "property_management",
   },
   {
     id: "camp-003",
@@ -72,6 +78,7 @@ export const demoCampaigns: Campaign[] = [
     qualified: 21,
     won: 4,
     period: "Jul 2026",
+    direction: "property_management",
   },
   {
     id: "camp-004",
@@ -82,6 +89,29 @@ export const demoCampaigns: Campaign[] = [
     qualified: 6,
     won: 1,
     period: "Aug 2026",
+    direction: "property_management",
+  },
+  {
+    id: "camp-005",
+    name: "Snagging Season — Handover Inspections — Aug 2026",
+    platform: "facebook",
+    spendUsd: 720,
+    leads: 34,
+    qualified: 18,
+    won: 12,
+    period: "Aug 2026",
+    direction: "snagging",
+  },
+  {
+    id: "camp-006",
+    name: "Staging & Listing Makeover — Aug 2026",
+    platform: "instagram",
+    spendUsd: 800,
+    leads: 21,
+    qualified: 14,
+    won: 9,
+    period: "Aug 2026",
+    direction: "staging",
   },
 ];
 
@@ -495,3 +525,298 @@ export const demoLeadMessages: LeadMessage[] = [
     timestamp: "2025-08-18T16:20:00",
   },
 ];
+
+/* ------------------------------------------------------------------ */
+/* P0.1 — Conversion Funnel                                            */
+/* ------------------------------------------------------------------ */
+
+export type FunnelStageRow = {
+  id: string;
+  /** i18n key — falls back to the literal label if no translation exists. */
+  labelKey: string;
+  /** Fallback label used when no i18n key resolves. */
+  label: string;
+  order: number;
+  count: number;
+  /** Conversion from the previous stage, in percent. First stage = 100. */
+  conversionFromPrevious: number;
+  /** Average days to reach this stage from lead creation. */
+  timeToStage: number;
+};
+
+export type ConversionFunnel = {
+  direction: Direction;
+  stages: FunnelStageRow[];
+  /** (Agreement Signed / Total Leads) × 100, rounded. */
+  overallConversion: number;
+  /** Average days from lead creation to signed agreement. */
+  averageTimeToSigned: number;
+};
+
+const propertyManagementFunnel: ConversionFunnel = {
+  direction: "property_management",
+  overallConversion: 15,
+  averageTimeToSigned: 18,
+  stages: [
+    { id: "pm-1", labelKey: "funnel.pm.submitted", label: "Meta Lead Form Submitted", order: 1, count: 100, conversionFromPrevious: 100, timeToStage: 0 },
+    { id: "pm-2", labelKey: "funnel.pm.first_response", label: "First Response Sent", order: 2, count: 85, conversionFromPrevious: 85, timeToStage: 0.2 },
+    { id: "pm-3", labelKey: "funnel.pm.qualified", label: "Qualified Owner", order: 3, count: 45, conversionFromPrevious: 53, timeToStage: 2 },
+    { id: "pm-4", labelKey: "funnel.pm.assessment", label: "Property Assessment Booked", order: 4, count: 30, conversionFromPrevious: 67, timeToStage: 5 },
+    { id: "pm-5", labelKey: "funnel.pm.estimate", label: "Revenue Estimate Sent", order: 5, count: 25, conversionFromPrevious: 83, timeToStage: 7 },
+    { id: "pm-6", labelKey: "funnel.pm.proposal", label: "Proposal Sent", order: 6, count: 20, conversionFromPrevious: 80, timeToStage: 10 },
+    { id: "pm-7", labelKey: "funnel.pm.signed", label: "Agreement Signed", order: 7, count: 15, conversionFromPrevious: 75, timeToStage: 18 },
+  ],
+};
+
+const snaggingFunnel: ConversionFunnel = {
+  direction: "snagging",
+  overallConversion: 35,
+  averageTimeToSigned: 6,
+  stages: [
+    { id: "sn-1", labelKey: "funnel.sn.inquiry", label: "Inquiry Received", order: 1, count: 100, conversionFromPrevious: 100, timeToStage: 0 },
+    { id: "sn-2", labelKey: "funnel.sn.details", label: "Details Confirmed", order: 2, count: 78, conversionFromPrevious: 78, timeToStage: 0.3 },
+    { id: "sn-3", labelKey: "funnel.sn.quote", label: "Quote Sent", order: 3, count: 60, conversionFromPrevious: 77, timeToStage: 1 },
+    { id: "sn-4", labelKey: "funnel.sn.approved", label: "Quote Approved", order: 4, count: 48, conversionFromPrevious: 80, timeToStage: 2 },
+    { id: "sn-5", labelKey: "funnel.sn.scheduled", label: "Inspection Scheduled", order: 5, count: 42, conversionFromPrevious: 88, timeToStage: 3 },
+    { id: "sn-6", labelKey: "funnel.sn.completed", label: "Inspection Completed", order: 6, count: 38, conversionFromPrevious: 90, timeToStage: 5 },
+    { id: "sn-7", labelKey: "funnel.sn.paid", label: "Invoice Paid", order: 7, count: 35, conversionFromPrevious: 92, timeToStage: 6 },
+  ],
+};
+
+const stagingFunnel: ConversionFunnel = {
+  direction: "staging",
+  overallConversion: 43,
+  averageTimeToSigned: 8,
+  stages: [
+    { id: "st-1", labelKey: "funnel.st.inquiry", label: "Inquiry Received", order: 1, count: 100, conversionFromPrevious: 100, timeToStage: 0 },
+    { id: "st-2", labelKey: "funnel.st.visit", label: "Site Visit Scheduled", order: 2, count: 72, conversionFromPrevious: 72, timeToStage: 1 },
+    { id: "st-3", labelKey: "funnel.st.proposal", label: "Proposal Sent", order: 3, count: 58, conversionFromPrevious: 81, timeToStage: 3 },
+    { id: "st-4", labelKey: "funnel.st.approved", label: "Proposal Approved", order: 4, count: 52, conversionFromPrevious: 90, timeToStage: 4 },
+    { id: "st-5", labelKey: "funnel.st.scheduled", label: "Staging Scheduled", order: 5, count: 48, conversionFromPrevious: 92, timeToStage: 5 },
+    { id: "st-6", labelKey: "funnel.st.completed", label: "Staging Completed", order: 6, count: 45, conversionFromPrevious: 94, timeToStage: 7 },
+    { id: "st-7", labelKey: "funnel.st.paid", label: "Invoice Paid", order: 7, count: 43, conversionFromPrevious: 96, timeToStage: 8 },
+  ],
+};
+
+export const conversionFunnels: Record<Direction, ConversionFunnel> = {
+  property_management: propertyManagementFunnel,
+  snagging: snaggingFunnel,
+  staging: stagingFunnel,
+};
+
+/* ------------------------------------------------------------------ */
+/* P0.2 — Direction metrics                                            */
+/* ------------------------------------------------------------------ */
+
+export type DirectionMetrics = {
+  direction: Direction;
+  spend: number;
+  leads: number;
+  qualified: number;
+  signed: number;
+  costPerSigned: number;
+};
+
+export const directionMetrics: DirectionMetrics[] = [
+  { direction: "property_management", spend: 3550, leads: 85, qualified: 30, signed: 5, costPerSigned: 710 },
+  { direction: "snagging", spend: 1200, leads: 34, qualified: 18, signed: 12, costPerSigned: 100 },
+  { direction: "staging", spend: 800, leads: 21, qualified: 14, signed: 9, costPerSigned: 89 },
+];
+
+/* ------------------------------------------------------------------ */
+/* P0.6 — Saved segments                                               */
+/* ------------------------------------------------------------------ */
+
+export type SegmentFilters = {
+  source?: MarketingLead["source"][];
+  campaign?: string[];
+  status?: MarketingLead["status"][];
+  direction?: Direction[];
+  manager?: string[];
+  area?: string[];
+  highIntentOnly?: boolean;
+  uncontactedOnly?: boolean;
+};
+
+export type SavedSegment = {
+  id: string;
+  name: string;
+  /** i18n key for the display name. */
+  nameKey?: string;
+  filters: SegmentFilters;
+  type: "lead" | "owner" | "campaign";
+};
+
+export const presetSegments: SavedSegment[] = [
+  { id: "high_intent", name: "High-intent owners", nameKey: "segment.high_intent", filters: { highIntentOnly: true }, type: "lead" },
+  { id: "no_response", name: "New Meta leads — no response", nameKey: "segment.no_response", filters: { uncontactedOnly: true, source: ["meta_lead_ads"] }, type: "lead" },
+  { id: "marina", name: "Dubai Marina owners", nameKey: "segment.marina", filters: { area: ["Dubai Marina"] }, type: "lead" },
+  { id: "palm", name: "Palm Jumeirah owners", nameKey: "segment.palm", filters: { area: ["Palm Jumeirah"] }, type: "lead" },
+  { id: "assessment", name: "Assessment booked", nameKey: "segment.assessment", filters: { status: ["qualified"] }, type: "owner" },
+  { id: "proposal", name: "Proposal sent", nameKey: "segment.proposal", filters: { status: ["proposal_sent"] }, type: "lead" },
+  { id: "lost_fee", name: "Lost: fee objection", nameKey: "segment.lost_fee", filters: { status: ["lost"] }, type: "lead" },
+  { id: "referral", name: "Past owners / referral potential", nameKey: "segment.referral", filters: { source: ["referral"] }, type: "lead" },
+];
+
+export const segmentMatchesLead = (segment: SavedSegment, lead: MarketingLead): boolean => {
+  const { filters } = segment;
+  if (filters.source?.length && !filters.source.includes(lead.source)) return false;
+  if (filters.campaign?.length && (!lead.campaignId || !filters.campaign.includes(lead.campaignId))) return false;
+  if (filters.status?.length && !filters.status.includes(lead.status)) return false;
+  if (filters.manager?.length && (!lead.assignedTo || !filters.manager.includes(lead.assignedTo))) return false;
+  if (filters.area?.length && (!lead.propertyArea || !filters.area.includes(lead.propertyArea))) return false;
+  if (filters.highIntentOnly && scoreMarketingLead(lead).level !== "high") return false;
+  if (filters.uncontactedOnly && lead.status !== "new") return false;
+  return true;
+};
+
+/* ------------------------------------------------------------------ */
+/* P0.4 — AI WhatsApp Bot lead intake                                  */
+/* ------------------------------------------------------------------ */
+
+export type WhatsAppIntent = "owner_lead" | "owner_issue" | "guest_issue" | "vendor";
+
+export type WhatsAppLeadMessage = {
+  id: string;
+  direction: "inbound" | "outbound";
+  text: string;
+  timestamp: string;
+  /** AI vs human vs contact author. */
+  author: "contact" | "ai" | "team";
+};
+
+export type WhatsAppLead = {
+  id: string;
+  phoneNumber: string;
+  contactName: string;
+  intent: WhatsAppIntent;
+  direction: Direction;
+  conversationId?: string;
+  opportunityId?: string;
+  assignedTo?: string;
+  createdAt: string;
+  firstResponseAt?: string;
+  firstResponseMinutes?: number;
+  qualified: boolean;
+  escalated: boolean;
+  messages: WhatsAppLeadMessage[];
+};
+
+export const demoWhatsAppLeads: WhatsAppLead[] = [
+  {
+    id: "wa-001",
+    phoneNumber: "+971 50 234 8812",
+    contactName: "Mariam Al Noor",
+    intent: "owner_lead",
+    direction: "property_management",
+    opportunityId: "opp-01",
+    assignedTo: "Sultan Sovetov",
+    createdAt: "2025-08-18T10:12:00",
+    firstResponseAt: "2025-08-18T10:26:00",
+    firstResponseMinutes: 14,
+    qualified: true,
+    escalated: false,
+    messages: [
+      { id: "wa-001-m1", direction: "inbound", author: "contact", text: "Hi, I saw your ad about property management for Palm Jumeirah. My apartment is fully furnished — what fee do you charge?", timestamp: "2025-08-18T10:12:00" },
+      { id: "wa-001-m2", direction: "outbound", author: "ai", text: "Hello Mariam! Thanks for reaching out. For full-service management we charge 15% of rental revenue. Could we schedule a quick call to discuss your unit?", timestamp: "2025-08-18T10:26:00" },
+      { id: "wa-001-m3", direction: "inbound", author: "contact", text: "Sounds reasonable. I'm available tomorrow after 3 PM.", timestamp: "2025-08-18T11:02:00" },
+    ],
+  },
+  {
+    id: "wa-002",
+    phoneNumber: "+971 55 611 2094",
+    contactName: "Daniel Foster",
+    intent: "owner_lead",
+    direction: "property_management",
+    opportunityId: "opp-02",
+    assignedTo: "Ruslan Tszi",
+    createdAt: "2025-08-19T09:40:00",
+    firstResponseAt: "2025-08-19T09:55:00",
+    firstResponseMinutes: 15,
+    qualified: true,
+    escalated: false,
+    messages: [
+      { id: "wa-002-m1", direction: "inbound", author: "contact", text: "Hi, comparing a few operators for my Business Bay unit. Can you share your average occupancy rates?", timestamp: "2025-08-19T09:40:00" },
+      { id: "wa-002-m2", direction: "outbound", author: "ai", text: "Hi Daniel, our Business Bay portfolio runs at 86% average occupancy. I'll send our revenue proposal today with a like-for-like comparison.", timestamp: "2025-08-19T09:55:00" },
+    ],
+  },
+  {
+    id: "wa-003",
+    phoneNumber: "+971 52 447 9038",
+    contactName: "Laila Haddad",
+    intent: "owner_lead",
+    direction: "property_management",
+    opportunityId: "opp-03",
+    assignedTo: "Sultan Sovetov",
+    createdAt: "2025-08-18T16:05:00",
+    firstResponseAt: "2025-08-18T16:20:00",
+    firstResponseMinutes: 15,
+    qualified: true,
+    escalated: false,
+    messages: [
+      { id: "wa-003-m1", direction: "inbound", author: "contact", text: "Hello, I'd like a revenue estimate for my villa in Dubai Hills.", timestamp: "2025-08-18T16:05:00" },
+      { id: "wa-003-m2", direction: "outbound", author: "ai", text: "Hi Laila, the final revenue range for Cedar Villa is ready. Sharing the proposal document here shortly.", timestamp: "2025-08-18T16:20:00" },
+    ],
+  },
+  {
+    id: "wa-004",
+    phoneNumber: "+971 50 998 1122",
+    contactName: "Omar Saleh",
+    intent: "owner_lead",
+    direction: "snagging",
+    assignedTo: "Ruslan Tszi",
+    createdAt: "2025-08-19T14:02:00",
+    qualified: false,
+    escalated: true,
+    messages: [
+      { id: "wa-004-m1", direction: "inbound", author: "contact", text: "We're handing over a new building in JVC and need a snagging inspection next week.", timestamp: "2025-08-19T14:02:00" },
+      { id: "wa-004-m2", direction: "outbound", author: "ai", text: "Hi Omar, I can book a certified snagging inspector for JVC. Could you share the unit number and preferred day? I'll escalate the quote to our specialist.", timestamp: "2025-08-19T14:18:00" },
+    ],
+  },
+  {
+    id: "wa-005",
+    phoneNumber: "+971 54 220 7788",
+    contactName: "Priya Sharma",
+    intent: "owner_lead",
+    direction: "staging",
+    assignedTo: "Sultan Sovetov",
+    createdAt: "2025-08-20T08:30:00",
+    qualified: false,
+    escalated: false,
+    messages: [
+      { id: "wa-005-m1", direction: "inbound", author: "contact", text: "I need staging for a 2BR in Downtown before the next booking season.", timestamp: "2025-08-20T08:30:00" },
+      { id: "wa-005-m2", direction: "outbound", author: "ai", text: "Hi Priya, our staging studio can visit your Downtown unit this week. I'll send a proposal with moodboard options shortly.", timestamp: "2025-08-20T08:42:00" },
+    ],
+  },
+];
+
+export const whatsappIntentLabelKey: Record<WhatsAppIntent, string> = {
+  owner_lead: "wa.intent.owner_lead",
+  owner_issue: "wa.intent.owner_issue",
+  guest_issue: "wa.intent.guest_issue",
+  vendor: "wa.intent.vendor",
+};
+
+/** First-response templates the AI bot sends per intent (demo content). */
+export const firstResponseTemplates: Record<WhatsAppIntent, string> = {
+  owner_lead:
+    "Hello! Thanks for reaching out to Paterhaus. I can prepare a revenue estimate and management proposal for your unit. Could you share the area, unit type and number of bedrooms?",
+  owner_issue:
+    "Hello! I've logged your request and routed it to the property manager. Could you share the unit and a short description of the issue?",
+  guest_issue:
+    "Hello! I've flagged this for the guest experience team. Could you share the reservation ID and a short description so we can act on it now?",
+  vendor:
+    "Hello! I can route this to our vendor coordination desk. Could you share the service category and the property address?",
+};
+
+/** Routing rules: which team member picks up which direction/intent. */
+export const routeWhatsAppLead = (
+  intent: WhatsAppIntent,
+  direction: Direction,
+): string => {
+  if (intent === "guest_issue") return "Sultan Sovetov";
+  if (intent === "vendor") return "Sultan Sovetov";
+  if (direction === "snagging") return "Ruslan Tszi";
+  if (direction === "staging") return "Sultan Sovetov";
+  return "Ruslan Tszi";
+};

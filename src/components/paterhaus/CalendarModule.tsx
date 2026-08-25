@@ -9,7 +9,7 @@ import type { Task } from "@/types/paterhaus";
 import { EmptyState, SectionHeader, StatusPill } from "./shared";
 
 type CalendarView = "month" | "week";
-type CalendarEventKind = "occupied" | "blocked" | "operation" | "risk";
+type CalendarEventKind = "occupied" | "blocked" | "operation" | "risk" | "booking";
 
 interface CalendarEvent {
   id: string;
@@ -27,6 +27,7 @@ const kindStyles: Record<CalendarEventKind, string> = {
   blocked: "border-slate-500/40 bg-slate-500/10 text-slate-200",
   operation: "border-primary/30 bg-primary/10 text-primary",
   risk: "border-red-500/30 bg-red-500/10 text-red-100",
+  booking: "border-indigo-500/30 bg-indigo-500/10 text-indigo-200",
 };
 
 const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -79,6 +80,7 @@ const EventDetail = ({
   const task = workspace.tasks.find((item) => item.id === event.sourceId);
   const stay = workspace.stays.find((item) => item.id === event.sourceId);
   const compliance = workspace.compliance.find((item) => item.id === event.sourceId);
+  const booking = workspace.bookings.find((item) => item.id === event.sourceId);
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="dark border-border bg-background">
@@ -114,6 +116,17 @@ const EventDetail = ({
             <p className="text-muted-foreground">
               Compliance · <span className="text-foreground">{compliance.title}</span>
             </p>
+          )}
+          {booking && (
+            <div className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 p-3">
+              <p className="text-xs font-medium text-indigo-200">Lead booking</p>
+              <p className="mt-1 text-sm text-foreground">{booking.leadName}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {booking.type.replace(/_/g, " ")} · {booking.status}
+              </p>
+              {booking.area && <p className="mt-1 text-xs text-muted-foreground">{booking.area}</p>}
+              {booking.notes && <p className="mt-1 text-xs text-muted-foreground">{booking.notes}</p>}
+            </div>
           )}
         </div>
       </SheetContent>
@@ -195,8 +208,24 @@ export const CalendarModule = ({ onPropertySelect }: { onPropertySelect?: (prope
           sourceId: item.id,
         }) satisfies CalendarEvent,
     );
-    return [...stayEvents, ...taskEvents, ...complianceEvents];
-  }, [workspace.compliance, workspace.properties, workspace.stays, workspace.tasks]);
+    // P1.2 — Booking events from lead bookings
+    const bookingEvents: CalendarEvent[] = workspace.bookings
+      .filter((booking) => booking.selectedSlot && booking.status !== "cancelled")
+      .map((booking) => {
+        const slot = booking.selectedSlot!;
+        return {
+          id: `booking-${booking.id}`,
+          date: slot.slice(0, 10),
+          time: slot.slice(11, 16),
+          title: `${booking.leadName} — ${booking.type.replace(/_/g, " ")}`,
+          detail: `${booking.area ?? ""} · ${booking.status}${booking.notes ? ` · ${booking.notes}` : ""}`,
+          kind: "booking" as const,
+          propertyId: null,
+          sourceId: booking.id,
+        };
+      });
+    return [...stayEvents, ...taskEvents, ...complianceEvents, ...bookingEvents];
+  }, [workspace.bookings, workspace.compliance, workspace.properties, workspace.stays, workspace.tasks]);
   const filteredEvents = events.filter((event) => {
     const property = event.propertyId ? workspace.properties.find((item) => item.id === event.propertyId) : undefined;
     const task = workspace.tasks.find((item) => item.id === event.sourceId);
@@ -322,6 +351,10 @@ export const CalendarModule = ({ onPropertySelect }: { onPropertySelect?: (prope
           <span>
             <i className="mr-1 inline-block h-2 w-2 rounded-full bg-red-400" />
             Risks / overdue
+          </span>
+          <span>
+            <i className="mr-1 inline-block h-2 w-2 rounded-full bg-indigo-400" />
+            Lead bookings
           </span>
         </div>
       </Card>

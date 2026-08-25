@@ -10,6 +10,7 @@ export * from "./marketing";
 export * from "./notifications";
 export * from "./opportunities";
 export * from "./owners";
+export * from "./p1Data";
 export * from "./properties";
 export * from "./selectors";
 export * from "./snags";

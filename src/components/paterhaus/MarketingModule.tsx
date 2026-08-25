@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Facebook, Instagram, Megaphone, Plus, Workflow, Users } from "lucide-react";
+import { Download, Facebook, Filter, Instagram, Megaphone, Plus, TrendingDown, Workflow, Users } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -11,22 +12,38 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { usePaterhausWorkspace, type NewMarketingLeadInput } from "@/contexts/PaterhausWorkspaceContext";
-import { AVERAGE_MANAGEMENT_FEE_USD, formatUSD } from "@/data/paterhaus";
+import { AVERAGE_MANAGEMENT_FEE_USD, formatUSD, LOST_REASONS } from "@/data/paterhaus";
 import {
   audienceSegments,
   automationPreviews,
   campaignMatchesPeriod,
+  conversionFunnels,
+  directionMetrics,
   followUpPerformance,
   leadQualityByArea,
   marketingFunnels,
   marketingPeriodLabels,
+  presetSegments,
   scoreMarketingLead,
+  segmentMatchesLead,
   type Campaign,
   type CampaignPlatform,
+  type ConversionFunnel,
+  type Direction as MarketingDirection,
   type MarketingLead,
   type MarketingPeriod,
+  type SavedSegment,
 } from "@/data/paterhaus/marketing";
+import {
+  DIRECTIONS,
+  directionDefaultLabel,
+  directionLabelKey,
+  exportToCsv,
+  formatDays,
+  type Direction,
+} from "./p0Shared";
 import { EmptyState, SectionHeader, StatusPill } from "./shared";
 
 type PlatformFilter = "All" | CampaignPlatform;
@@ -62,6 +79,164 @@ const scoreClasses: Record<ReturnType<typeof scoreMarketingLead>["level"], strin
   low: "border-border bg-secondary/50 text-muted-foreground",
 };
 
+const funnelStageTone = (conversion: number): string => {
+  if (conversion >= 80) return "bg-emerald-500/70";
+  if (conversion >= 50) return "bg-sky-500/70";
+  if (conversion >= 25) return "bg-amber-500/70";
+  return "bg-red-500/60";
+};
+
+const ConversionFunnelCard = ({ funnel }: { funnel: ConversionFunnel }) => {
+  const { t } = useLanguage();
+  const maxCount = funnel.stages[0]?.count ?? 1;
+  return (
+    <Card className="border-border/80 bg-card/70 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Megaphone className="h-4 w-4 text-primary" />
+          <h3 className="font-medium text-foreground">{t("funnel.title")}</h3>
+          <span className="text-xs text-muted-foreground">
+            {t(directionLabelKey[funnel.direction])}
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+          <span>
+            {t("funnel.overall")}:{" "}
+            <span className="font-semibold text-foreground">{funnel.overallConversion}%</span>
+          </span>
+          <span>
+            {t("funnel.avgTimeToSigned")}:{" "}
+            <span className="font-semibold text-foreground">{formatDays(funnel.averageTimeToSigned)}</span>
+          </span>
+        </div>
+      </div>
+      <div className="mt-4 space-y-2.5">
+        {funnel.stages.map((stage, index) => {
+          const dropOff = index === 0 ? 0 : 100 - stage.conversionFromPrevious;
+          return (
+            <div key={stage.id}>
+              <div className="flex items-center justify-between text-xs">
+                <span className="min-w-0 truncate text-muted-foreground">
+                  {stage.order}. {t(stage.labelKey) || stage.label}
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="font-medium text-foreground">{stage.count}</span>
+                  {index > 0 && (
+                    <span className="text-muted-foreground">
+                      {stage.conversionFromPrevious}% · {t("funnel.dropOff")} {dropOff}%
+                    </span>
+                  )}
+                  <span className="text-muted-foreground">{formatDays(stage.timeToStage)}</span>
+                </span>
+              </div>
+              <div className="mt-1 h-2.5 rounded-full bg-secondary/60">
+                <div
+                  className={`h-2.5 rounded-full ${funnelStageTone(stage.conversionFromPrevious)}`}
+                  style={{ width: `${Math.max(2, (stage.count / maxCount) * 100)}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+};
+
+const DirectionMetricsTable = () => {
+  const { t } = useLanguage();
+  return (
+    <Card className="border-border/80 bg-card/70 p-4">
+      <h3 className="font-medium text-foreground">{t("direction.metrics.title")}</h3>
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full min-w-[560px] text-left text-sm">
+          <thead>
+            <tr className="border-b border-border text-xs text-muted-foreground">
+              <th className="px-2 py-2 font-medium">{t("nav.operations")}</th>
+              <th className="px-2 py-2 font-medium">{t("direction.metrics.spend")}</th>
+              <th className="px-2 py-2 font-medium">{t("direction.metrics.leads")}</th>
+              <th className="px-2 py-2 font-medium">{t("direction.metrics.qualified")}</th>
+              <th className="px-2 py-2 font-medium">{t("direction.metrics.signed")}</th>
+              <th className="px-2 py-2 font-medium">{t("direction.metrics.costPerSigned")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {directionMetrics.map((row) => (
+              <tr key={row.direction} className="border-b border-border/60">
+                <td className="px-2 py-2 font-medium text-foreground">
+                  {t(directionLabelKey[row.direction]) || directionDefaultLabel[row.direction]}
+                </td>
+                <td className="px-2 py-2 text-foreground">{formatUSD(row.spend)}</td>
+                <td className="px-2 py-2 text-foreground">{row.leads}</td>
+                <td className="px-2 py-2 text-foreground">{row.qualified}</td>
+                <td className="px-2 py-2 text-foreground">{row.signed}</td>
+                <td className="px-2 py-2 text-foreground">{formatUSD(row.costPerSigned)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
+};
+
+const SegmentsList = ({
+  selectedSegment,
+  onSelect,
+  onClear,
+}: {
+  selectedSegment: SavedSegment | null;
+  onSelect: (segment: SavedSegment) => void;
+  onClear: () => void;
+}) => {
+  const { t } = useLanguage();
+  const workspace = usePaterhausWorkspace();
+  return (
+    <Card className="border-border/80 bg-card/70 p-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-primary" />
+          <h3 className="font-medium text-foreground">{t("segment.title")}</h3>
+        </div>
+        {selectedSegment && (
+          <Button type="button" variant="ghost" size="sm" onClick={onClear}>
+            {t("segment.clear")}
+          </Button>
+        )}
+      </div>
+      <div className="mt-3 space-y-2">
+        {presetSegments.map((segment) => {
+          const count = workspace.marketingLeads.filter((lead) => segmentMatchesLead(segment, lead)).length;
+          const active = selectedSegment?.id === segment.id;
+          return (
+            <button
+              key={segment.id}
+              type="button"
+              onClick={() => onSelect(segment)}
+              className={`flex w-full items-center justify-between rounded-xl border p-3 text-left transition-colors ${
+                active
+                  ? "border-primary bg-primary/10 text-foreground"
+                  : "border-border/70 text-foreground hover:bg-secondary/40"
+              }`}
+            >
+              <span className="min-w-0">
+                <span className="block text-sm font-medium">{segment.nameKey ? t(segment.nameKey) : segment.name}</span>
+              </span>
+              <span
+                className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                  active ? "border-primary/40 text-primary" : "border-border text-muted-foreground"
+                }`}
+              >
+                {count} {t("segment.leads")}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </Card>
+  );
+};
+
 const PlatformBadge = ({ platform }: { platform: CampaignPlatform }) => (
   <span className="inline-flex items-center gap-1.5 text-sm text-foreground">
     {platform === "facebook" ? (
@@ -95,11 +270,74 @@ const emptyLeadForm = (campaignId: string): SimulateLeadForm => ({
   comment: "",
 });
 
+/* P1.3 — Lost reasons analytics */
+const LostReasonsAnalytics = () => {
+  const workspace = usePaterhausWorkspace();
+  const { t } = useLanguage();
+  const lostLeads = workspace.opportunities.filter(
+    (opportunity) => opportunity.stage === "Lost / Not Proceeding" && opportunity.lostReasonCode,
+  );
+  const reasonCounts = LOST_REASONS.map((reason) => ({
+    ...reason,
+    count: lostLeads.filter((lead) => lead.lostReasonCode === reason.value).length,
+  })).sort((a, b) => b.count - a.count);
+  const maxCount = Math.max(1, ...reasonCounts.map((item) => item.count));
+  const totalLost = lostLeads.length;
+
+  if (totalLost === 0) {
+    return (
+      <Card className="border-border/80 bg-card/70 p-4">
+        <div className="flex items-center gap-2">
+          <TrendingDown className="h-4 w-4 text-primary" />
+          <h3 className="font-medium text-foreground">{t("lost.analytics.title")}</h3>
+        </div>
+        <p className="mt-3 text-sm text-muted-foreground">{t("lost.analytics.empty")}</p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="border-border/80 bg-card/70 p-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <TrendingDown className="h-4 w-4 text-primary" />
+          <h3 className="font-medium text-foreground">{t("lost.analytics.title")}</h3>
+        </div>
+        <span className="text-xs text-muted-foreground">{totalLost} {t("bulk.selected")}</span>
+      </div>
+      <div className="mt-4 space-y-2">
+        {reasonCounts.map((item) => {
+          const widthPct = (item.count / maxCount) * 100;
+          return (
+            <div key={item.value} className="flex items-center gap-3">
+              <span className="w-48 flex-shrink-0 text-xs text-muted-foreground">
+                {t(item.labelKey) || item.label}
+              </span>
+              <div className="relative h-6 flex-1 overflow-hidden rounded-md border border-border/60 bg-background/40">
+                <div
+                  className="absolute inset-y-0 left-0 rounded-r-md bg-gradient-to-r from-red-500/40 to-red-500/20"
+                  style={{ width: `${Math.max(widthPct, item.count > 0 ? 8 : 0)}%` }}
+                />
+                <span className="absolute inset-y-0 left-2 flex items-center text-xs font-medium text-foreground">
+                  {item.count}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+};
+
 export const MarketingModule = () => {
   const workspace = usePaterhausWorkspace();
+  const { t } = useLanguage();
   const { campaigns, marketingLeads } = workspace;
   const [platformFilter, setPlatformFilter] = useState<PlatformFilter>("All");
   const [period, setPeriod] = useState<MarketingPeriod>("this_month");
+  const [funnelDirection, setFunnelDirection] = useState<Direction>("property_management");
+  const [selectedSegment, setSelectedSegment] = useState<SavedSegment | null>(null);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [showSimulate, setShowSimulate] = useState(false);
   const [form, setForm] = useState<SimulateLeadForm>(() => emptyLeadForm(campaigns[0]?.id ?? ""));
@@ -112,15 +350,24 @@ export const MarketingModule = () => {
     [campaigns, platformFilter, period],
   );
 
+  const segmentLeads = useMemo(
+    () =>
+      selectedSegment
+        ? marketingLeads.filter((lead) => segmentMatchesLead(selectedSegment, lead))
+        : marketingLeads,
+    [marketingLeads, selectedSegment],
+  );
+
   const funnel = marketingFunnels[period];
   const funnelMax = funnel[0]?.value ?? 1;
+  const conversionFunnel = conversionFunnels[funnelDirection];
 
   const metrics = useMemo(() => {
     const totalSpend = filteredCampaigns.reduce((sum, campaign) => sum + campaign.spendUsd, 0);
     const totalLeads = filteredCampaigns.reduce((sum, campaign) => sum + campaign.leads, 0);
     const qualified = filteredCampaigns.reduce((sum, campaign) => sum + campaign.qualified, 0);
     const won = filteredCampaigns.reduce((sum, campaign) => sum + campaign.won, 0);
-    const activeLeads = marketingLeads.filter((lead) => lead.status !== "won" && lead.status !== "lost").length;
+    const activeLeads = segmentLeads.filter((lead) => lead.status !== "won" && lead.status !== "lost").length;
     return {
       totalSpend,
       totalLeads,
@@ -131,22 +378,64 @@ export const MarketingModule = () => {
       costPerWon: won === 0 ? 0 : totalSpend / won,
       pipelineValue: activeLeads * AVERAGE_MANAGEMENT_FEE_USD,
     };
-  }, [filteredCampaigns, marketingLeads]);
+  }, [filteredCampaigns, segmentLeads]);
 
   const kpis = [
-    { label: "Total Spend", value: formatUSD(metrics.totalSpend) },
-    { label: "Total Leads", value: `${metrics.totalLeads}` },
-    { label: "CPL", value: formatUSD(metrics.cpl) },
-    { label: "Qualified Leads", value: `${metrics.qualified}` },
-    { label: "Qualified Rate", value: `${metrics.qualifiedRate.toFixed(0)}%` },
-    { label: "Won Owners", value: `${metrics.won}` },
-    { label: "Cost per Won", value: formatUSD(metrics.costPerWon) },
-    { label: "Pipeline Value", value: formatUSD(metrics.pipelineValue) },
+    { label: t("marketing.spend"), value: formatUSD(metrics.totalSpend) },
+    { label: t("marketing.leads"), value: `${metrics.totalLeads}` },
+    { label: t("marketing.cpl"), value: formatUSD(metrics.cpl) },
+    { label: t("marketing.qualified"), value: `${metrics.qualified}` },
+    { label: t("marketing.conversion"), value: `${metrics.qualifiedRate.toFixed(0)}%` },
+    { label: t("marketing.won"), value: `${metrics.won}` },
+    { label: t("marketing.cost_per_won"), value: formatUSD(metrics.costPerWon) },
+    { label: t("marketing.pipeline_value"), value: formatUSD(metrics.pipelineValue) },
   ];
 
   const campaignLeads = selectedCampaign
     ? marketingLeads.filter((lead) => lead.campaignId === selectedCampaign.id)
     : [];
+
+  const exportCampaignsCsv = () => {
+    exportToCsv(
+      filteredCampaigns,
+      `paterhaus-campaigns-${period}.csv`,
+      [
+        { header: "id", accessor: (row) => row.id },
+        { header: "name", accessor: (row) => row.name },
+        { header: "platform", accessor: (row) => row.platform },
+        { header: "direction", accessor: (row) => row.direction },
+        { header: "spend_usd", accessor: (row) => row.spendUsd },
+        { header: "leads", accessor: (row) => row.leads },
+        { header: "qualified", accessor: (row) => row.qualified },
+        { header: "won", accessor: (row) => row.won },
+        { header: "cpl", accessor: (row) => (row.leads === 0 ? 0 : (row.spendUsd / row.leads).toFixed(2)) },
+        { header: "cost_per_won", accessor: (row) => (row.won === 0 ? 0 : (row.spendUsd / row.won).toFixed(2)) },
+      ],
+    );
+    toast.success(t("export.campaigns"));
+  };
+
+  const exportLeadsCsv = () => {
+    exportToCsv(
+      segmentLeads,
+      `paterhaus-leads${selectedSegment ? `-${selectedSegment.id}` : ""}.csv`,
+      [
+        { header: "id", accessor: (row) => row.id },
+        { header: "name", accessor: (row) => row.name },
+        { header: "phone", accessor: (row) => row.phone },
+        { header: "email", accessor: (row) => row.email },
+        { header: "source", accessor: (row) => row.source },
+        { header: "campaign_id", accessor: (row) => row.campaignId ?? "" },
+        { header: "status", accessor: (row) => row.status },
+        { header: "assigned_to", accessor: (row) => row.assignedTo ?? "" },
+        { header: "area", accessor: (row) => row.propertyArea ?? "" },
+        { header: "property_type", accessor: (row) => row.propertyType ?? "" },
+        { header: "bedrooms", accessor: (row) => row.bedrooms ?? "" },
+        { header: "created_at", accessor: (row) => row.createdAt },
+      ],
+    );
+    toast.success(t("export.leads"));
+  };
 
   const submitLead = () => {
     if (!form.name.trim() || !form.phone.trim() || !form.campaignId) return;
@@ -168,14 +457,24 @@ export const MarketingModule = () => {
   return (
     <div className="space-y-6">
       <SectionHeader
-        eyebrow="Meta campaigns and owner acquisition"
-        title="Marketing"
-        description="Campaign spend, lead flow and acquisition performance in USD."
+        eyebrow={t("marketing.eyebrow")}
+        title={t("marketing.title")}
+        description={t("marketing.description")}
         action={
-          <Button onClick={() => setShowSimulate(true)}>
-            <Plus className="h-4 w-4" />
-            Simulate Meta Lead
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={exportCampaignsCsv}>
+              <Download className="h-4 w-4" />
+              {t("export.campaigns")}
+            </Button>
+            <Button variant="outline" onClick={exportLeadsCsv}>
+              <Download className="h-4 w-4" />
+              {t("export.leads")}
+            </Button>
+            <Button onClick={() => setShowSimulate(true)}>
+              <Plus className="h-4 w-4" />
+              {t("marketing.simulate")}
+            </Button>
+          </div>
         }
       />
       <div className="flex flex-wrap items-center gap-1 rounded-xl border border-border/80 bg-card/50 p-1" role="group" aria-label="Reporting period">
@@ -199,6 +498,40 @@ export const MarketingModule = () => {
           </Card>
         ))}
       </div>
+
+      {/* P0.1 — Conversion Funnel + P0.2 — Direction metrics */}
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-1 rounded-xl border border-border/80 bg-card/50 p-1" role="group" aria-label="Funnel direction">
+            {DIRECTIONS.map((direction) => (
+              <Button
+                key={direction}
+                type="button"
+                size="sm"
+                variant={funnelDirection === direction ? "secondary" : "ghost"}
+                onClick={() => setFunnelDirection(direction)}
+              >
+                {t(directionLabelKey[direction]) || directionDefaultLabel[direction]}
+              </Button>
+            ))}
+          </div>
+        </div>
+        <ConversionFunnelCard funnel={conversionFunnel} />
+        <DirectionMetricsTable />
+      </div>
+
+      {/* P0.6 — Segments */}
+      <SegmentsList
+        selectedSegment={selectedSegment}
+        onSelect={(segment) => {
+          setSelectedSegment(segment);
+          toast.success(`${t("segment.applied")}: ${segment.nameKey ? t(segment.nameKey) : segment.name}`);
+        }}
+        onClear={() => setSelectedSegment(null)}
+      />
+
+      {/* P1.3 — Lost reasons analytics */}
+      <LostReasonsAnalytics />
       <Card className="border-border/80 bg-card/70 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">

@@ -14,6 +14,7 @@ import {
   LogOut,
   Megaphone,
   Menu,
+  MessageCircle,
   MessageSquare,
   Plus,
   Search,
@@ -53,6 +54,7 @@ import { OperationsBoardModule } from "@/components/paterhaus/OperationsBoardMod
 import { CalendarModule } from "@/components/paterhaus/CalendarModule";
 import { GuestsStaysModule } from "@/components/paterhaus/GuestsStaysModule";
 import { ConversationsModule } from "@/components/paterhaus/ConversationsModule";
+import { WhatsAppBotModule } from "@/components/paterhaus/WhatsAppBotModule";
 import { FinanceModule } from "@/components/paterhaus/FinanceModule";
 import { ComplianceModule } from "@/components/paterhaus/ComplianceModule";
 import { TeamVendorsModule } from "@/components/paterhaus/TeamVendorsModule";
@@ -62,6 +64,8 @@ import { FilesHubModule } from "@/components/paterhaus/FilesHubModule";
 import { KnowledgeBaseModule } from "@/components/paterhaus/KnowledgeBaseModule";
 import { OpsCopilot } from "@/components/paterhaus/OpsCopilot";
 import { Card } from "@/components/ui/card";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export type PaterhausSection =
   | "overview"
@@ -73,6 +77,7 @@ export type PaterhausSection =
   | "files"
   | "stays"
   | "conversations"
+  | "whatsapp"
   | "finance"
   | "compliance"
   | "team"
@@ -96,52 +101,53 @@ interface NavGroup {
 const navGroups: NavGroup[] = [
   {
     id: "overview",
-    label: "Overview",
-    items: [{ id: "overview", label: "Portfolio", icon: LayoutDashboard }],
+    label: "nav.overview",
+    items: [{ id: "overview", label: "nav.portfolio", icon: LayoutDashboard }],
   },
   {
     id: "sales",
-    label: "Sales & Marketing",
+    label: "nav.sales_marketing",
     items: [
-      { id: "pipeline", label: "Owner Pipeline", icon: UsersRound },
-      { id: "marketing", label: "Marketing", icon: Megaphone },
-      { id: "conversations", label: "Conversations", icon: MessageSquare },
+      { id: "pipeline", label: "nav.owner_pipeline", icon: UsersRound },
+      { id: "marketing", label: "nav.marketing", icon: Megaphone },
+      { id: "conversations", label: "nav.conversations", icon: MessageSquare },
+      { id: "whatsapp", label: "nav.whatsapp_bot", icon: MessageCircle },
     ],
   },
   {
     id: "operations",
-    label: "Operations",
+    label: "nav.operations",
     items: [
-      { id: "properties", label: "Properties", icon: Home },
-      { id: "operations", label: "Operations Board", icon: BriefcaseBusiness },
-      { id: "calendar", label: "Calendar", icon: CalendarDays },
-      { id: "files", label: "Files & Documents", icon: FolderOpen },
-      { id: "team", label: "Team & Vendors", icon: Wrench },
+      { id: "properties", label: "nav.properties", icon: Home },
+      { id: "operations", label: "nav.operations_board", icon: BriefcaseBusiness },
+      { id: "calendar", label: "nav.calendar", icon: CalendarDays },
+      { id: "files", label: "nav.files_documents", icon: FolderOpen },
+      { id: "team", label: "nav.team_vendors", icon: Wrench },
     ],
   },
   {
     id: "intelligence",
-    label: "Intelligence",
+    label: "nav.intelligence",
     items: [
-      { id: "copilot", label: "Ops Copilot", icon: Sparkles },
-      { id: "knowledge", label: "Knowledge Base", icon: BookOpenText },
+      { id: "copilot", label: "nav.ops_copilot", icon: Sparkles },
+      { id: "knowledge", label: "nav.knowledge_base", icon: BookOpenText },
     ],
   },
   {
     id: "system",
-    label: "System",
+    label: "nav.system",
     items: [
-      { id: "notifications", label: "Notifications", icon: Bell },
-      { id: "settings", label: "Settings", icon: Settings },
+      { id: "notifications", label: "nav.notifications", icon: Bell },
+      { id: "settings", label: "nav.settings", icon: Settings },
     ],
   },
   {
     id: "more",
-    label: "More",
+    label: "nav.more",
     items: [
-      { id: "stays", label: "Guests & Stays", icon: UsersRound },
-      { id: "finance", label: "Finance", icon: CircleDollarSign },
-      { id: "compliance", label: "Compliance", icon: ShieldCheck },
+      { id: "stays", label: "nav.guests_stays", icon: UsersRound },
+      { id: "finance", label: "nav.finance", icon: CircleDollarSign },
+      { id: "compliance", label: "nav.compliance", icon: ShieldCheck },
     ],
   },
 ];
@@ -154,17 +160,17 @@ const isPaterhausSection = (value: string): value is PaterhausSection => section
 const groupForSection = (section: PaterhausSection): NavGroup =>
   navGroups.find((group) => group.items.some((item) => item.id === section)) ?? navGroups[0];
 
-const sectionLabels: Partial<Record<PaterhausSection, string>> = Object.fromEntries(
+const sectionLabelKey: Partial<Record<PaterhausSection, string>> = Object.fromEntries(
   allNavItems.map((item) => [item.id, item.label]),
 );
 
-const descriptions: Record<string, string> = {
-  overview: "Portfolio performance and operational priorities.",
-  sales: "Owner acquisition, campaigns and conversations.",
-  operations: "Properties, tasks, turnovers, documents and vendor coordination.",
-  intelligence: "Ops Copilot and the operating knowledge behind it.",
-  system: "Notifications and workspace settings.",
-  more: "Secondary modules: guests, finance and compliance.",
+const descriptionKeys: Record<string, string> = {
+  overview: "group.overview",
+  sales: "group.sales",
+  operations: "group.operations",
+  intelligence: "group.intelligence",
+  system: "group.system",
+  more: "group.more",
 };
 
 const GroupedNav = ({
@@ -177,6 +183,7 @@ const GroupedNav = ({
   urgent: number;
 }) => {
   const activeGroup = groupForSection(section);
+  const { t } = useLanguage();
   const [openGroups, setOpenGroups] = useState<string[]>(
     navGroups.filter((group) => group.id !== "more").map((group) => group.id),
   );
@@ -196,7 +203,7 @@ const GroupedNav = ({
               className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground"
               aria-expanded={isOpen}
             >
-              {group.label}
+              {t(group.label)}
               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isOpen ? "" : "-rotate-90"}`} />
             </button>
             {isOpen && (
@@ -214,7 +221,7 @@ const GroupedNav = ({
                     >
                       {active && <span className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-primary" />}
                       <Icon className="h-4 w-4 flex-shrink-0" />
-                      <span className="min-w-0 flex-1 leading-5">{item.label}</span>
+                      <span className="min-w-0 flex-1 leading-5">{t(item.label)}</span>
                       {badge > 0 && <span className="rounded-full border border-primary/30 px-2 py-0.5 text-[11px] text-primary">{badge}</span>}
                     </button>
                   );
@@ -240,6 +247,7 @@ const WorkspaceSidebar = ({
   onCollapse: () => void;
 }) => {
   const { tasks } = usePaterhausWorkspace();
+  const { t } = useLanguage();
   const urgent = tasks.filter((task) => task.priority === "Urgent" && task.status !== "Completed").length;
   return (
     <motion.aside
@@ -249,7 +257,7 @@ const WorkspaceSidebar = ({
     >
       <div className="flex h-16 items-center gap-3 border-b border-border px-5">
         <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-primary/40 bg-primary/10 text-sm font-semibold text-primary">PH</div>
-        {!collapsed && <div className="min-w-0"><p className="font-semibold text-foreground">Paterhaus</p><p className="truncate text-xs text-muted-foreground">Property Management</p></div>}
+        {!collapsed && <div className="min-w-0"><p className="font-semibold text-foreground">Paterhaus</p><p className="truncate text-xs text-muted-foreground">{t("ops.property_management")}</p></div>}
       </div>
       <div className="flex-1 overflow-y-auto px-3 py-4">
         {collapsed ? (
@@ -262,7 +270,7 @@ const WorkspaceSidebar = ({
                   key={item.id}
                   type="button"
                   onClick={() => onSectionChange(item.id)}
-                  title={item.label}
+                  title={t(item.label)}
                   className={`relative flex w-full items-center justify-center rounded-xl px-3 py-2.5 transition-colors ${active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground"}`}
                 >
                   {active && <span className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-primary" />}
@@ -277,7 +285,7 @@ const WorkspaceSidebar = ({
       </div>
       <div className="border-t border-border p-3">
         <button type="button" onClick={onCollapse} className="flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm text-muted-foreground hover:bg-secondary/70">
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <><ChevronLeft className="h-4 w-4" /><span>Collapse sidebar</span></>}
+          {collapsed ? <ChevronRight className="h-4 w-4" /> : <><ChevronLeft className="h-4 w-4" /><span>{t("nav.collapse")}</span></>}
         </button>
       </div>
     </motion.aside>
@@ -403,6 +411,7 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
   const [targetTaskId, setTargetTaskId] = useState<string>();
   const [targetConversationId, setTargetConversationId] = useState<string>();
   const { notifications, tasks } = usePaterhausWorkspace();
+  const { t } = useLanguage();
   const unread = notifications.filter((notification) => !notification.read).length;
   const urgent = tasks.filter((task) => task.priority === "Urgent" && task.status !== "Completed").length;
   const activeGroup = groupForSection(activeSection);
@@ -445,6 +454,7 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
     if (activeSection === "copilot") return <CopilotSection onOpenProperty={openProperty} />;
     if (activeSection === "stays") return <GuestsStaysModule onPropertySelect={openProperty} />;
     if (activeSection === "conversations") return <ConversationsModule onPropertySelect={openProperty} initialConversationId={targetConversationId} />;
+    if (activeSection === "whatsapp") return <WhatsAppBotModule />;
     if (activeSection === "finance") return <FinanceModule />;
     if (activeSection === "compliance") return <ComplianceModule />;
     if (activeSection === "team") return <TeamVendorsModule />;
@@ -460,42 +470,43 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
           <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
             <div className="flex min-h-16 items-center justify-between gap-3 px-4 py-2 lg:px-6">
               <div className="flex min-w-0 items-center gap-2">
-                <Button type="button" variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation menu" onClick={() => setMobileNavOpen(true)}>
+                <Button type="button" variant="ghost" size="icon" className="md:hidden" aria-label={t("shell.openNav")} onClick={() => setMobileNavOpen(true)}>
                   <Menu className="h-5 w-5" />
                 </Button>
-                <div className="min-w-0"><h1 className="truncate text-lg font-semibold text-foreground">{sectionLabels[activeSection] ?? "Paterhaus"}</h1><p className="hidden text-xs text-muted-foreground sm:block">{descriptions[activeGroup.id]}</p></div>
+                <div className="min-w-0"><h1 className="truncate text-lg font-semibold text-foreground">{sectionLabelKey[activeSection] ? t(sectionLabelKey[activeSection]!) : "Paterhaus"}</h1><p className="hidden text-xs text-muted-foreground sm:block">{t(descriptionKeys[activeGroup.id])}</p></div>
               </div>
               <div className="flex flex-shrink-0 items-center gap-2">
-                <span className="hidden rounded-full border border-border px-2.5 py-1 text-[11px] text-muted-foreground lg:inline">Demo workspace</span>
+                <span className="hidden rounded-full border border-border px-2.5 py-1 text-[11px] text-muted-foreground lg:inline">{t("shell.demoWorkspace")}</span>
+                <LanguageSwitcher />
                 <Button type="button" variant="outline" size="sm" className="hidden gap-2 text-muted-foreground sm:flex" onClick={() => setSearchOpen(true)}>
                   <Search className="h-4 w-4" />
-                  <span className="hidden md:inline">Search</span>
+                  <span className="hidden md:inline">{t("shell.search")}</span>
                   <kbd className="hidden rounded border border-border bg-secondary/60 px-1.5 text-[10px] md:inline">⌘K</kbd>
                 </Button>
-                <Button type="button" variant="ghost" size="icon" className="sm:hidden" aria-label="Search" onClick={() => setSearchOpen(true)}>
+                <Button type="button" variant="ghost" size="icon" className="sm:hidden" aria-label={t("shell.search")} onClick={() => setSearchOpen(true)}>
                   <Search className="h-4 w-4" />
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button type="button" size="sm">
                       <Plus className="h-4 w-4" />
-                      <span className="hidden sm:inline">Create</span>
+                      <span className="hidden sm:inline">{t("shell.create")}</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="dark border-border bg-background">
-                    <DropdownMenuItem onClick={() => quickCreate("pipeline", "Use “New Lead” in the Owner Pipeline to add a lead.")}>New Lead</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => quickCreate("operations", "Use “New task” on the Operations Board to create a task.")}>New Task</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => quickCreate("files", "Use “Upload file” in Files & Documents to add a document.")}>Upload File</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => quickCreate("knowledge", "Use “Add knowledge” to record a new knowledge item.")}>Add Knowledge Item</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => quickCreate("pipeline", "Open a lead and add an internal note to log owner context.")}>Log Owner Note</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => quickCreate("pipeline", "Use “New Lead” in the Owner Pipeline to add a lead.")}>{t("create.newLead")}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => quickCreate("operations", "Use “New task” on the Operations Board to create a task.")}>{t("create.newTask")}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => quickCreate("files", "Use “Upload file” in Files & Documents to add a document.")}>{t("create.uploadFile")}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => quickCreate("knowledge", "Use “Add knowledge” to record a new knowledge item.")}>{t("create.addKnowledge")}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => quickCreate("pipeline", "Open a lead and add an internal note to log owner context.")}>{t("create.logOwnerNote")}</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button type="button" variant="ghost" size="icon" className="relative" aria-label={`Notifications, ${unread} unread`} onClick={() => setNotificationsOpen(true)}>
+                <Button type="button" variant="ghost" size="icon" className="relative" aria-label={t("shell.notificationsUnread", { count: unread })} onClick={() => setNotificationsOpen(true)}>
                   <Bell className="h-4 w-4" />
                   {unread > 0 && <span className="absolute right-1 top-1 min-w-4 rounded-full bg-primary px-1 text-[10px] leading-4 text-primary-foreground">{unread}</span>}
                 </Button>
                 <div className="hidden items-center gap-2 text-right lg:flex"><div><p className="text-sm font-medium text-foreground">{CURRENT_PATERHAUS_USER.name}</p><p className="text-xs text-muted-foreground">{CURRENT_PATERHAUS_USER.role}</p></div><div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">{CURRENT_PATERHAUS_USER.initials}</div></div>
-                <Button type="button" variant="outline" size="sm" onClick={onLogout}><LogOut className="h-4 w-4" /><span className="hidden sm:inline">Log out</span></Button>
+                <Button type="button" variant="outline" size="sm" onClick={onLogout}><LogOut className="h-4 w-4" /><span className="hidden sm:inline">{t("shell.logOut")}</span></Button>
               </div>
             </div>
           </header>
@@ -525,7 +536,7 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
       />
       <Sheet open={notificationsOpen} onOpenChange={setNotificationsOpen}>
         <SheetContent className="dark w-full overflow-y-auto border-border bg-background sm:max-w-xl">
-          <SheetHeader><SheetTitle>Notifications</SheetTitle></SheetHeader>
+          <SheetHeader><SheetTitle>{t("nav.notifications")}</SheetTitle></SheetHeader>
           <div className="mt-5"><NotificationsModule onPropertySelect={openProperty} onConversationSelect={openConversation} onTaskSelect={openTask} /></div>
         </SheetContent>
       </Sheet>

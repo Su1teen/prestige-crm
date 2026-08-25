@@ -1,7 +1,9 @@
-import { useMemo, useState } from "react";
-import { Download, FileImage, FileText, MessageCircle, Paperclip, Plus, Search, Send, Trash2, UserRound, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { AlertCircle, Clock3, Download, FileImage, FileText, LayoutGrid, MessageCircle, Paperclip, Plus, Search, Send, Trash2, UserRound, X } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -10,11 +12,33 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { usePaterhausWorkspace, type NewOpportunityInput } from "@/contexts/PaterhausWorkspaceContext";
-import { CURRENT_PATERHAUS_USER, formatUSD, formatPaterhausDateTime } from "@/data/paterhaus";
-import type { OpportunityStage, OwnerOpportunity, Priority } from "@/types/paterhaus";
+import { CURRENT_PATERHAUS_USER, formatUSD, formatPaterhausDateTime, LOST_REASONS, TAG_PRESETS } from "@/data/paterhaus";
+import type { LostReason, OpportunityStage, OwnerOpportunity, Priority, SlaStatus } from "@/types/paterhaus";
+import {
+  DIRECTIONS,
+  directionDefaultLabel,
+  directionLabelKey,
+  exportToCsv,
+  formatMinutes,
+  PIPELINE_STAGES,
+  slaStatusGlyph,
+  slaStatusKey,
+  slaStatusTone,
+  type Direction,
+} from "./p0Shared";
+import { LeadDetailsModal } from "./LeadDetailsModal";
 import { EmptyState, SectionHeader, StatusPill } from "./shared";
 
 const stages: OpportunityStage[] = [
@@ -57,6 +81,7 @@ interface LeadForm {
   campaignId: string;
   bedrooms: string;
   comment: string;
+  direction: Direction;
 }
 
 const initialLead: LeadForm = {
@@ -75,6 +100,21 @@ const initialLead: LeadForm = {
   campaignId: "",
   bedrooms: "",
   comment: "",
+  direction: "property_management",
+};
+
+const SlaBadge = ({ status, minutes }: { status: SlaStatus; minutes?: number }) => {
+  const { t } = useLanguage();
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${slaStatusTone[status]}`}
+      title={`${t(slaStatusKey[status])}${minutes !== undefined ? ` · ${formatMinutes(minutes)}` : ""}`}
+    >
+      <Clock3 className="h-3 w-3" />
+      {slaStatusGlyph[status]} {t(slaStatusKey[status])}
+      {minutes !== undefined && status !== "on_track" && <span className="opacity-70">· {formatMinutes(minutes)}</span>}
+    </span>
+  );
 };
 
 const waLink = (phone: string) => `https://wa.me/${phone.replace(/[^0-9]/g, "")}`;
@@ -89,6 +129,7 @@ const OpportunityDetail = ({
   onOpenChange: (open: boolean) => void;
 }) => {
   const workspace = usePaterhausWorkspace();
+  const { t } = useLanguage();
   const [draft, setDraft] = useState("");
   if (!opportunity) return null;
   const linkedTasks = workspace.tasks.filter((task) => opportunity.taskIds?.includes(task.id));
@@ -118,16 +159,32 @@ const OpportunityDetail = ({
             </div>
             <StatusPill status={opportunity.stage} />
           </div>
-          {opportunity.phone && (
-            <div className="mt-2">
+          <div className="mt-2 flex flex-wrap gap-2">
+            {opportunity.phone && (
               <Button asChild variant="outline" size="sm" className="gap-1.5">
                 <a href={waLink(opportunity.phone)} target="_blank" rel="noreferrer">
                   <MessageCircle className="h-4 w-4 text-emerald-400" />
                   Chat on WhatsApp
                 </a>
               </Button>
-            </div>
-          )}
+            )}
+            <Button
+              variant="secondary"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => {
+                onOpenChange(false);
+                // Defer to allow sheet close animation; parent will pick up the lead
+                setTimeout(() => {
+                  const event = new CustomEvent("paterhaus:openLeadCard", { detail: opportunity.id });
+                  window.dispatchEvent(event);
+                }, 50);
+              }}
+            >
+              <LayoutGrid className="h-4 w-4" />
+              {t("lead.eyebrow")}
+            </Button>
+          </div>
         </SheetHeader>
         <div className="mt-6 space-y-4">
           <Card className="border-border bg-card p-4">
@@ -164,6 +221,22 @@ const OpportunityDetail = ({
               <p className="text-sm text-muted-foreground">
                 <span className="block text-xs">Bedrooms</span>
                 <span className="text-foreground">{opportunity.bedrooms !== undefined ? `${opportunity.bedrooms} BR` : "—"}</span>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                <span className="block text-xs">Direction</span>
+                <span className="text-foreground">
+                  {opportunity.direction ? (t(directionLabelKey[opportunity.direction]) || directionDefaultLabel[opportunity.direction]) : "—"}
+                </span>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                <span className="block text-xs">First response SLA</span>
+                <span className="text-foreground">
+                  {opportunity.slaStatus ? (
+                    <SlaBadge status={opportunity.slaStatus} minutes={opportunity.firstResponseMinutes} />
+                  ) : (
+                    "—"
+                  )}
+                </span>
               </p>
             </div>
           </Card>
@@ -370,14 +443,32 @@ const OpportunityDetail = ({
 
 export const OwnerPipelineModule = () => {
   const workspace = usePaterhausWorkspace();
+  const { t } = useLanguage();
   const [query, setQuery] = useState("");
   const [stageFilter, setStageFilter] = useState<OpportunityStage | "All">("All");
   const [priorityFilter, setPriorityFilter] = useState<Priority | "All">("All");
+  const [directionFilter, setDirectionFilter] = useState<Direction | "All">("All");
   const [selected, setSelected] = useState<OwnerOpportunity | null>(null);
+  const [leadModal, setLeadModal] = useState<OwnerOpportunity | null>(null);
   const [showLeadDialog, setShowLeadDialog] = useState(false);
   const [lostOpportunity, setLostOpportunity] = useState<OwnerOpportunity | null>(null);
   const [lostReason, setLostReason] = useState("");
+  const [lostReasonCode, setLostReasonCode] = useState<LostReason | "">("");
   const [lead, setLead] = useState<LeadForm>(initialLead);
+  // P1.4 — Bulk selection
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkTag, setBulkTag] = useState("");
+
+  // P1.1 — Listen for "open lead card" events from the OpportunityDetail sheet
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const customEvent = event as CustomEvent<string>;
+      const lead = workspace.opportunities.find((item) => item.id === customEvent.detail);
+      if (lead) setLeadModal(lead);
+    };
+    window.addEventListener("paterhaus:openLeadCard", handler);
+    return () => window.removeEventListener("paterhaus:openLeadCard", handler);
+  }, [workspace.opportunities]);
   const filtered = useMemo(() => {
     const normalized = query.toLowerCase();
     return workspace.opportunities.filter((opportunity) => {
@@ -385,10 +476,11 @@ export const OwnerPipelineModule = () => {
       return (
         text.includes(normalized) &&
         (stageFilter === "All" || opportunity.stage === stageFilter) &&
-        (priorityFilter === "All" || opportunity.priority === priorityFilter)
+        (priorityFilter === "All" || opportunity.priority === priorityFilter) &&
+        (directionFilter === "All" || opportunity.direction === directionFilter)
       );
     });
-  }, [priorityFilter, query, stageFilter, workspace.opportunities]);
+  }, [directionFilter, priorityFilter, query, stageFilter, workspace.opportunities]);
   const createLead = () => {
     if (!lead.ownerName.trim() || !lead.prospectProperty.trim()) return;
     const input: NewOpportunityInput = {
@@ -412,19 +504,262 @@ export const OwnerPipelineModule = () => {
     }
     workspace.moveOpportunityStage(opportunity.id, nextStage);
   };
+
+  // P1.4 — Bulk handlers
+  const allSelected = filtered.length > 0 && filtered.every((opportunity) => selectedIds.includes(opportunity.id));
+  const toggleSelectAll = (checked: boolean) => {
+    setSelectedIds(checked ? filtered.map((opportunity) => opportunity.id) : []);
+  };
+  const toggleSelectLead = (id: string, checked: boolean) => {
+    setSelectedIds((current) => (checked ? [...current, id] : current.filter((item) => item !== id)));
+  };
+  const handleBulkAssign = (assignee: string) => {
+    workspace.bulkAssignOpportunities(selectedIds, assignee);
+    toast.success(t("bulk.assigned"));
+    setSelectedIds([]);
+  };
+  const handleBulkChangeStage = (stage: OpportunityStage) => {
+    workspace.bulkChangeStage(selectedIds, stage);
+    toast.success(t("bulk.stageChanged"));
+    setSelectedIds([]);
+  };
+  const handleBulkAddTag = () => {
+    if (!bulkTag.trim()) return;
+    workspace.bulkAddTag(selectedIds, bulkTag.trim());
+    toast.success(t("bulk.tagAdded"));
+    setBulkTag("");
+  };
+  const handleBulkRemoveTag = (tag: string) => {
+    workspace.bulkRemoveTag(selectedIds, tag);
+    toast.success(t("bulk.tagRemoved"));
+  };
+  const handleBulkExport = () => {
+    const leadsToExport = workspace.opportunities.filter((opportunity) => selectedIds.includes(opportunity.id));
+    exportToCsv(
+      leadsToExport,
+      "paterhaus-pipeline-bulk.csv",
+      [
+        { header: "id", accessor: (row) => row.id },
+        { header: "owner_name", accessor: (row) => row.ownerName },
+        { header: "prospect_property", accessor: (row) => row.prospectProperty },
+        { header: "area", accessor: (row) => row.area },
+        { header: "direction", accessor: (row) => row.direction ?? "property_management" },
+        { header: "stage", accessor: (row) => row.stage },
+        { header: "priority", accessor: (row) => row.priority },
+        { header: "assigned_to", accessor: (row) => row.assignedTo },
+        { header: "lead_source", accessor: (row) => row.leadSource },
+        { header: "monthly_revenue", accessor: (row) => row.estimatedMonthlyRevenue },
+        { header: "phone", accessor: (row) => row.phone ?? "" },
+        { header: "email", accessor: (row) => row.email ?? "" },
+        { header: "tags", accessor: (row) => (row.tags ?? []).join("; ") },
+      ],
+    );
+    toast.success(t("bulk.exported"));
+  };
+  const handleBulkWhatsApp = () => {
+    const leads = workspace.opportunities.filter((opportunity) => selectedIds.includes(opportunity.id) && opportunity.phone);
+    leads.forEach((lead) => {
+      window.open(`https://wa.me/${lead.phone!.replace(/[^0-9]/g, "")}`, "_blank");
+    });
+    toast.success(t("bulk.whatsappOpened"));
+  };
+  const exportPipelineCsv = () => {
+    exportToCsv(
+      filtered,
+      `paterhaus-pipeline-${directionFilter}.csv`,
+      [
+        { header: "id", accessor: (row) => row.id },
+        { header: "owner_name", accessor: (row) => row.ownerName },
+        { header: "prospect_property", accessor: (row) => row.prospectProperty },
+        { header: "area", accessor: (row) => row.area },
+        { header: "type", accessor: (row) => row.type },
+        { header: "direction", accessor: (row) => row.direction ?? "property_management" },
+        { header: "stage", accessor: (row) => row.stage },
+        { header: "stage_id", accessor: (row) => row.stageId ?? "" },
+        { header: "priority", accessor: (row) => row.priority },
+        { header: "assigned_to", accessor: (row) => row.assignedTo },
+        { header: "lead_source", accessor: (row) => row.leadSource },
+        { header: "campaign_id", accessor: (row) => row.campaignId ?? "" },
+        { header: "monthly_revenue", accessor: (row) => row.estimatedMonthlyRevenue },
+        { header: "annual_revenue", accessor: (row) => row.estimatedAnnualRevenue },
+        { header: "potential_fee", accessor: (row) => row.potentialManagementFee },
+        { header: "phone", accessor: (row) => row.phone ?? "" },
+        { header: "email", accessor: (row) => row.email ?? "" },
+        { header: "bedrooms", accessor: (row) => row.bedrooms ?? "" },
+        { header: "first_response_at", accessor: (row) => row.firstResponseAt ?? "" },
+        { header: "first_response_minutes", accessor: (row) => row.firstResponseMinutes ?? "" },
+        { header: "sla_status", accessor: (row) => row.slaStatus ?? "" },
+        { header: "lost_reason", accessor: (row) => row.lostReason ?? "" },
+        { header: "last_communication", accessor: (row) => row.lastCommunication },
+        { header: "next_action", accessor: (row) => row.nextAction },
+      ],
+    );
+    toast.success(t("export.opportunities"));
+  };
+
+  const slaStats = useMemo(() => {
+    const total = filtered.length;
+    const overdue = filtered.filter((o) => o.slaStatus === "overdue").length;
+    const warning = filtered.filter((o) => o.slaStatus === "warning").length;
+    const onTrack = filtered.filter((o) => o.slaStatus === "on_track").length;
+    const responded = filtered.filter((o) => o.firstResponseMinutes !== undefined);
+    const avgResponse =
+      responded.length === 0
+        ? 0
+        : responded.reduce((sum, o) => sum + (o.firstResponseMinutes ?? 0), 0) / responded.length;
+    return {
+      total,
+      overdue,
+      warning,
+      onTrack,
+      withinSlaPct: total === 0 ? 0 : Math.round((onTrack / total) * 100),
+      avgResponseMinutes: Math.round(avgResponse * 10) / 10,
+    };
+  }, [filtered]);
   return (
     <div className="space-y-6">
       <SectionHeader
-        eyebrow="Owner acquisition and onboarding"
-        title="Owner Pipeline"
-        description="Move prospective owners from first conversation through signed agreement and listing readiness."
+        eyebrow={t("pipeline.eyebrow")}
+        title={t("pipeline.title")}
+        description={t("pipeline.description")}
         action={
-          <Button onClick={() => setShowLeadDialog(true)}>
-            <Plus className="h-4 w-4" />
-            Add lead
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={exportPipelineCsv}>
+              <Download className="h-4 w-4" />
+              {t("export.opportunities")}
+            </Button>
+            <Button onClick={() => setShowLeadDialog(true)}>
+              <Plus className="h-4 w-4" />
+              {t("pipeline.add_lead")}
+            </Button>
+          </div>
         }
       />
+      {/* P0.2 — Direction tabs */}
+      <div className="flex flex-wrap items-center gap-1 rounded-xl border border-border/80 bg-card/50 p-1" role="group" aria-label="Direction filter">
+        <Button
+          type="button"
+          size="sm"
+          variant={directionFilter === "All" ? "secondary" : "ghost"}
+          onClick={() => setDirectionFilter("All")}
+        >
+          {t("common.all")}
+        </Button>
+        {DIRECTIONS.map((direction) => (
+          <Button
+            key={direction}
+            type="button"
+            size="sm"
+            variant={directionFilter === direction ? "secondary" : "ghost"}
+            onClick={() => setDirectionFilter(direction)}
+          >
+            {t(directionLabelKey[direction]) || directionDefaultLabel[direction]}
+          </Button>
+        ))}
+      </div>
+      {/* P0.5 — SLA stats */}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Card className="border-border/80 bg-card/70 p-4">
+          <p className="text-xs text-muted-foreground">{t("marketing.leads")}</p>
+          <p className="mt-1 text-lg font-semibold text-foreground">{slaStats.total}</p>
+        </Card>
+        <Card className="border-border/80 bg-card/70 p-4">
+          <p className="text-xs text-muted-foreground">{t("sla.metrics.contacted15")}</p>
+          <p className="mt-1 text-lg font-semibold text-foreground">{slaStats.withinSlaPct}%</p>
+        </Card>
+        <Card className="border-border/80 bg-card/70 p-4">
+          <p className="text-xs text-muted-foreground">{t("sla.metrics.avgFirstResponse")}</p>
+          <p className="mt-1 text-lg font-semibold text-foreground">{formatMinutes(slaStats.avgResponseMinutes)}</p>
+        </Card>
+        <Card className="border-border/80 bg-card/70 p-4">
+          <p className="text-xs text-muted-foreground">{t("sla.overdue")}</p>
+          <p className="mt-1 text-lg font-semibold text-red-300">{slaStats.overdue}</p>
+        </Card>
+      </div>
+      {/* P1.4 — Bulk actions toolbar */}
+      {selectedIds.length > 0 && (
+        <Card className="sticky top-0 z-10 border-primary/40 bg-primary/5 p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-foreground">
+              {selectedIds.length} {t("bulk.selected")}
+            </span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  {t("bulk.assignTo")}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuLabel>{t("bulk.assignTo")}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {Array.from(new Set(workspace.opportunities.map((o) => o.assignedTo))).map((assignee) => (
+                  <DropdownMenuItem key={assignee} onClick={() => handleBulkAssign(assignee)}>
+                    {assignee}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  {t("bulk.changeStage")}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuLabel>{t("bulk.changeStage")}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {stages.map((stage) => (
+                  <DropdownMenuItem key={stage} onClick={() => handleBulkChangeStage(stage)}>
+                    {stage}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <div className="flex items-center gap-1">
+              <Input
+                placeholder={t("bulk.tagPlaceholder")}
+                value={bulkTag}
+                onChange={(event) => setBulkTag(event.target.value)}
+                className="h-9 w-32"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") handleBulkAddTag();
+                }}
+              />
+              <Button variant="outline" size="sm" onClick={handleBulkAddTag} disabled={!bulkTag.trim()}>
+                {t("bulk.addTag")}
+              </Button>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  {t("bulk.removeTag")}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuLabel>{t("bulk.removeTag")}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {TAG_PRESETS.map((tag) => (
+                  <DropdownMenuItem key={tag} onClick={() => handleBulkRemoveTag(tag)}>
+                    {tag}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button variant="outline" size="sm" onClick={handleBulkWhatsApp}>
+              <MessageCircle className="h-4 w-4 text-emerald-400" />
+              {t("bulk.sendWhatsapp")}
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleBulkExport}>
+              <Download className="h-4 w-4" />
+              {t("bulk.export")}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>
+              <X className="h-4 w-4" />
+              {t("bulk.clear")}
+            </Button>
+          </div>
+        </Card>
+      )}
       <Card className="border-border/80 bg-card/70 p-4">
         <div className="flex flex-wrap gap-2">
           <div className="relative min-w-[240px] flex-1">
@@ -432,7 +767,7 @@ export const OwnerPipelineModule = () => {
             <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search owner, property or area"
+              placeholder={t("pipeline.search_placeholder")}
               className="pl-9"
             />
           </div>
@@ -484,35 +819,86 @@ export const OwnerPipelineModule = () => {
                 return (
                   <Card key={stage} className="w-[300px] min-w-[300px] border-border/80 bg-card/60 p-3">
                     <div className="flex min-h-12 items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold leading-5 text-foreground">{stage}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">{opportunities.length} opportunities</p>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Checkbox
+                          checked={opportunities.length > 0 && opportunities.every((o) => selectedIds.includes(o.id))}
+                          onCheckedChange={(checked) => {
+                            const ids = opportunities.map((o) => o.id);
+                            setSelectedIds((current) =>
+                              checked === true
+                                ? Array.from(new Set([...current, ...ids]))
+                                : current.filter((id) => !ids.includes(id)),
+                            );
+                          }}
+                          aria-label={t("bulk.selectAll")}
+                        />
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold leading-5 text-foreground">{stage}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{opportunities.length} opportunities</p>
+                        </div>
                       </div>
                       <StatusPill status={`${opportunities.length}`} />
                     </div>
                     <div className="mt-3 space-y-3">
                       {opportunities.map((opportunity) => (
-                        <div key={opportunity.id} className="overflow-hidden rounded-xl border border-border/70 bg-background/40 p-3">
-                          <button type="button" onClick={() => setSelected(opportunity)} className="w-full text-left">
-                            <div className="flex items-start gap-2">
-                              <UserRound className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
-                              <span className="min-w-0">
-                                <span className="block break-words text-sm font-semibold leading-5 text-foreground">{opportunity.ownerName}</span>
-                                <span className="mt-1 block break-words text-xs leading-5 text-muted-foreground">{opportunity.prospectProperty}</span>
-                              </span>
-                            </div>
-                            <dl className="mt-3 grid grid-cols-[84px_minmax(0,1fr)] gap-x-2 gap-y-2 text-xs">
-                              <dt className="text-muted-foreground">Area</dt><dd className="min-w-0 break-words text-foreground">{opportunity.area}</dd>
-                              <dt className="text-muted-foreground">Monthly revenue</dt><dd className="font-medium text-foreground">{formatUSD(opportunity.estimatedMonthlyRevenue)}</dd>
-                              <dt className="text-muted-foreground">Source</dt><dd className="min-w-0 break-words text-foreground">{opportunity.leadSource}</dd>
-                              <dt className="text-muted-foreground">Priority</dt><dd><StatusPill status={opportunity.priority} /></dd>
-                              <dt className="text-muted-foreground">Next action</dt><dd className="min-w-0 break-words leading-5 text-foreground">{opportunity.nextAction}</dd>
-                              <dt className="text-muted-foreground">Assignee</dt><dd className="min-w-0 break-words text-foreground">{opportunity.assignedTo}</dd>
-                            </dl>
-                          </button>
-                          <select aria-label={`Move ${opportunity.ownerName} opportunity`} value={opportunity.stage} onChange={(event) => changeStage(opportunity, event.target.value)} className="mt-3 h-9 w-full min-w-0 rounded-md border border-input bg-background px-2 text-xs">
-                            {stages.map((nextStage) => <option key={nextStage}>{nextStage}</option>)}
-                          </select>
+                        <div
+                          key={opportunity.id}
+                          className={`overflow-hidden rounded-xl border bg-background/40 p-3 transition-colors ${
+                            selectedIds.includes(opportunity.id) ? "border-primary/60 bg-primary/5" : "border-border/70"
+                          }`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <Checkbox
+                              checked={selectedIds.includes(opportunity.id)}
+                              onCheckedChange={(checked) => toggleSelectLead(opportunity.id, checked === true)}
+                              className="mt-1"
+                              aria-label={`Select ${opportunity.ownerName}`}
+                            />
+                            <button type="button" onClick={() => setSelected(opportunity)} className="min-w-0 flex-1 text-left">
+                              <div className="flex items-start gap-2">
+                                <UserRound className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                                <span className="min-w-0 flex-1">
+                                  <span className="block break-words text-sm font-semibold leading-5 text-foreground">{opportunity.ownerName}</span>
+                                  <span className="mt-1 block break-words text-xs leading-5 text-muted-foreground">{opportunity.prospectProperty}</span>
+                                </span>
+                                {opportunity.direction && (
+                                  <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                                    {t(directionLabelKey[opportunity.direction]) || directionDefaultLabel[opportunity.direction]}
+                                  </span>
+                                )}
+                              </div>
+                              <dl className="mt-3 grid grid-cols-[84px_minmax(0,1fr)] gap-x-2 gap-y-2 text-xs">
+                                <dt className="text-muted-foreground">Area</dt><dd className="min-w-0 break-words text-foreground">{opportunity.area}</dd>
+                                <dt className="text-muted-foreground">Monthly revenue</dt><dd className="font-medium text-foreground">{formatUSD(opportunity.estimatedMonthlyRevenue)}</dd>
+                                <dt className="text-muted-foreground">Source</dt><dd className="min-w-0 break-words text-foreground">{opportunity.leadSource}</dd>
+                                <dt className="text-muted-foreground">Priority</dt><dd><StatusPill status={opportunity.priority} /></dd>
+                                <dt className="text-muted-foreground">SLA</dt>
+                                <dd>
+                                  {opportunity.slaStatus ? (
+                                    <SlaBadge status={opportunity.slaStatus} minutes={opportunity.firstResponseMinutes} />
+                                  ) : (
+                                    <span className="text-muted-foreground">—</span>
+                                  )}
+                                </dd>
+                                <dt className="text-muted-foreground">Next action</dt><dd className="min-w-0 break-words leading-5 text-foreground">{opportunity.nextAction}</dd>
+                                <dt className="text-muted-foreground">Assignee</dt><dd className="min-w-0 break-words text-foreground">{opportunity.assignedTo}</dd>
+                              </dl>
+                            </button>
+                          </div>
+                          <div className="mt-3 flex gap-2">
+                            <select aria-label={`Move ${opportunity.ownerName} opportunity`} value={opportunity.stage} onChange={(event) => changeStage(opportunity, event.target.value)} className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs">
+                              {stages.map((nextStage) => <option key={nextStage}>{nextStage}</option>)}
+                            </select>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setLeadModal(opportunity)}
+                              aria-label={t("lead.eyebrow")}
+                            >
+                              <LayoutGrid className="h-3.5 w-3.5" />
+                              {t("lead.eyebrow")}
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -528,6 +914,7 @@ export const OwnerPipelineModule = () => {
         open={selected !== null}
         onOpenChange={(open) => !open && setSelected(null)}
       />
+      <LeadDetailsModal lead={leadModal} isOpen={leadModal !== null} onClose={() => setLeadModal(null)} />
       <Dialog open={showLeadDialog} onOpenChange={setShowLeadDialog}>
         <DialogContent className="dark border-border bg-background">
           <DialogHeader>
@@ -644,6 +1031,18 @@ export const OwnerPipelineModule = () => {
               onChange={(event) => setLead((current) => ({ ...current, comment: event.target.value }))}
               className="sm:col-span-2"
             />
+            <select
+              aria-label="Direction"
+              value={lead.direction}
+              onChange={(event) => setLead((current) => ({ ...current, direction: event.target.value as Direction }))}
+              className="h-10 max-w-full rounded-md border border-input bg-background px-3 text-sm sm:col-span-2"
+            >
+              {DIRECTIONS.map((direction) => (
+                <option key={direction} value={direction}>
+                  {t(directionLabelKey[direction]) || directionDefaultLabel[direction]}
+                </option>
+              ))}
+            </select>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowLeadDialog(false)}>
@@ -658,29 +1057,55 @@ export const OwnerPipelineModule = () => {
       <Dialog open={lostOpportunity !== null} onOpenChange={(open) => !open && setLostOpportunity(null)}>
         <DialogContent className="dark border-border bg-background">
           <DialogHeader>
-            <DialogTitle>Capture lost reason</DialogTitle>
-            <DialogDescription>Keep the reason visible for future acquisition review.</DialogDescription>
+            <DialogTitle>{t("lost.title")}</DialogTitle>
+            <DialogDescription>{t("lost.description")}</DialogDescription>
           </DialogHeader>
-          <Input
-            placeholder="Reason the owner is not proceeding"
-            value={lostReason}
-            onChange={(event) => setLostReason(event.target.value)}
-          />
+          <div className="space-y-3">
+            <select
+              aria-label={t("lost.selectReason")}
+              value={lostReasonCode}
+              onChange={(event) => {
+                const value = event.target.value;
+                setLostReasonCode(value as LostReason | "");
+                const reason = LOST_REASONS.find((item) => item.value === value);
+                if (reason) setLostReason(t(reason.labelKey) || reason.label);
+              }}
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">{t("lost.selectReason")}</option>
+              {LOST_REASONS.map((reason) => (
+                <option key={reason.value} value={reason.value}>
+                  {t(reason.labelKey) || reason.label}
+                </option>
+              ))}
+            </select>
+            <Input
+              placeholder={t("lost.description")}
+              value={lostReason}
+              onChange={(event) => setLostReason(event.target.value)}
+            />
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setLostOpportunity(null)}>
-              Cancel
+              {t("common.close")}
             </Button>
             <Button
               onClick={() => {
-                if (lostOpportunity && lostReason.trim()) {
-                  workspace.moveOpportunityStage(lostOpportunity.id, "Lost / Not Proceeding", lostReason.trim());
+                if (lostOpportunity && lostReasonCode) {
+                  workspace.moveOpportunityStage(
+                    lostOpportunity.id,
+                    "Lost / Not Proceeding",
+                    lostReason.trim() || undefined,
+                    lostReasonCode as LostReason,
+                  );
                   setLostOpportunity(null);
                   setLostReason("");
+                  setLostReasonCode("");
                 }
               }}
-              disabled={!lostReason.trim()}
+              disabled={!lostReasonCode}
             >
-              Save lost reason
+              {t("lost.save")}
             </Button>
           </DialogFooter>
         </DialogContent>

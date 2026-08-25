@@ -1,68 +1,118 @@
-import { createContext, type ReactNode, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, type ReactNode, useContext, useMemo, useState } from "react";
 
-export type UserRole = "HM" | "B2B" | "PATERHAUS" | "ADMIN";
+export type WorkspaceId = "cosmonaut" | "b2b" | "paterhaus" | "steppe";
 
-export type WorkspaceId = "steppe" | "paterhaus";
+export type UserRole = "admin" | "marketing" | "manager";
 
-export const PATERHAUS_ADMIN_EMAIL = "admin@paterhaus.com";
+export interface AuthUser {
+  email: string;
+  workspace: WorkspaceId;
+  role: UserRole;
+}
 
-export const isPaterhausRole = (role: UserRole | null): boolean => role === "PATERHAUS" || role === "ADMIN";
+interface CredentialEntry {
+  workspace: WorkspaceId;
+  role: UserRole;
+  /** When false, any non-empty password is accepted. */
+  passwordRequired: boolean;
+  /** Exact password match required when `passwordRequired` is true. */
+  password?: string;
+}
 
-export const workspaceForRole = (role: UserRole): WorkspaceId => (isPaterhausRole(role) ? "paterhaus" : "steppe");
-
-export const workspacePathForRole = (role: UserRole): string => `/${workspaceForRole(role)}`;
+const CREDENTIALS: Record<string, CredentialEntry> = {
+  // CosmonautHM
+  "admin@cosmonaut.com": { workspace: "cosmonaut", role: "admin", passwordRequired: false },
+  // B2B Sales
+  "admin@sales.com": { workspace: "b2b", role: "admin", passwordRequired: false },
+  // Paterhaus Admin
+  "admin@paterhaus.com": {
+    workspace: "paterhaus",
+    role: "admin",
+    passwordRequired: true,
+    password: "admin2026_pater",
+  },
+  // Paterhaus Marketing
+  "marketing@paterhaus.com": {
+    workspace: "paterhaus",
+    role: "marketing",
+    passwordRequired: true,
+    password: "Paterhaus_2026",
+  },
+};
 
 interface AuthContextValue {
-  role: UserRole | null;
+  user: AuthUser | null;
   isAuthenticated: boolean;
-  login: (role: UserRole) => void;
-  loginWithEmail: (email: string, password: string) => UserRole | null;
+  login: (email: string, password: string) => AuthUser | null;
   logout: () => void;
-  switchRole: (role: UserRole) => void;
 }
 
 interface AuthProviderProps {
   children: ReactNode;
 }
 
-export const AUTH_ROLE_STORAGE_KEY = "steppe-crm-role";
+export const AUTH_USER_STORAGE_KEY = "smart-crm-user";
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const getStoredRole = (): UserRole | null => {
-  const storedRole = localStorage.getItem(AUTH_ROLE_STORAGE_KEY);
-  return storedRole === "HM" || storedRole === "B2B" || storedRole === "PATERHAUS" || storedRole === "ADMIN"
-    ? storedRole
-    : null;
+const isWorkspace = (value: string): value is WorkspaceId =>
+  value === "cosmonaut" || value === "b2b" || value === "paterhaus" || value === "steppe";
+
+const isRole = (value: string): value is UserRole =>
+  value === "admin" || value === "marketing" || value === "manager";
+
+const getStoredUser = (): AuthUser | null => {
+  try {
+    const raw = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<AuthUser> & { workspace?: string; role?: string };
+    if (!parsed.email || !parsed.workspace || !parsed.role) return null;
+    if (!isWorkspace(parsed.workspace) || !isRole(parsed.role)) return null;
+    return { email: parsed.email, workspace: parsed.workspace, role: parsed.role };
+  } catch {
+    return null;
+  }
 };
 
+export const workspacePath = (workspace: WorkspaceId): string => `/${workspace}`;
+
+export const isPaterhausWorkspace = (workspace: WorkspaceId | null): boolean => workspace === "paterhaus";
+
 export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [role, setRole] = useState<UserRole | null>(getStoredRole);
+  const [user, setUser] = useState<AuthUser | null>(getStoredUser);
 
-  const setActiveRole = (nextRole: UserRole) => {
-    localStorage.setItem(AUTH_ROLE_STORAGE_KEY, nextRole);
-    setRole(nextRole);
-  };
+  const persist = useCallback((nextUser: AuthUser | null) => {
+    if (nextUser) {
+      localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(nextUser));
+    } else {
+      localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+    }
+    setUser(nextUser);
+  }, []);
 
-  const logout = () => {
-    localStorage.removeItem(AUTH_ROLE_STORAGE_KEY);
-    setRole(null);
-  };
+  const login = useCallback(
+    (email: string, password: string): AuthUser | null => {
+      const normalizedEmail = email.trim().toLowerCase();
+      const entry = CREDENTIALS[normalizedEmail];
+      if (!entry) return null;
+      if (!password.trim()) return null;
+      if (entry.passwordRequired && entry.password !== password) return null;
+      const nextUser: AuthUser = {
+        email: normalizedEmail,
+        workspace: entry.workspace,
+        role: entry.role,
+      };
+      persist(nextUser);
+      return nextUser;
+    },
+    [persist],
+  );
+
+  const logout = useCallback(() => persist(null), [persist]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({
-      role,
-      isAuthenticated: role !== null,
-      login: setActiveRole,
-      loginWithEmail: (email: string, password: string): UserRole | null => {
-        if (email.trim().toLowerCase() !== PATERHAUS_ADMIN_EMAIL || !password.trim()) return null;
-        setActiveRole("ADMIN");
-        return "ADMIN";
-      },
-      logout,
-      switchRole: setActiveRole,
-    }),
-    [role],
+    () => ({ user, isAuthenticated: user !== null, login, logout }),
+    [user, login, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -70,10 +120,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-
   if (!context) {
     throw new Error("useAuth must be used within AuthProvider");
   }
-
   return context;
 };

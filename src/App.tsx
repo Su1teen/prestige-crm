@@ -3,7 +3,14 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider, isPaterhausRole, useAuth, workspacePathForRole } from "@/contexts/AuthContext";
+import {
+  AuthProvider,
+  isPaterhausWorkspace,
+  useAuth,
+  workspacePath,
+  type WorkspaceId,
+} from "@/contexts/AuthContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 import LoginPage from "./pages/LoginPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import PaterhausCRM from "./pages/PaterhausCRM.tsx";
@@ -11,26 +18,37 @@ import SteppeHotelCRM from "./pages/SteppeHotelCRM.tsx";
 
 const queryClient = new QueryClient();
 
+const STEPPE_WORKSPACES: WorkspaceId[] = ["cosmonaut", "b2b", "steppe"];
+const isSteppeWorkspace = (workspace: WorkspaceId | null): boolean =>
+  workspace !== null && STEPPE_WORKSPACES.includes(workspace);
+
 const AppRoutes = () => {
-  const { isAuthenticated, logout, role } = useAuth();
-  const workspacePath = role ? workspacePathForRole(role) : "/";
+  const { isAuthenticated, logout, user } = useAuth();
+  const workspace = user?.workspace ?? null;
+  const homePath = workspace ? workspacePath(workspace) : "/";
+
+  const renderSteppe = () =>
+    isAuthenticated && isSteppeWorkspace(workspace) ? (
+      <SteppeHotelCRM onLogout={logout} />
+    ) : (
+      <Navigate to={isAuthenticated ? homePath : "/"} replace />
+    );
+
+  const renderPaterhaus = () =>
+    isAuthenticated && isPaterhausWorkspace(workspace) ? (
+      <PaterhausCRM onLogout={logout} />
+    ) : (
+      <Navigate to={isAuthenticated ? homePath : "/"} replace />
+    );
 
   return (
     <Routes>
-      <Route path="/" element={isAuthenticated ? <Navigate to={workspacePath} replace /> : <LoginPage />} />
-      <Route
-        path="/steppe/*"
-        element={
-          isAuthenticated && !isPaterhausRole(role) ? <SteppeHotelCRM onLogout={logout} /> : <Navigate to={isAuthenticated ? workspacePath : "/"} replace />
-        }
-      />
-      <Route
-        path="/paterhaus/*"
-        element={
-          isAuthenticated && isPaterhausRole(role) ? <PaterhausCRM onLogout={logout} /> : <Navigate to={isAuthenticated ? workspacePath : "/"} replace />
-        }
-      />
-      <Route path="/luxe" element={<Navigate to={isAuthenticated ? workspacePath : "/"} replace />} />
+      <Route path="/" element={isAuthenticated ? <Navigate to={homePath} replace /> : <LoginPage />} />
+      <Route path="/cosmonaut/*" element={renderSteppe()} />
+      <Route path="/b2b/*" element={renderSteppe()} />
+      <Route path="/steppe/*" element={renderSteppe()} />
+      <Route path="/paterhaus/*" element={renderPaterhaus()} />
+      <Route path="/luxe" element={<Navigate to={isAuthenticated ? homePath : "/"} replace />} />
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={isAuthenticated ? <NotFound /> : <Navigate to="/" replace />} />
     </Routes>
@@ -39,15 +57,17 @@ const AppRoutes = () => {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
+    <LanguageProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </LanguageProvider>
   </QueryClientProvider>
 );
 

@@ -39,6 +39,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   contracts,
@@ -77,15 +79,15 @@ type TeamSortKey = "name" | "deals" | "conversion" | "averageCheck" | "responseM
 type ClientSortKey = "company" | "contact" | "contractStatus" | "lastContact";
 
 const navItems: Array<{ id: SteppeSection; label: string; icon: typeof LayoutDashboard }> = [
-  { id: "dashboard", label: "Дашборд", icon: LayoutDashboard },
-  { id: "pipeline", label: "Воронка продаж", icon: SlidersHorizontal },
-  { id: "clients", label: "Клиенты", icon: Users },
-  { id: "dialogs", label: "Диалоги", icon: MessageSquare },
-  { id: "rooms", label: "Номера", icon: BedDouble },
-  { id: "staff", label: "Персонал", icon: Wrench },
-  { id: "notifications", label: "Уведомления", icon: Bell },
-  { id: "contracts", label: "Договоры", icon: FileText },
-  { id: "settings", label: "Настройки", icon: Settings },
+  { id: "dashboard", label: "nav.dashboard", icon: LayoutDashboard },
+  { id: "pipeline", label: "nav.pipeline_sales", icon: SlidersHorizontal },
+  { id: "clients", label: "nav.clients", icon: Users },
+  { id: "dialogs", label: "nav.dialogs", icon: MessageSquare },
+  { id: "rooms", label: "nav.rooms", icon: BedDouble },
+  { id: "staff", label: "nav.staff", icon: Wrench },
+  { id: "notifications", label: "nav.notifications", icon: Bell },
+  { id: "contracts", label: "nav.contracts", icon: FileText },
+  { id: "settings", label: "nav.settings", icon: Settings },
 ];
 
 const urgencyStyles: Record<string, string> = {
@@ -96,7 +98,7 @@ const urgencyStyles: Record<string, string> = {
 
 const sourceColors = ["#818cf8", "#38bdf8", "#34d399", "#fbbf24", "#f87171"];
 
-const getSectionTitle = (section: SteppeSection) => navItems.find((item) => item.id === section)?.label ?? "Дашборд";
+const getSectionTitleKey = (section: SteppeSection) => navItems.find((item) => item.id === section)?.label ?? "nav.dashboard";
 
 const average = (values: number[]) => {
   if (values.length === 0) {
@@ -140,7 +142,9 @@ const SteppeSidebar = ({
   unreadNotifications: number;
   onSectionChange: (section: SteppeSection) => void;
   onCollapse: () => void;
-}) => (
+}) => {
+  const { t } = useLanguage();
+  return (
   <motion.aside
     animate={{ width: collapsed ? 76 : 278 }}
     transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
@@ -175,7 +179,7 @@ const SteppeSidebar = ({
           >
             {isActive && <span className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-primary" />}
             <Icon className="h-5 w-5 flex-shrink-0" />
-            {!collapsed && <span>{item.label}</span>}
+            {!collapsed && <span>{t(item.label)}</span>}
             {!collapsed && badge > 0 && (
               <span className="ml-auto rounded-full border border-primary/30 px-2 py-0.5 text-xs text-primary">{badge}</span>
             )}
@@ -190,24 +194,31 @@ const SteppeSidebar = ({
         onClick={onCollapse}
         className="flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary"
       >
-        {collapsed ? <ChevronRight className="h-4 w-4" /> : <><ChevronLeft className="h-4 w-4" /><span>Свернуть</span></>}
+        {collapsed ? <ChevronRight className="h-4 w-4" /> : <><ChevronLeft className="h-4 w-4" /><span>{t("nav.collapse")}</span></>}
       </button>
     </div>
   </motion.aside>
-);
+  );
+};
 
-const Header = ({ activeSection, onLogout }: { activeSection: SteppeSection; onLogout: () => void }) => (
+const Header = ({ activeSection, onLogout }: { activeSection: SteppeSection; onLogout: () => void }) => {
+  const { t } = useLanguage();
+  return (
   <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border bg-background/95 px-8 backdrop-blur">
     <div>
-      <h1 className="text-xl font-semibold tracking-tight text-foreground">{getSectionTitle(activeSection)}</h1>
+      <h1 className="text-xl font-semibold tracking-tight text-foreground">{t(getSectionTitleKey(activeSection))}</h1>
       <p className="text-sm text-muted-foreground">Ruslan Tszi · Директор по маркетингу</p>
     </div>
-    <Button variant="outline" size="sm" onClick={onLogout}>
-      <LogOut className="h-4 w-4" />
-      Выйти
-    </Button>
+    <div className="flex items-center gap-2">
+      <LanguageSwitcher />
+      <Button variant="outline" size="sm" onClick={onLogout}>
+        <LogOut className="h-4 w-4" />
+        {t("shell.logOut")}
+      </Button>
+    </div>
   </header>
-);
+  );
+};
 
 const DashboardSection = ({
   deals,
