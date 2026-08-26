@@ -280,7 +280,7 @@ export const PaterhausWorkspaceProvider = ({
    * conversations, guest uploads, lead classifications) is merged in ONLY for
    * the `R_tszi@paterhaus.com` session. Other users keep the default dataset.
    */
-  const isRTsziSession = !!email && email.trim().toLowerCase() === R_TSZI_EMAIL;
+  const isRTsziSession = !!email && (email.trim().toLowerCase() === R_TSZI_EMAIL || email.trim().toLowerCase() === "info@paterhaus.com" || email.trim().toLowerCase() === "nfo@paterhaus.com");
 
   // Marketing workspace uses separate localStorage-persisted state for marketing entities.
   // Admin workspace uses the rich demo dataset (in-memory, not persisted).

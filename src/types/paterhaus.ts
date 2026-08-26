@@ -348,6 +348,8 @@ export interface Conversation {
   stage?: string;
   /** Lead/guest classification tags used to route and badge conversations. */
   intentTags?: Direction[];
+  /** Flag to control AI handoff */
+  isAiActive?: boolean;
 }
 
 export interface Task {
