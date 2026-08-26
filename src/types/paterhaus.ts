@@ -320,7 +320,10 @@ export interface Message {
   attachment?: {
     name: string;
     size: string;
-    kind: "image" | "document" | "pdf";
+    kind?: "image" | "document" | "pdf";
+    /** Lead-capture style attachment descriptor (file vs image). */
+    type?: "file" | "image";
+    previewUrl?: string;
   };
 }
 
@@ -343,6 +346,8 @@ export interface Conversation {
   messageIds: string[];
   phone?: string;
   stage?: string;
+  /** Lead/guest classification tags used to route and badge conversations. */
+  intentTags?: Direction[];
 }
 
 export interface Task {

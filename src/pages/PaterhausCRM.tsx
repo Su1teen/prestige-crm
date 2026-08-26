@@ -626,7 +626,7 @@ const PaterhausCRM = ({ onLogout }: { onLogout: () => void }) => {
   const { user } = useAuth();
   const role: UserRole = user?.role ?? "admin";
   return (
-    <PaterhausWorkspaceProvider role={role}>
+    <PaterhausWorkspaceProvider role={role} email={user?.email}>
       <PaterhausWorkspace onLogout={onLogout} />
     </PaterhausWorkspaceProvider>
   );

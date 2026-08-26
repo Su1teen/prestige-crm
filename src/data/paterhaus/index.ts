@@ -12,6 +12,7 @@ export * from "./opportunities";
 export * from "./owners";
 export * from "./p1Data";
 export * from "./properties";
+export * from "./rTsziOverrides";
 export * from "./selectors";
 export * from "./snags";
 export * from "./stays";

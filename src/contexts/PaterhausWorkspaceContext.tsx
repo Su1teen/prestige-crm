@@ -21,6 +21,11 @@ import {
   paterhausStays,
   paterhausTasks,
   paterhausVendors,
+  rTsziConversations,
+  rTsziFiles,
+  rTsziGuests,
+  rTsziMessages,
+  R_TSZI_EMAIL,
   CURRENT_PATERHAUS_USER,
   PATERHAUS_TODAY,
 } from "@/data/paterhaus";
@@ -146,6 +151,11 @@ export interface NewKnowledgeItemInput {
   linkedPropertyId?: string;
   linkedOwnerId?: string;
   linkedVendorId?: string;
+  format?: KnowledgeItem["format"];
+  content?: string;
+  fileName?: string;
+  fileSize?: string;
+  syncStatus?: KnowledgeItem["syncStatus"];
 }
 
 interface NewPropertyInput {
@@ -258,11 +268,19 @@ const nextId = (prefix: string, length: number) => `${prefix}-${String(length + 
 export const PaterhausWorkspaceProvider = ({
   children,
   role = "admin",
+  email,
 }: {
   children: ReactNode;
   role?: "admin" | "marketing" | "manager";
+  email?: string;
 }) => {
   const isMarketing = role === "marketing";
+  /**
+   * Multi-tenant guard: the workspace-specific mock data (Sultan 1 & 2
+   * conversations, guest uploads, lead classifications) is merged in ONLY for
+   * the `R_tszi@paterhaus.com` session. Other users keep the default dataset.
+   */
+  const isRTsziSession = !!email && email.trim().toLowerCase() === R_TSZI_EMAIL;
 
   // Marketing workspace uses separate localStorage-persisted state for marketing entities.
   // Admin workspace uses the rich demo dataset (in-memory, not persisted).
@@ -299,9 +317,15 @@ export const PaterhausWorkspaceProvider = ({
   };
   const [bookings, setBookings] = useState<Booking[]>(demoBookings);
   const [stays, setStays] = useState<Stay[]>(paterhausStays);
-  const [guests] = useState<Guest[]>(paterhausGuests);
-  const [conversations, setConversations] = useState<Conversation[]>(paterhausConversations);
-  const [messages, setMessages] = useState<Message[]>(paterhausMessages);
+  const [guests] = useState<Guest[]>(() =>
+    isRTsziSession ? [...paterhausGuests, ...rTsziGuests] : paterhausGuests,
+  );
+  const [conversations, setConversations] = useState<Conversation[]>(() =>
+    isRTsziSession ? [...paterhausConversations, ...rTsziConversations] : paterhausConversations,
+  );
+  const [messages, setMessages] = useState<Message[]>(() =>
+    isRTsziSession ? [...paterhausMessages, ...rTsziMessages] : paterhausMessages,
+  );
   const [tasks, setTasks] = useState<Task[]>(paterhausTasks);
   const [snags, setSnags] = useState<Snag[]>(paterhausSnags);
   const [maintenance, setMaintenance] = useState<MaintenanceIssue[]>(paterhausMaintenance);
@@ -310,7 +334,9 @@ export const PaterhausWorkspaceProvider = ({
   const [notifications, setNotifications] = useState<Notification[]>(paterhausNotifications);
   const [compliance] = useState(paterhausComplianceItems);
   const [activity, setActivity] = useState<ActivityEvent[]>(paterhausActivity);
-  const [files, setFiles] = useState<DemoFile[]>(demoFiles);
+  const [files, setFiles] = useState<DemoFile[]>(() =>
+    isRTsziSession ? [...demoFiles, ...rTsziFiles] : demoFiles,
+  );
   const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeItem[]>(demoKnowledgeItems);
   const [campaigns, setCampaignsState] = useState<Campaign[]>(
     () => (isMarketing ? loadMarketingState<Campaign[]>("campaigns", []) : demoCampaigns),
@@ -541,6 +567,8 @@ export const PaterhausWorkspaceProvider = ({
         lastUpdated: PATERHAUS_TODAY,
         updatedBy: CURRENT_PATERHAUS_USER.name,
         status: "active",
+        format: input.format ?? "text",
+        syncStatus: input.syncStatus ?? "synced",
       },
       ...current,
     ]);

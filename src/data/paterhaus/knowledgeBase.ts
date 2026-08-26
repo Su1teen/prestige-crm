@@ -9,6 +9,12 @@ export type KnowledgeItemType =
   | "vendor_profile"
   | "template";
 
+/** How a knowledge item is stored / rendered in the AI-agent document hub. */
+export type KnowledgeFormat = "markdown" | "text" | "pdf" | "image" | "file";
+
+/** Vector-store sync state shown as a status indicator on each document. */
+export type KnowledgeSyncStatus = "synced" | "processing" | "failed";
+
 export type KnowledgeItem = {
   id: string;
   title: string;
@@ -22,6 +28,30 @@ export type KnowledgeItem = {
   linkedOwnerId?: string;
   linkedVendorId?: string;
   status: "active" | "needs_review";
+  /** Storage / preview format. Defaults to "text" for legacy records. */
+  format?: KnowledgeFormat;
+  /** Full body content for manual entries and .md / text documents. */
+  content?: string;
+  /** Original file name for uploaded documents. */
+  fileName?: string;
+  /** Approximate file size label for uploaded documents. */
+  fileSize?: string;
+  /** Vector-store sync indicator for the AI agent. */
+  syncStatus?: KnowledgeSyncStatus;
+};
+
+export const knowledgeFormatLabels: Record<KnowledgeFormat, string> = {
+  markdown: "Markdown",
+  text: "Text",
+  pdf: "PDF",
+  image: "Image",
+  file: "File",
+};
+
+export const knowledgeSyncLabels: Record<KnowledgeSyncStatus, string> = {
+  synced: "Synced",
+  processing: "Processing",
+  failed: "Failed",
 };
 
 export const knowledgeCategoryLabels: Record<KnowledgeCategory, string> = {
@@ -58,6 +88,58 @@ export const knowledgeUsedFor = [
 ];
 
 export const demoKnowledgeItems: KnowledgeItem[] = [
+  {
+    id: "kb-000",
+    title: "Paterhaus Snagging Playbook.md",
+    category: "sop",
+    type: "sop",
+    summary:
+      "Markdown SOP for new-build handover snagging: room-by-room inspection, defect logging with photos, and the report format handed back to the developer.",
+    lastUpdated: "2025-08-21",
+    updatedBy: "Sultan Sovetov",
+    tags: ["snagging", "handover", "markdown"],
+    status: "active",
+    format: "markdown",
+    fileName: "Paterhaus Snagging Playbook.md",
+    fileSize: "12.4 KB",
+    syncStatus: "synced",
+    content: `# Paterhaus Snagging Playbook
+
+Use this playbook for **every new-build handover** inspection. The goal is a clear, photo-backed defect list the owner can send straight to the developer.
+
+## Before the inspection
+
+- Confirm the handover date with the developer in writing
+- Collect the floor plan and the unit number from the owner
+- Charge the camera and clear storage for **at least 200 photos**
+
+## Room-by-room checklist
+
+1. **Entrance & hallway** — door alignment, paint, skirting, lighting
+2. **Living room** — AC vents, windows, sockets, floor tiles
+3. **Kitchen** — cabinetry, appliances, water connections, sealant
+4. **Bedrooms** — wardrobe doors, window seals, cracks above frames
+5. **Bathrooms** — grout, silicone, drainage, vanity, mirror fixings
+6. **Balcony** — door handle, drainage, tiles, handrail
+
+## Defect logging
+
+\`\`\`
+ROOM: Kitchen
+ITEM: Under-sink sealant
+SEVERITY: Medium
+PHOTO: IMG_0142.jpg
+\`\`\`
+
+Every defect needs a **photo**, a **location**, and a **severity** (Low / Medium / High).
+
+## Report delivery
+
+- Compile the report as a PDF with photos inline
+- Send to the owner and the developer within 48 hours
+- Offer a re-inspection once the developer confirms rectifications
+`,
+  },
   {
     id: "kb-001",
     title: "Paterhaus Guest Communication Standards",
