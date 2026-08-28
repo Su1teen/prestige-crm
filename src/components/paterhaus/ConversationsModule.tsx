@@ -25,9 +25,12 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { usePaterhausWorkspace } from "@/contexts/PaterhausWorkspaceContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { CURRENT_PATERHAUS_USER, PATERHAUS_AI_NAME, PATERHAUS_TEAM } from "@/data/paterhaus";
+import { isLivePaterhausConversationsEmail } from "@/lib/paterhausConversationsApi";
 import type { Conversation, Direction, Message } from "@/types/paterhaus";
+import { LiveConversationsModule } from "./LiveConversationsModule";
 import { EmptyState, StatusPill } from "./shared";
 
 const intentTagLabels: Record<Direction, string> = {
@@ -99,7 +102,12 @@ const generateChatSummary = (messages: Message[]) => {
   };
 };
 
-export const ConversationsModule = ({ onPropertySelect, initialConversationId }: { onPropertySelect?: (propertyId: string) => void; initialConversationId?: string }) => {
+interface ConversationsModuleProps {
+  onPropertySelect?: (propertyId: string) => void;
+  initialConversationId?: string;
+}
+
+const DemoConversationsModule = ({ onPropertySelect, initialConversationId }: ConversationsModuleProps) => {
   const workspace = usePaterhausWorkspace();
   const { t } = useLanguage();
   const [query, setQuery] = useState("");
@@ -330,4 +338,11 @@ export const ConversationsModule = ({ onPropertySelect, initialConversationId }:
       </Sheet>
     </div>
   );
+};
+
+export const ConversationsModule = (props: ConversationsModuleProps) => {
+  const { user } = useAuth();
+  return isLivePaterhausConversationsEmail(user?.email)
+    ? <LiveConversationsModule email={user?.email ?? ""} />
+    : <DemoConversationsModule {...props} />;
 };
