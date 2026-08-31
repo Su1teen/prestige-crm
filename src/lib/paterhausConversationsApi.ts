@@ -14,11 +14,51 @@ export interface LiveConversationMessage {
   id: number;
   chatId: string | null;
   senderName: string;
-  senderType: "ai" | "contact";
+  senderType: "ai" | "human" | "contact";
   direction: "outbound" | "inbound";
   text: string;
   timeRaw: string | null;
   sentAt: string | null;
+}
+
+export interface LiveConversationCapabilities {
+  manualMessages: boolean;
+  attachments: boolean;
+  maxMessageLength: number;
+}
+
+export interface LiveLeadClassification {
+  id: number;
+  chatId: string | null;
+  number: string | null;
+  username: string | null;
+  name: string | null;
+  displayName: string;
+  summary: string | null;
+  leadType: string | null;
+  stage: string | null;
+  priority: string | null;
+  workType: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  isActive: boolean | null;
+}
+
+export interface LiveLeadClassificationsResponse {
+  items: LiveLeadClassification[];
+  nextCursor: string | null;
+  supportsArchive: boolean;
+}
+
+/** Carries the HTTP status so callers can separate "not configured" from real failures. */
+export class LiveConversationsError extends Error {
+  constructor(
+    message: string,
+    readonly status: number | null = null,
+  ) {
+    super(message);
+    this.name = "LiveConversationsError";
+  }
 }
 
 export interface LiveConversationDetail {
@@ -63,7 +103,11 @@ export const isLivePaterhausConversationsEmail = (email: string | null | undefin
 
 const apiBaseUrl = (): string => {
   const value = import.meta.env.VITE_PATERHAUS_API_BASE_URL?.trim().replace(/\/+$/, "");
-  if (!value) throw new Error("Live conversations are not configured.");
+  if (!value) {
+    throw new LiveConversationsError(
+      "Live conversations are not configured for this deployment.",
+    );
+  }
   return value;
 };
 
@@ -89,11 +133,16 @@ const getAccessToken = async (email: string, signal?: AbortSignal): Promise<stri
     body: JSON.stringify({ email: normalizedEmail }),
     signal,
   });
-  if (!response.ok) throw new Error("Live conversation access is unavailable.");
+  if (!response.ok) {
+    throw new LiveConversationsError(
+      "Live conversation access is unavailable.",
+      response.status,
+    );
+  }
 
   const body = (await response.json()) as AccessTokenResponse;
   if (!body.accessToken || !Number.isFinite(body.expiresIn)) {
-    throw new Error("Live conversation access is unavailable.");
+    throw new LiveConversationsError("Live conversation access is unavailable.");
   }
 
   accessToken = body.accessToken;
@@ -121,7 +170,12 @@ const authorizedRequest = async <Response>(
     clearAccessToken();
     return authorizedRequest<Response>(email, path, init, false);
   }
-  if (!response.ok) throw new Error("Live conversations could not be loaded.");
+  if (!response.ok) {
+    throw new LiveConversationsError(
+      "Live conversations could not be loaded.",
+      response.status,
+    );
+  }
   return response.json() as Promise<Response>;
 };
 
@@ -148,5 +202,29 @@ export const updateLiveConversationAi = (
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ aiEnabled }),
   });
+
+export const fetchLiveConversationCapabilities = (
+  email: string,
+  signal?: AbortSignal,
+): Promise<LiveConversationCapabilities> =>
+  authorizedRequest(email, "/api/paterhaus/conversations/capabilities", { signal });
+
+export const sendLiveConversationMessage = (
+  email: string,
+  conversationId: number,
+  text: string,
+  idempotencyKey: string,
+): Promise<{ message: LiveConversationMessage }> =>
+  authorizedRequest(email, `/api/paterhaus/conversations/${conversationId}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
+    body: JSON.stringify({ text }),
+  });
+
+export const fetchLiveLeadClassifications = (
+  email: string,
+  signal?: AbortSignal,
+): Promise<LiveLeadClassificationsResponse> =>
+  authorizedRequest(email, "/api/paterhaus/lead-classifications?limit=100", { signal });
 
 export const resetPaterhausConversationAccess = (): void => clearAccessToken();

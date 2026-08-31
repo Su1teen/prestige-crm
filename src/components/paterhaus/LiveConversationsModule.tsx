@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Bot, Loader2, MessageSquare, Phone, RefreshCw, Search } from "lucide-react";
+import { ArrowLeft, Loader2, MessageSquare, Phone, RefreshCw, Search, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
+  fetchLiveConversationCapabilities,
   fetchLiveConversationMessages,
   fetchLiveConversations,
+  sendLiveConversationMessage,
   updateLiveConversationAi,
   type LiveConversation,
+  type LiveConversationCapabilities,
   type LiveConversationDetail,
   type LiveConversationMessage,
 } from "@/lib/paterhausConversationsApi";
@@ -64,6 +68,11 @@ const MessageBubble = ({ message }: { message: LiveConversationMessage }) => (
             AI response
           </span>
         )}
+        {message.senderType === "human" && (
+          <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-amber-200">
+            Manager reply
+          </span>
+        )}
       </p>
       <time className="text-[10px] text-muted-foreground">
         {formatTimestamp(message.sentAt, message.timeRaw)}
@@ -84,7 +93,13 @@ export const LiveConversationsModule = ({ email }: LiveConversationsModuleProps)
   const [detailLoading, setDetailLoading] = useState(false);
   const [aiUpdating, setAiUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [capabilities, setCapabilities] = useState<LiveConversationCapabilities | null>(null);
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [mobileDetail, setMobileDetail] = useState(false);
+  const [detailReloadKey, setDetailReloadKey] = useState(0);
   const listRequestActive = useRef(false);
   const listRequestId = useRef(0);
   const selectedIdRef = useRef<number | null>(null);
@@ -142,6 +157,7 @@ export const LiveConversationsModule = ({ email }: LiveConversationsModuleProps)
     }
     const controller = new AbortController();
     setDetail(null);
+    setDetailError(null);
     let requestActive = false;
 
     const refresh = async () => {
@@ -156,12 +172,12 @@ export const LiveConversationsModule = ({ email }: LiveConversationsModuleProps)
         );
         if (selectedIdRef.current === selectedId) {
           setDetail(response);
-          setError(null);
+          setDetailError(null);
         }
       } catch (requestError) {
         if (requestError instanceof DOMException && requestError.name === "AbortError") return;
         if (selectedIdRef.current === selectedId) {
-          setError("Live conversation history is temporarily unavailable.");
+          setDetailError("Live conversation history is temporarily unavailable.");
         }
       } finally {
         requestActive = false;
@@ -178,7 +194,16 @@ export const LiveConversationsModule = ({ email }: LiveConversationsModuleProps)
       controller.abort();
       window.clearInterval(poll);
     };
-  }, [email, selectedId]);
+  }, [email, selectedId, detailReloadKey]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchLiveConversationCapabilities(email, controller.signal)
+      .then((response) => setCapabilities(response))
+      .catch(() => setCapabilities(null));
+
+    return () => controller.abort();
+  }, [email]);
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -197,6 +222,47 @@ export const LiveConversationsModule = ({ email }: LiveConversationsModuleProps)
   const selectConversation = (conversationId: number) => {
     setSelectedId(conversationId);
     setMobileDetail(true);
+    setDraft("");
+    setSendError(null);
+  };
+
+  const maxMessageLength = capabilities?.maxMessageLength ?? 4096;
+  const composerVisible = Boolean(selected && !selected.aiEnabled && capabilities?.manualMessages);
+  const manualRepliesUnavailable = Boolean(
+    selected && !selected.aiEnabled && capabilities && !capabilities.manualMessages,
+  );
+
+  const sendReply = async () => {
+    const text = draft.trim();
+    if (!selected || !composerVisible || sending || text.length === 0) return;
+
+    setSending(true);
+    setSendError(null);
+    try {
+      const { message } = await sendLiveConversationMessage(
+        email,
+        selected.id,
+        text,
+        crypto.randomUUID(),
+      );
+      setDraft("");
+      setDetail((current) =>
+        current && current.conversation.id === selected.id
+          ? {
+              ...current,
+              messages: current.messages.some((existing) => existing.id === message.id)
+                ? current.messages
+                : [...current.messages, message],
+            }
+          : current,
+      );
+      toast.success("Reply sent");
+    } catch {
+      setSendError("The reply could not be delivered. Your text was kept.");
+      toast.error("Reply not delivered");
+    } finally {
+      setSending(false);
+    }
   };
 
   const toggleAi = async () => {
@@ -326,9 +392,21 @@ export const LiveConversationsModule = ({ email }: LiveConversationsModuleProps)
                   </div>
                 </button>
               ))
+            ) : error ? (
+              <div className="space-y-3 p-6 text-center text-sm text-destructive">
+                <p>{error}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void loadConversations()}
+                >
+                  <RefreshCw className="h-4 w-4" /> Retry
+                </Button>
+              </div>
             ) : (
               <div className="p-6 text-center text-sm text-muted-foreground">
-                No matching conversations
+                {conversations.length === 0 ? "No live conversations yet" : "No matching conversations"}
               </div>
             )}
           </div>
@@ -388,6 +466,21 @@ export const LiveConversationsModule = ({ email }: LiveConversationsModuleProps)
                   <div className="flex h-full items-center justify-center text-muted-foreground">
                     <Loader2 className="h-5 w-5 animate-spin" />
                   </div>
+                ) : detailError && !detail ? (
+                  <div
+                    role="alert"
+                    className="flex h-full flex-col items-center justify-center gap-3 text-center text-sm text-destructive"
+                  >
+                    <p>{detailError}</p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDetailReloadKey((current) => current + 1)}
+                    >
+                      <RefreshCw className="h-4 w-4" /> Retry
+                    </Button>
+                  </div>
                 ) : detail?.messages.length ? (
                   detail.messages.map((message) => (
                     <MessageBubble key={message.id} message={message} />
@@ -399,9 +492,50 @@ export const LiveConversationsModule = ({ email }: LiveConversationsModuleProps)
                 )}
               </div>
 
-              <div className="border-t border-border bg-card px-4 py-3 text-xs text-muted-foreground">
-                Phase 1 is read-only. Manual replies and attachments are not available.
-              </div>
+              {composerVisible && (
+                <div className="border-t border-border bg-card px-4 py-3" data-testid="live-composer">
+                  {sendError && (
+                    <p role="alert" className="mb-2 text-xs text-destructive">
+                      {sendError}
+                    </p>
+                  )}
+                  <div className="flex items-end gap-2">
+                    <Textarea
+                      value={draft}
+                      onChange={(event) => setDraft(event.target.value.slice(0, maxMessageLength))}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && !event.shiftKey) {
+                          event.preventDefault();
+                          void sendReply();
+                        }
+                      }}
+                      placeholder="Write a reply as a manager"
+                      aria-label="Reply message"
+                      rows={2}
+                      className="min-h-[44px] flex-1 resize-none"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => void sendReply()}
+                      disabled={sending || draft.trim().length === 0}
+                    >
+                      {sending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                      Send
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {manualRepliesUnavailable && (
+                <div className="border-t border-border bg-card px-4 py-3 text-xs text-muted-foreground">
+                  Manual replies are not configured for this deployment yet.
+                </div>
+              )}
             </>
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-muted-foreground">
