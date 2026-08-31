@@ -39,7 +39,10 @@ import {
   type Direction,
 } from "./p0Shared";
 import { LeadDetailsModal } from "./LeadDetailsModal";
+import { LiveOwnerPipelineModule } from "./LiveOwnerPipelineModule";
 import { EmptyState, SectionHeader, StatusPill } from "./shared";
+import { useAuth } from "@/contexts/AuthContext";
+import { isLivePaterhausConversationsEmail } from "@/lib/paterhausConversationsApi";
 
 const stages: OpportunityStage[] = [
   "New Lead",
@@ -441,7 +444,7 @@ const OpportunityDetail = ({
   );
 };
 
-export const OwnerPipelineModule = () => {
+const DemoOwnerPipelineModule = () => {
   const workspace = usePaterhausWorkspace();
   const { t } = useLanguage();
   const [query, setQuery] = useState("");
@@ -1111,5 +1114,14 @@ export const OwnerPipelineModule = () => {
         </DialogContent>
       </Dialog>
     </div>
+  );
+};
+
+export const OwnerPipelineModule = () => {
+  const { user } = useAuth();
+  return isLivePaterhausConversationsEmail(user?.email) ? (
+    <LiveOwnerPipelineModule email={user?.email ?? ""} />
+  ) : (
+    <DemoOwnerPipelineModule />
   );
 };
