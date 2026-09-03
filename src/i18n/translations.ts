@@ -220,6 +220,7 @@ export const translations: Record<Language, TranslationDictionary> = {
     "create.uploadFileHint": "Используйте «Загрузить файл» в Файлах и документах.",
     "create.addKnowledgeHint": "Используйте «Добавить запись» для новой записи в базе знаний.",
     "create.logOwnerNoteHint": "Откройте лид и добавьте внутреннюю заметку.",
+    "create.liveLeadHint": "Нажмите «Create lead» в Owner Pipeline, чтобы добавить лида.",
 
     // Marketing
     "marketing.spend": "Бюджет",
@@ -1019,6 +1020,7 @@ export const translations: Record<Language, TranslationDictionary> = {
     "create.uploadFileHint": "Use “Upload file” in Files & Documents to add a document.",
     "create.addKnowledgeHint": "Use “Add knowledge” to record a new knowledge item.",
     "create.logOwnerNoteHint": "Open a lead and add an internal note to log owner context.",
+    "create.liveLeadHint": "Use “Create lead” in the Owner Pipeline to add a lead.",
 
     // Marketing
     "marketing.spend": "Spend",

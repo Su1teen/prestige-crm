@@ -44,6 +44,10 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { usePaterhausWorkspace, PaterhausWorkspaceProvider } from "@/contexts/PaterhausWorkspaceContext";
 import { useAuth, type UserRole } from "@/contexts/AuthContext";
+import {
+  canCreateManualPaterhausLead,
+  isFocusedPaterhausWorkspaceEmail,
+} from "@/lib/paterhausConversationsApi";
 import { PortfolioOverview } from "@/components/paterhaus/PortfolioOverview";
 import { PropertiesModule } from "@/components/paterhaus/PropertiesModule";
 import { OwnerPipelineModule } from "@/components/paterhaus/OwnerPipelineModule";
@@ -105,8 +109,30 @@ const MARKETING_SECTIONS: ReadonlySet<PaterhausSection> = new Set([
   "settings",
 ]);
 
-const isSectionAllowed = (section: PaterhausSection, role: UserRole): boolean =>
-  role === "admin" || MARKETING_SECTIONS.has(section);
+/**
+ * Focused workspace (r_tszi@paterhaus.com): exactly Owner Pipeline, Marketing,
+ * Conversations and Calendar. Portfolio is never rendered for this profile.
+ */
+const FOCUSED_SECTIONS: ReadonlySet<PaterhausSection> = new Set([
+  "pipeline",
+  "marketing",
+  "conversations",
+  "calendar",
+]);
+
+/** Navigation profile: derived from the role, narrowed further for specific accounts. */
+type NavProfile = UserRole | "focused";
+
+const getNavProfile = (role: UserRole, email: string | null | undefined): NavProfile =>
+  isFocusedPaterhausWorkspaceEmail(email) ? "focused" : role;
+
+const defaultSectionFor = (profile: NavProfile): PaterhausSection =>
+  profile === "focused" ? "pipeline" : "overview";
+
+const isSectionAllowed = (section: PaterhausSection, profile: NavProfile): boolean => {
+  if (profile === "focused") return FOCUSED_SECTIONS.has(section);
+  return profile === "admin" || MARKETING_SECTIONS.has(section);
+};
 
 /** Full nav groups for Admin. Marketing gets a filtered subset. */
 const adminNavGroups: NavGroup[] = [
@@ -201,16 +227,36 @@ const marketingNavGroups: NavGroup[] = [
   },
 ];
 
-const getNavGroups = (role: UserRole): NavGroup[] =>
-  role === "marketing" ? marketingNavGroups : adminNavGroups;
+/** Flat nav for the focused workspace: four sections, no Portfolio. */
+const focusedNavGroups: NavGroup[] = [
+  {
+    id: "sales",
+    label: "nav.sales_marketing",
+    items: [
+      { id: "pipeline", label: "nav.owner_pipeline", icon: UsersRound },
+      { id: "marketing", label: "nav.marketing", icon: Megaphone },
+      { id: "conversations", label: "nav.conversations", icon: MessageSquare },
+    ],
+  },
+  {
+    id: "operations",
+    label: "nav.operations",
+    items: [{ id: "calendar", label: "nav.calendar", icon: CalendarDays }],
+  },
+];
+
+const getNavGroups = (profile: NavProfile): NavGroup[] => {
+  if (profile === "focused") return focusedNavGroups;
+  return profile === "marketing" ? marketingNavGroups : adminNavGroups;
+};
 
 const allNavItems = adminNavGroups.flatMap((group) => group.items);
 
 const sectionIds: string[] = allNavItems.map((item) => item.id);
 const isPaterhausSection = (value: string): value is PaterhausSection => sectionIds.includes(value);
 
-const groupForSection = (section: PaterhausSection, role: UserRole): NavGroup => {
-  const groups = getNavGroups(role);
+const groupForSection = (section: PaterhausSection, profile: NavProfile): NavGroup => {
+  const groups = getNavGroups(profile);
   return groups.find((group) => group.items.some((item) => item.id === section)) ?? groups[0];
 };
 
@@ -228,16 +274,16 @@ const descriptionKeys: Record<string, string> = {
 };
 
 /** User identity per role. */
-const getUserIdentity = (role: UserRole, email: string) => {
-  if (role === "marketing") {
+const getUserIdentity = (role: NavProfile, email: string) => {
+  if (role === "marketing" || role === "focused") {
     return { name: "Paterhaus Marketing", roleLabel: "Marketing", initials: "PM", email };
   }
   return { name: "Sultan Sovetov", roleLabel: "Administrator", initials: "SS", email };
 };
 
 /** Workspace title per role. */
-const getWorkspaceTitle = (role: UserRole): string =>
-  role === "marketing" ? "Paterhaus Marketing" : "Paterhaus";
+const getWorkspaceTitle = (role: NavProfile): string =>
+  role === "marketing" || role === "focused" ? "Paterhaus Marketing" : "Paterhaus";
 
 const GroupedNav = ({
   section,
@@ -248,7 +294,7 @@ const GroupedNav = ({
   section: PaterhausSection;
   onSectionChange: (section: PaterhausSection) => void;
   urgent: number;
-  role: UserRole;
+  role: NavProfile;
 }) => {
   const navGroups = getNavGroups(role);
   const activeGroup = groupForSection(section, role);
@@ -315,7 +361,7 @@ const WorkspaceSidebar = ({
   collapsed: boolean;
   onSectionChange: (section: PaterhausSection) => void;
   onCollapse: () => void;
-  role: UserRole;
+  role: NavProfile;
 }) => {
   const { tasks } = usePaterhausWorkspace();
   const { t } = useLanguage();
@@ -375,7 +421,7 @@ const GlobalSearch = ({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onNavigate: (section: PaterhausSection, propertyId?: string) => void;
-  role: UserRole;
+  role: NavProfile;
 }) => {
   const workspace = usePaterhausWorkspace();
   const { t } = useLanguage();
@@ -456,8 +502,10 @@ const GlobalSearch = ({
 
 const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
   const { user } = useAuth();
-  const role: UserRole = user?.role ?? "admin";
-  const [activeSection, setActiveSection] = useState<PaterhausSection>("overview");
+  const userRole: UserRole = user?.role ?? "admin";
+  const role = getNavProfile(userRole, user?.email);
+  const canCreateLiveLead = canCreateManualPaterhausLead(user?.email);
+  const [activeSection, setActiveSection] = useState<PaterhausSection>(() => defaultSectionFor(role));
   const [collapsed, setCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -473,9 +521,9 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
   const urgent = tasks.filter((task) => task.priority === "Urgent" && task.status !== "Completed").length;
   const activeGroup = groupForSection(activeSection, role);
   const userIdentity = getUserIdentity(role, user?.email ?? "");
-  const openProperty = (propertyId: string) => { setTargetPropertyId(propertyId); setActiveSection("properties"); setNotificationsOpen(false); };
+  const openProperty = (propertyId: string) => { if (!isSectionAllowed("properties", role)) return; setTargetPropertyId(propertyId); setActiveSection("properties"); setNotificationsOpen(false); };
   const openConversation = (conversationId: string) => { setTargetConversationId(conversationId); setActiveSection("conversations"); setNotificationsOpen(false); };
-  const openTask = (taskId: string) => { setTargetTaskId(taskId); setActiveSection("operations"); setNotificationsOpen(false); };
+  const openTask = (taskId: string) => { if (!isSectionAllowed("operations", role)) return; setTargetTaskId(taskId); setActiveSection("operations"); setNotificationsOpen(false); };
   const changeSection = (section: PaterhausSection) => {
     if (!isSectionAllowed(section, role)) return;
     setActiveSection(section);
@@ -501,6 +549,12 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
       return;
     }
     if (target === "pipeline") {
+      if (canCreateLiveLead) {
+        // Live accounts create leads from the Owner Pipeline itself (backend-enforced allowlist).
+        setActiveSection("pipeline");
+        toast.info(t("create.liveLeadHint"));
+        return;
+      }
       // "Log Owner Note" navigates to pipeline and opens the create dialog
       setCreateKind("ownerNote");
       setCreateOpen(true);
@@ -511,6 +565,7 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
   };
 
   const renderSection = () => {
+    if (!isSectionAllowed(activeSection, role)) return <OwnerPipelineModule />;
     if (activeSection === "overview") return <PortfolioOverview onNavigate={(section, propertyId) => {
       if (isPaterhausSection(section) && isSectionAllowed(section, role)) setActiveSection(section);
       setTargetPropertyId(propertyId);
@@ -545,7 +600,7 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
                 <div className="min-w-0"><h1 className="truncate text-lg font-semibold text-foreground">{sectionLabelKey[activeSection] ? t(sectionLabelKey[activeSection]!) : "Paterhaus"}</h1><p className="hidden text-xs text-muted-foreground sm:block">{t(descriptionKeys[activeGroup.id])}</p></div>
               </div>
               <div className="flex flex-shrink-0 items-center gap-2">
-                <span className="hidden rounded-full border border-border px-2.5 py-1 text-[11px] text-muted-foreground lg:inline">{t("shell.demoWorkspace")}</span>
+                {!canCreateLiveLead && <span className="hidden rounded-full border border-border px-2.5 py-1 text-[11px] text-muted-foreground lg:inline">{t("shell.demoWorkspace")}</span>}
                 <LanguageSwitcher />
                 <Button type="button" variant="outline" size="sm" className="hidden gap-2 text-muted-foreground sm:flex" onClick={() => setSearchOpen(true)}>
                   <Search className="h-4 w-4" />
@@ -566,8 +621,8 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
                     <DropdownMenuItem onClick={() => quickCreate("pipeline", t("create.newLeadHint"))}>{t("create.newLead")}</DropdownMenuItem>
                     {isSectionAllowed("operations", role) && <DropdownMenuItem onClick={() => quickCreate("operations", t("create.newTaskHint"))}>{t("create.newTask")}</DropdownMenuItem>}
                     {isSectionAllowed("files", role) && <DropdownMenuItem onClick={() => quickCreate("files", t("create.uploadFileHint"))}>{t("create.uploadFile")}</DropdownMenuItem>}
-                    <DropdownMenuItem onClick={() => quickCreate("knowledge", t("create.addKnowledgeHint"))}>{t("create.addKnowledge")}</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => quickCreate("pipeline", t("create.logOwnerNoteHint"))}>{t("create.logOwnerNote")}</DropdownMenuItem>
+                    {isSectionAllowed("knowledge", role) && <DropdownMenuItem onClick={() => quickCreate("knowledge", t("create.addKnowledgeHint"))}>{t("create.addKnowledge")}</DropdownMenuItem>}
+                    {!canCreateLiveLead && <DropdownMenuItem onClick={() => quickCreate("pipeline", t("create.logOwnerNoteHint"))}>{t("create.logOwnerNote")}</DropdownMenuItem>}
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <Button type="button" variant="ghost" size="icon" className="relative" aria-label={t("shell.notificationsUnread", { count: unread })} onClick={() => setNotificationsOpen(true)}>

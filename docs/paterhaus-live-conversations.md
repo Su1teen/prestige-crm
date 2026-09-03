@@ -74,13 +74,42 @@ frontend. It should be replaced with verified server-side authentication later.
 ## Owner Pipeline live mode
 
 For the two allowlisted accounts, Owner Pipeline renders live AI lead classifications from
-`GET /api/paterhaus/lead-classifications` (backend order: `updated_at DESC, id DESC`). Every other
-account keeps the unchanged demo pipeline.
+`GET /api/paterhaus/lead-classifications` (backend order: priority Urgent > High > Medium > Low > unknown,
+then `updated_at DESC, id DESC`). Every other account keeps the unchanged demo pipeline.
 
-Rendered per lead: display name (name, else username, else number/chat id), number, summary, lead type,
-stage, priority, work type, created and updated timestamps. Unrecognized backend values are shown
-verbatim instead of being mapped to a fake label. Loading, empty, and retryable error states are distinct;
-the list refreshes every 30 seconds while the tab is visible.
+`leadType` is the **property type** (`Apartment`, `Villa`, `Townhouse`, `Studio`, `Other`), never the
+contact identity. Legacy identity values (`owner`, `guest`, `partner`, `unknown`) are displayed as `Other`.
+
+Rendered per lead: display name (name, else username, else number, else `Unnamed lead`), number, email
+(`Not provided` fallback), summary, property type, stage, priority, service (`Not specified` fallback), and
+Asia/Dubai created/updated timestamps. Search matches name, username, number, email, summary, property
+type, and service. Loading, empty, and retryable error states are distinct; the list refreshes every
+30 seconds while the tab is visible.
+
+### Manual Create Lead
+
+The **Create lead** button is rendered only for the two allowlisted accounts; the backend enforces the
+same allowlist on `POST /api/paterhaus/leads/manual` (403 otherwise). The dialog has exactly five fields:
+Name (optional), Phone number (required), Email (optional), Property type (required, one of the five
+values), Service (required: `Staging`, `Snagging`, `Property Management`). Phones are normalized to
+digits only (formatting and leading `+` stripped, no country code inferred) before submit. On success the
+dialog closes, a short success notice is shown, and the new/updated card is inserted into the sorted list
+immediately; a later refresh reads the persisted row from the backend.
+
+## Focused workspace for `r_tszi@paterhaus.com`
+
+`r_tszi@paterhaus.com` gets a focused shell with exactly four top-level sections: Owner Pipeline (default),
+Marketing, Conversations, Calendar. Portfolio is fully absent (no nav item, no render, no redirect, no
+placeholder); the Portfolio source files are untouched and remain available to `info@paterhaus.com`, whose
+navigation is unchanged. See `getNavProfile` / `getNavGroups` in `src/pages/PaterhausCRM.tsx`.
+
+## Persistent calendar for `r_tszi@paterhaus.com`
+
+`CalendarModule` selects `LiveCalendarModule` for `r_tszi@paterhaus.com` and the unchanged demo calendar
+for everyone else. The live calendar uses `GET/POST/DELETE /api/paterhaus/calendar/events` with
+`YYYY-MM-DD` local calendar dates; "today" and the initial month are derived in `Asia/Dubai`, never from
+the browser timezone (September 2026 starts on a Tuesday and has 30 days). Events can be created and
+deleted and persist across refreshes.
 
 ## Phase 2 scope
 
@@ -99,7 +128,12 @@ replies always travel frontend -> backend -> protected n8n webhook -> WAHA.
 - `src/components/paterhaus/LiveOwnerPipelineModule.tsx`: live lead classifications with label mapping
   and loading/empty/error states.
 - `src/components/paterhaus/OwnerPipelineModule.tsx`: selects live or demo pipeline from the email.
-- `src/components/paterhaus/LiveOwnerPipelineModule.test.tsx`: ordering, labels, empty, and retry coverage.
+- `src/components/paterhaus/LiveOwnerPipelineModule.test.tsx`: ordering, property-type labels, optional
+  fields, Create lead dialog/allowlist, immediate insert, empty, and retry coverage.
+- `src/components/paterhaus/CreateLeadDialog.tsx`: five-field manual lead form with client validation.
+- `src/components/paterhaus/LiveCalendarModule.tsx` / `.test.tsx`: persistent Asia/Dubai calendar.
+- `src/components/paterhaus/CalendarModule.tsx` / `.test.tsx`: live/demo calendar selection.
+- `src/pages/PaterhausCRM.test.tsx`: focused navigation for `r_tszi`, unchanged nav for `info`.
 - `src/components/paterhaus/ConversationsModule.tsx`: selects live or demo mode from the authenticated email.
 - `src/lib/paterhausConversationsApi.test.ts`: allowlist, token storage, and retry coverage.
 - `src/components/paterhaus/LiveConversationsModule.test.tsx`: list, message order, takeover, and resume coverage.
@@ -116,9 +150,9 @@ npx tsc -b
 
 Local results:
 
-- Full test suite: 27 tests passed.
+- Full test suite: 54 tests passed.
 - Production build: passed with existing duplicate-translation-key and bundle-size warnings.
-- Full ESLint: 0 errors, 12 existing fast-refresh warnings.
+- Full ESLint: 0 errors, existing fast-refresh warnings only.
 - `npx tsc -b`: same pre-existing errors as `origin/main` (marketing export, pipeline/vendor CSV export
   typing, duplicate translation keys), verified by running it on a clean `origin/main` worktree.
 
@@ -161,5 +195,10 @@ Local results:
 4. Confirm the new `hostory_pater` row has `username = human:info@paterhaus.com` and the canonical `chat_id`.
 5. Stop the n8n workflow, send again, and confirm the error is shown and the typed text is preserved.
 6. Click **Resume AI** and confirm the composer disappears.
-7. Open Owner Pipeline and confirm live classification rows render newest-updated first.
-8. Sign in with a non-allowlisted account and confirm Conversations and Owner Pipeline stay on demo data.
+7. Open Owner Pipeline and confirm live classification rows render by priority, then newest-updated.
+8. Create a lead with the dialog, confirm it appears immediately and after a refresh, and that the row
+   in `pater_classification` has a digits-only `chat_id`/`number`, the chosen property type in
+   `lead_type`, stage `new`, priority `Medium`.
+9. Sign in as `r_tszi@paterhaus.com`; confirm only Owner Pipeline, Marketing, Conversations, Calendar
+   are visible and Calendar events persist after refresh.
+10. Sign in with a non-allowlisted account and confirm Conversations and Owner Pipeline stay on demo data.

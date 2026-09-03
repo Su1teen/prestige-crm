@@ -1,25 +1,30 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, RefreshCw, Search } from "lucide-react";
+import { Loader2, Plus, RefreshCw, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
+  canCreateManualPaterhausLead,
   fetchLiveLeadClassifications,
+  LEAD_PROPERTY_TYPES,
   type LiveLeadClassification,
 } from "@/lib/paterhausConversationsApi";
+import { CreateLeadDialog } from "./CreateLeadDialog";
 
 interface LiveOwnerPipelineModuleProps {
   email: string;
 }
 
-const LEAD_TYPE_LABELS: Record<string, string> = {
-  owner: "Owner",
-  guest: "Guest",
-  partner: "Partner",
-  other: "Other",
-  unknown: "Unknown",
-};
+/** `leadType` is the PROPERTY type; legacy identity values are shown as "Other". */
+const PROPERTY_TYPE_LABELS: Record<string, string> = Object.fromEntries([
+  ...LEAD_PROPERTY_TYPES.map((type) => [type.toLowerCase(), type]),
+  ["flat", "Apartment"],
+  ["owner", "Other"],
+  ["guest", "Other"],
+  ["partner", "Other"],
+  ["unknown", "Other"],
+]);
 
 const STAGE_LABELS: Record<string, string> = {
   new: "New",
@@ -53,17 +58,33 @@ const PRIORITY_TONES: Record<string, string> = {
 };
 
 /** Keeps unknown backend values visible instead of hiding them behind a fallback. */
-const label = (dictionary: Record<string, string>, value: string | null): string => {
-  if (!value) return "—";
+const label = (dictionary: Record<string, string>, value: string | null, empty = "—"): string => {
+  if (!value?.trim()) return empty;
   return dictionary[value.trim().toLowerCase()] ?? value;
 };
 
-const formatTimestamp = (value: string | null): string => {
+const PRIORITY_RANK: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
+
+/** Urgent > High > Medium > Low, then most recently updated first (mirrors the backend order). */
+export const sortLeadClassifications = (
+  items: readonly LiveLeadClassification[],
+): LiveLeadClassification[] =>
+  [...items].sort((a, b) => {
+    const rank =
+      (PRIORITY_RANK[(a.priority ?? "").trim().toLowerCase()] ?? 4) -
+      (PRIORITY_RANK[(b.priority ?? "").trim().toLowerCase()] ?? 4);
+    if (rank !== 0) return rank;
+    const updated = Date.parse(b.updatedAt ?? "") - Date.parse(a.updatedAt ?? "");
+    if (!Number.isNaN(updated) && updated !== 0) return updated;
+    return b.id - a.id;
+  });
+
+export const formatDubaiTimestamp = (value: string | null): string => {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Almaty",
+    timeZone: "Asia/Dubai",
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -77,6 +98,9 @@ export const LiveOwnerPipelineModule = ({ email }: LiveOwnerPipelineModuleProps)
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const canCreate = canCreateManualPaterhausLead(email);
   const requestActive = useRef(false);
   const requestId = useRef(0);
 
@@ -88,7 +112,7 @@ export const LiveOwnerPipelineModule = ({ email }: LiveOwnerPipelineModuleProps)
       try {
         const response = await fetchLiveLeadClassifications(email, signal);
         if (currentRequest !== requestId.current) return;
-        setItems(response.items);
+        setItems(sortLeadClassifications(response.items));
         setError(null);
       } catch (requestError) {
         if (requestError instanceof DOMException && requestError.name === "AbortError") return;
@@ -120,13 +144,31 @@ export const LiveOwnerPipelineModule = ({ email }: LiveOwnerPipelineModuleProps)
     };
   }, [load]);
 
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(null), 4_000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+
+  /** Adds or replaces the saved lead in place so the pipeline reflects it without a reload. */
+  const handleCreated = useCallback((lead: LiveLeadClassification) => {
+    setItems((current) => {
+      const exists = current.some((item) => item.id === lead.id);
+      const next = exists
+        ? current.map((item) => (item.id === lead.id ? lead : item))
+        : [lead, ...current];
+      return sortLeadClassifications(next);
+    });
+    setNotice(`Lead ${lead.displayName} saved to the pipeline.`);
+  }, []);
+
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return items;
     return items.filter((item) =>
-      `${item.displayName} ${item.number ?? ""} ${item.summary ?? ""} ${item.leadType ?? ""} ${
-        item.stage ?? ""
-      } ${item.workType ?? ""}`
+      `${item.displayName} ${item.number ?? ""} ${item.email ?? ""} ${item.summary ?? ""} ${
+        item.leadType ?? ""
+      } ${item.stage ?? ""} ${item.workType ?? ""}`
         .toLowerCase()
         .includes(normalized),
     );
@@ -154,8 +196,31 @@ export const LiveOwnerPipelineModule = ({ email }: LiveOwnerPipelineModuleProps)
           <Button type="button" variant="ghost" size="sm" onClick={() => void load()}>
             <RefreshCw className="h-4 w-4" /> Refresh
           </Button>
+          {canCreate && (
+            <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4" /> Create lead
+            </Button>
+          )}
         </div>
       </div>
+
+      {canCreate && (
+        <CreateLeadDialog
+          email={email}
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          onCreated={handleCreated}
+        />
+      )}
+
+      {notice && (
+        <p
+          role="status"
+          className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300"
+        >
+          {notice}
+        </p>
+      )}
 
       {loading && items.length === 0 ? (
         <div className="flex h-40 items-center justify-center text-muted-foreground">
@@ -174,7 +239,7 @@ export const LiveOwnerPipelineModule = ({ email }: LiveOwnerPipelineModuleProps)
       ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-border bg-card/70 p-8 text-center text-sm text-muted-foreground">
           {items.length === 0
-            ? "No AI lead classifications yet"
+            ? "No leads yet"
             : "No leads match the current search"}
         </div>
       ) : (
@@ -195,10 +260,16 @@ export const LiveOwnerPipelineModule = ({ email }: LiveOwnerPipelineModuleProps)
                   <p className="truncate font-semibold text-foreground">{item.displayName}</p>
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">
                     {item.number ?? item.chatId ?? "No number"}
+                    <span className="mx-1.5">·</span>
+                    <span data-testid={`live-classification-${item.id}-email`}>
+                      {item.email ?? "Not provided"}
+                    </span>
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline">{label(LEAD_TYPE_LABELS, item.leadType)}</Badge>
+                  <Badge variant="outline" title="Property type">
+                    {label(PROPERTY_TYPE_LABELS, item.leadType, "Other")}
+                  </Badge>
                   <Badge variant="outline">{label(STAGE_LABELS, item.stage)}</Badge>
                   <Badge
                     variant="outline"
@@ -206,7 +277,9 @@ export const LiveOwnerPipelineModule = ({ email }: LiveOwnerPipelineModuleProps)
                   >
                     {label(PRIORITY_LABELS, item.priority)}
                   </Badge>
-                  <Badge variant="outline">{label(WORK_TYPE_LABELS, item.workType)}</Badge>
+                  <Badge variant="outline" title="Service">
+                    {label(WORK_TYPE_LABELS, item.workType, "Not specified")}
+                  </Badge>
                 </div>
               </div>
 
@@ -217,8 +290,8 @@ export const LiveOwnerPipelineModule = ({ email }: LiveOwnerPipelineModuleProps)
               )}
 
               <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-[11px] text-muted-foreground">
-                <span>Created {formatTimestamp(item.createdAt)}</span>
-                <span>Updated {formatTimestamp(item.updatedAt)}</span>
+                <span>Created {formatDubaiTimestamp(item.createdAt)}</span>
+                <span>Updated {formatDubaiTimestamp(item.updatedAt)}</span>
               </div>
             </Card>
           ))}

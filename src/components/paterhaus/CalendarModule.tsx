@@ -5,6 +5,9 @@ import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { usePaterhausWorkspace } from "@/contexts/PaterhausWorkspaceContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { isFocusedPaterhausWorkspaceEmail } from "@/lib/paterhausConversationsApi";
+import { LiveCalendarModule } from "./LiveCalendarModule";
 import { PATERHAUS_TODAY } from "@/data/paterhaus";
 import type { Task } from "@/types/paterhaus";
 import { EmptyState, SectionHeader, StatusPill } from "./shared";
@@ -155,7 +158,7 @@ const eventForTask = (task: Task): CalendarEvent => {
   };
 };
 
-export const CalendarModule = ({ onPropertySelect }: { onPropertySelect?: (propertyId: string) => void }) => {
+const DemoCalendarModule = ({ onPropertySelect }: { onPropertySelect?: (propertyId: string) => void }) => {
   const workspace = usePaterhausWorkspace();
   const { t } = useLanguage();
   const [view, setView] = useState<CalendarView>("month");
@@ -425,5 +428,15 @@ export const CalendarModule = ({ onPropertySelect }: { onPropertySelect?: (prope
         onPropertySelect={onPropertySelect}
       />
     </div>
+  );
+};
+
+/** Focused workspace accounts get the persistent backend calendar; everyone else keeps the demo view. */
+export const CalendarModule = ({ onPropertySelect }: { onPropertySelect?: (propertyId: string) => void }) => {
+  const { user } = useAuth();
+  return isFocusedPaterhausWorkspaceEmail(user?.email) ? (
+    <LiveCalendarModule email={user?.email ?? ""} />
+  ) : (
+    <DemoCalendarModule onPropertySelect={onPropertySelect} />
   );
 };
