@@ -64,7 +64,8 @@ export interface ManualLeadInput {
   name: string | null;
   phoneNumber: string;
   email: string | null;
-  propertyType: LeadPropertyType;
+  /** Free-text property type; stored in `pater_classification.lead_type`. */
+  propertyType: string;
   service: LeadService;
 }
 

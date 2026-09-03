@@ -4,13 +4,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useCreateLead } from "@/contexts/CreateLeadContext";
 import {
-  canCreateManualPaterhausLead,
   fetchLiveLeadClassifications,
   LEAD_PROPERTY_TYPES,
   type LiveLeadClassification,
 } from "@/lib/paterhausConversationsApi";
-import { CreateLeadDialog } from "./CreateLeadDialog";
 
 interface LiveOwnerPipelineModuleProps {
   email: string;
@@ -98,9 +97,7 @@ export const LiveOwnerPipelineModule = ({ email }: LiveOwnerPipelineModuleProps)
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [createOpen, setCreateOpen] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
-  const canCreate = canCreateManualPaterhausLead(email);
+  const { canCreateLead, openCreateLead, leadCreatedTick } = useCreateLead();
   const requestActive = useRef(false);
   const requestId = useRef(0);
 
@@ -144,23 +141,15 @@ export const LiveOwnerPipelineModule = ({ email }: LiveOwnerPipelineModuleProps)
     };
   }, [load]);
 
+  /**
+   * Refresh Owner Pipeline data immediately after a lead is created from either
+   * entry point (global Create action or this module). Skips the initial tick (0)
+   * so the first mount load above is not duplicated.
+   */
   useEffect(() => {
-    if (!notice) return;
-    const timer = window.setTimeout(() => setNotice(null), 4_000);
-    return () => window.clearTimeout(timer);
-  }, [notice]);
-
-  /** Adds or replaces the saved lead in place so the pipeline reflects it without a reload. */
-  const handleCreated = useCallback((lead: LiveLeadClassification) => {
-    setItems((current) => {
-      const exists = current.some((item) => item.id === lead.id);
-      const next = exists
-        ? current.map((item) => (item.id === lead.id ? lead : item))
-        : [lead, ...current];
-      return sortLeadClassifications(next);
-    });
-    setNotice(`Lead ${lead.displayName} saved to the pipeline.`);
-  }, []);
+    if (leadCreatedTick === 0) return;
+    void load();
+  }, [leadCreatedTick, load]);
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -196,31 +185,13 @@ export const LiveOwnerPipelineModule = ({ email }: LiveOwnerPipelineModuleProps)
           <Button type="button" variant="ghost" size="sm" onClick={() => void load()}>
             <RefreshCw className="h-4 w-4" /> Refresh
           </Button>
-          {canCreate && (
-            <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
+          {canCreateLead && (
+            <Button type="button" size="sm" onClick={openCreateLead}>
               <Plus className="h-4 w-4" /> Create lead
             </Button>
           )}
         </div>
       </div>
-
-      {canCreate && (
-        <CreateLeadDialog
-          email={email}
-          open={createOpen}
-          onOpenChange={setCreateOpen}
-          onCreated={handleCreated}
-        />
-      )}
-
-      {notice && (
-        <p
-          role="status"
-          className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300"
-        >
-          {notice}
-        </p>
-      )}
 
       {loading && items.length === 0 ? (
         <div className="flex h-40 items-center justify-center text-muted-foreground">

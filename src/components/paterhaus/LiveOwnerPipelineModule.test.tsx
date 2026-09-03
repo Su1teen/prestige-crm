@@ -1,12 +1,23 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  canCreateManualPaterhausLead,
   createManualLead,
   fetchLiveLeadClassifications,
   LiveConversationsError,
   type LiveLeadClassification,
 } from "@/lib/paterhausConversationsApi";
+import { CreateLeadProvider } from "@/contexts/CreateLeadContext";
+import { LanguageProvider, LANGUAGE_STORAGE_KEY } from "@/contexts/LanguageContext";
 import { LiveOwnerPipelineModule, sortLeadClassifications } from "./LiveOwnerPipelineModule";
+
+vi.mock("sonner", () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+  },
+}));
 
 vi.mock("@/lib/paterhausConversationsApi", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/paterhausConversationsApi")>();
@@ -16,6 +27,8 @@ vi.mock("@/lib/paterhausConversationsApi", async (importOriginal) => {
     createManualLead: vi.fn(),
   };
 });
+
+const { toast } = await import("sonner");
 
 const classification = (
   overrides: Partial<LiveLeadClassification> = {},
@@ -44,6 +57,17 @@ const createMock = vi.mocked(createManualLead);
 const listOf = (items: LiveLeadClassification[]) =>
   listMock.mockResolvedValue({ items, nextCursor: null, supportsArchive: false });
 
+const renderModule = (email: string) => {
+  localStorage.setItem(LANGUAGE_STORAGE_KEY, "en");
+  return render(
+    <LanguageProvider>
+      <CreateLeadProvider email={email} canCreateLead={canCreateManualPaterhausLead(email)}>
+        <LiveOwnerPipelineModule email={email} />
+      </CreateLeadProvider>
+    </LanguageProvider>,
+  );
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -61,7 +85,7 @@ describe("LiveOwnerPipelineModule", () => {
       }),
     ]);
 
-    render(<LiveOwnerPipelineModule email="info@paterhaus.com" />);
+    renderModule("info@paterhaus.com");
 
     const first = await screen.findByTestId("live-classification-3");
     const second = screen.getByTestId("live-classification-4");
@@ -90,7 +114,7 @@ describe("LiveOwnerPipelineModule", () => {
       classification({ id: 7, leadType: null }),
     ]);
 
-    render(<LiveOwnerPipelineModule email="r_tszi@paterhaus.com" />);
+    renderModule("r_tszi@paterhaus.com");
 
     await screen.findByTestId("live-classification-1");
     const badges = [1, 2, 3, 4, 5, 6, 7].map(
@@ -112,7 +136,7 @@ describe("LiveOwnerPipelineModule", () => {
       classification({ id: 10, displayName: "Ivan", email: "ivan@example.com", workType: "Snagging" }),
     ]);
 
-    render(<LiveOwnerPipelineModule email="info@paterhaus.com" />);
+    renderModule("info@paterhaus.com");
 
     const unnamed = await screen.findByTestId("live-classification-9");
     expect(within(unnamed).getByText("Unnamed lead")).toBeInTheDocument();
@@ -138,7 +162,7 @@ describe("LiveOwnerPipelineModule", () => {
   it("shows an empty state when no classifications exist", async () => {
     listOf([]);
 
-    render(<LiveOwnerPipelineModule email="info@paterhaus.com" />);
+    renderModule("info@paterhaus.com");
 
     expect(await screen.findByText("No leads yet")).toBeInTheDocument();
   });
@@ -151,7 +175,7 @@ describe("LiveOwnerPipelineModule", () => {
       supportsArchive: false,
     });
 
-    render(<LiveOwnerPipelineModule email="info@paterhaus.com" />);
+    renderModule("info@paterhaus.com");
 
     expect(
       await screen.findByText("Live lead classifications are temporarily unavailable."),
@@ -164,7 +188,7 @@ describe("LiveOwnerPipelineModule", () => {
   it("keeps unrecognized backend values visible", async () => {
     listOf([classification({ stage: "escalated", workType: "snagging" })]);
 
-    render(<LiveOwnerPipelineModule email="r_tszi@paterhaus.com" />);
+    renderModule("r_tszi@paterhaus.com");
 
     expect(await screen.findByText("escalated")).toBeInTheDocument();
     expect(screen.getByText("Snagging")).toBeInTheDocument();
@@ -173,14 +197,14 @@ describe("LiveOwnerPipelineModule", () => {
   describe("Create lead", () => {
     it.each(["info@paterhaus.com", "r_tszi@paterhaus.com"])("is offered to %s", async (email) => {
       listOf([]);
-      render(<LiveOwnerPipelineModule email={email} />);
+      renderModule(email);
       await screen.findByText("No leads yet");
       expect(screen.getByRole("button", { name: /Create lead/ })).toBeInTheDocument();
     });
 
     it("is hidden for any other account", async () => {
       listOf([]);
-      render(<LiveOwnerPipelineModule email="someone@paterhaus.com" />);
+      renderModule("someone@paterhaus.com");
       await screen.findByText("No leads yet");
       expect(screen.queryByRole("button", { name: /Create lead/ })).not.toBeInTheDocument();
     });
@@ -206,26 +230,18 @@ describe("LiveOwnerPipelineModule", () => {
         fireEvent.change(screen.getByLabelText("Service"), { target: { value: values.service } });
     };
 
-    it("offers exactly the five fields with the exact property-type and service options", async () => {
+    it("property type is a free-text input and service is a select with the three canonical options", async () => {
       listOf([]);
-      render(<LiveOwnerPipelineModule email="r_tszi@paterhaus.com" />);
+      renderModule("r_tszi@paterhaus.com");
       await screen.findByText("No leads yet");
       fireEvent.click(screen.getByRole("button", { name: /Create lead/ }));
 
       const form = await screen.findByTestId("create-lead-form");
-      expect(within(form).getAllByRole("textbox")).toHaveLength(3);
-      expect(within(form).getAllByRole("combobox")).toHaveLength(2);
-      const propertyOptions = within(screen.getByLabelText("Property type"))
-        .getAllByRole("option")
-        .map((option) => option.textContent);
-      expect(propertyOptions).toEqual([
-        "Select property type",
-        "Apartment",
-        "Villa",
-        "Townhouse",
-        "Studio",
-        "Other",
-      ]);
+      // name, phone, email, propertyType are text inputs; service is the only combobox.
+      expect(within(form).getAllByRole("textbox")).toHaveLength(4);
+      expect(within(form).getAllByRole("combobox")).toHaveLength(1);
+      expect(screen.getByLabelText("Property type").tagName).toBe("INPUT");
+      // No hardcoded property-type options.
       const serviceOptions = within(screen.getByLabelText("Service"))
         .getAllByRole("option")
         .map((option) => option.textContent);
@@ -234,7 +250,7 @@ describe("LiveOwnerPipelineModule", () => {
 
     it("validates required fields client-side before calling the API", async () => {
       listOf([]);
-      render(<LiveOwnerPipelineModule email="info@paterhaus.com" />);
+      renderModule("info@paterhaus.com");
       await screen.findByText("No leads yet");
       fireEvent.click(screen.getByRole("button", { name: /Create lead/ }));
       await screen.findByTestId("create-lead-form");
@@ -244,7 +260,7 @@ describe("LiveOwnerPipelineModule", () => {
 
       expect(await screen.findByText("Phone number is required")).toBeInTheDocument();
       expect(screen.getByText("Enter a valid email address")).toBeInTheDocument();
-      expect(screen.getByText("Select a property type")).toBeInTheDocument();
+      expect(screen.getByText("Enter a property type")).toBeInTheDocument();
       expect(screen.getByText("Select a service")).toBeInTheDocument();
       expect(createMock).not.toHaveBeenCalled();
 
@@ -254,8 +270,13 @@ describe("LiveOwnerPipelineModule", () => {
       expect(createMock).not.toHaveBeenCalled();
     });
 
-    it("submits the mapped payload, closes, shows success and adds the lead without reloading", async () => {
-      listOf([classification({ id: 3, priority: "High" })]);
+    it("submits the mapped payload, closes, shows a success toast and refreshes the pipeline", async () => {
+      // Initial mount load.
+      listMock.mockResolvedValueOnce({
+        items: [classification({ id: 3, priority: "High" })],
+        nextCursor: null,
+        supportsArchive: false,
+      });
       const created = classification({
         id: 41,
         chatId: "971501234567",
@@ -272,8 +293,14 @@ describe("LiveOwnerPipelineModule", () => {
         updatedAt: "2026-09-03T08:00:00.000Z",
       });
       createMock.mockResolvedValue(created);
+      // Refresh load after the lead is created.
+      listMock.mockResolvedValueOnce({
+        items: [classification({ id: 3, priority: "High" }), created],
+        nextCursor: null,
+        supportsArchive: false,
+      });
 
-      render(<LiveOwnerPipelineModule email="r_tszi@paterhaus.com" />);
+      renderModule("r_tszi@paterhaus.com");
       await screen.findByTestId("live-classification-3");
       fireEvent.click(screen.getByRole("button", { name: /Create lead/ }));
       await screen.findByTestId("create-lead-form");
@@ -291,23 +318,30 @@ describe("LiveOwnerPipelineModule", () => {
         }),
       );
       await waitFor(() => expect(screen.queryByTestId("create-lead-form")).not.toBeInTheDocument());
-      expect(screen.getByRole("status")).toHaveTextContent("Lead 971501234567 saved to the pipeline.");
+      expect(toast.success).toHaveBeenCalledWith("Lead 971501234567 saved to the pipeline.");
 
-      const added = screen.getByTestId("live-classification-41");
+      // Owner Pipeline data is refreshed immediately (no full page reload).
+      await waitFor(() => expect(listMock).toHaveBeenCalledTimes(2));
+      const added = await screen.findByTestId("live-classification-41");
       expect(within(added).getByTitle("Property type")).toHaveTextContent("Townhouse");
       expect(within(added).getByTitle("Service")).toHaveTextContent("Staging");
       expect(screen.getByTestId("live-classification-41-email")).toHaveTextContent("Not provided");
-      // Medium priority sorts after the existing High lead.
-      const existing = screen.getByTestId("live-classification-3");
-      expect(existing.compareDocumentPosition(added) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-      expect(listMock).toHaveBeenCalledTimes(1);
     });
 
-    it("replaces the existing card when the backend updates a duplicate phone", async () => {
-      listOf([classification({ id: 3, leadType: "Apartment", workType: "Staging" })]);
+    it("refreshes the existing card when the backend updates a duplicate phone", async () => {
+      listMock.mockResolvedValueOnce({
+        items: [classification({ id: 3, leadType: "Apartment", workType: "Staging" })],
+        nextCursor: null,
+        supportsArchive: false,
+      });
       createMock.mockResolvedValue(classification({ id: 3, leadType: "Villa", workType: "Snagging" }));
+      listMock.mockResolvedValueOnce({
+        items: [classification({ id: 3, leadType: "Villa", workType: "Snagging" })],
+        nextCursor: null,
+        supportsArchive: false,
+      });
 
-      render(<LiveOwnerPipelineModule email="info@paterhaus.com" />);
+      renderModule("info@paterhaus.com");
       await screen.findByTestId("live-classification-3");
       fireEvent.click(screen.getByRole("button", { name: /Create lead/ }));
       await screen.findByTestId("create-lead-form");
@@ -315,6 +349,7 @@ describe("LiveOwnerPipelineModule", () => {
       fireEvent.click(screen.getByRole("button", { name: "Save lead" }));
 
       await waitFor(() => expect(screen.queryByTestId("create-lead-form")).not.toBeInTheDocument());
+      await waitFor(() => expect(listMock).toHaveBeenCalledTimes(2));
       expect(screen.getAllByTestId(/^live-classification-\d+$/)).toHaveLength(1);
       expect(within(screen.getByTestId("live-classification-3")).getByTitle("Property type")).toHaveTextContent(
         "Villa",
@@ -325,7 +360,7 @@ describe("LiveOwnerPipelineModule", () => {
       listOf([]);
       createMock.mockRejectedValue(new LiveConversationsError("Account is not allowed to create leads", 403));
 
-      render(<LiveOwnerPipelineModule email="info@paterhaus.com" />);
+      renderModule("info@paterhaus.com");
       await screen.findByText("No leads yet");
       fireEvent.click(screen.getByRole("button", { name: /Create lead/ }));
       await screen.findByTestId("create-lead-form");

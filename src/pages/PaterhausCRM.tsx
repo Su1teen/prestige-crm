@@ -67,6 +67,7 @@ import { CreateDialog } from "@/components/paterhaus/CreateDialog";
 import { Card } from "@/components/ui/card";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { CreateLeadProvider, useCreateLead } from "@/contexts/CreateLeadContext";
 
 export type PaterhausSection =
   | "overview"
@@ -500,7 +501,7 @@ const GlobalSearch = ({
   );
 };
 
-const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
+const PaterhausWorkspaceInner = ({ onLogout }: { onLogout: () => void }) => {
   const { user } = useAuth();
   const userRole: UserRole = user?.role ?? "admin";
   const role = getNavProfile(userRole, user?.email);
@@ -517,6 +518,7 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
   const [targetConversationId, setTargetConversationId] = useState<string>();
   const { notifications, tasks } = usePaterhausWorkspace();
   const { t } = useLanguage();
+  const { openCreateLead } = useCreateLead();
   const unread = notifications.filter((notification) => !notification.read).length;
   const urgent = tasks.filter((task) => task.priority === "Urgent" && task.status !== "Completed").length;
   const activeGroup = groupForSection(activeSection, role);
@@ -550,9 +552,8 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
     }
     if (target === "pipeline") {
       if (canCreateLiveLead) {
-        // Live accounts create leads from the Owner Pipeline itself (backend-enforced allowlist).
-        setActiveSection("pipeline");
-        toast.info(t("create.liveLeadHint"));
+        // Live accounts reuse the shared Create Lead modal from anywhere in the workspace.
+        openCreateLead();
         return;
       }
       // "Log Owner Note" navigates to pipeline and opens the create dialog
@@ -674,6 +675,18 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
         </SheetContent>
       </Sheet>
     </div>
+  );
+};
+
+const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
+  const { user } = useAuth();
+  const userRole: UserRole = user?.role ?? "admin";
+  const role = getNavProfile(userRole, user?.email);
+  const canCreateLiveLead = canCreateManualPaterhausLead(user?.email);
+  return (
+    <CreateLeadProvider email={user?.email ?? ""} canCreateLead={canCreateLiveLead}>
+      <PaterhausWorkspaceInner onLogout={onLogout} />
+    </CreateLeadProvider>
   );
 };
 

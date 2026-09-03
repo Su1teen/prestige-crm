@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
 import PaterhausCRM from "./PaterhausCRM";
 
 let currentUser: { email: string; role: "admin" | "marketing" } = {
@@ -13,6 +14,29 @@ vi.mock("@/contexts/AuthContext", () => ({
 
 vi.mock("@/contexts/LanguageContext", () => ({
   useLanguage: () => ({ t: (key: string) => key }),
+}));
+
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+}));
+
+// Radix DropdownMenu relies on PointerEvent, which jsdom does not implement.
+// Render the menu inline so menu items are clickable in tests.
+vi.mock("@/components/ui/dropdown-menu", () => ({
+  DropdownMenu: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  DropdownMenuTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuItem: ({
+    children,
+    onClick,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+  }) => (
+    <button type="button" onClick={onClick}>
+      {children}
+    </button>
+  ),
 }));
 
 vi.mock("@/components/LanguageSwitcher", () => ({
@@ -132,5 +156,29 @@ describe("PaterhausCRM navigation", () => {
     ]);
     expect(screen.getByTestId("module-portfolio")).toBeInTheDocument();
     expect(screen.getByText("shell.demoWorkspace")).toBeInTheDocument();
+  });
+});
+
+describe("PaterhausCRM global Create Lead action", () => {
+  it("opens the shared Create Lead modal directly for live accounts (no Owner-Pipeline-only hint)", () => {
+    render(<PaterhausCRM onLogout={vi.fn()} />);
+
+    // Choose "New Lead" from the global Create menu.
+    fireEvent.click(screen.getByText("create.newLead"));
+
+    // The shared Create Lead modal opens immediately, from anywhere in the workspace.
+    expect(screen.getByTestId("create-lead-form")).toBeInTheDocument();
+    // The Owner-Pipeline-only hint toast is never shown.
+    expect(toast.info).not.toHaveBeenCalledWith("create.liveLeadHint");
+  });
+
+  it("does not render the Create Lead modal for non-live accounts", () => {
+    currentUser = { email: "marketing@example.com", role: "marketing" };
+    render(<PaterhausCRM onLogout={vi.fn()} />);
+
+    fireEvent.click(screen.getByText("create.newLead"));
+
+    // Non-live accounts keep the demo "Log Owner Note" flow; no live Create Lead form.
+    expect(screen.queryByTestId("create-lead-form")).not.toBeInTheDocument();
   });
 });
