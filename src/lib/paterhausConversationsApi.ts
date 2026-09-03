@@ -27,14 +27,24 @@ export interface LiveConversationCapabilities {
   maxMessageLength: number;
 }
 
+/** `pater_classification.lead_type`: the PROPERTY type of the lead, never the contact's role. */
+export const LEAD_PROPERTY_TYPES = ["Apartment", "Villa", "Townhouse", "Studio", "Other"] as const;
+export type LeadPropertyType = (typeof LEAD_PROPERTY_TYPES)[number];
+
+/** `pater_classification.work_type`: the requested Paterhaus service. */
+export const LEAD_SERVICES = ["Staging", "Snagging", "Property Management"] as const;
+export type LeadService = (typeof LEAD_SERVICES)[number];
+
 export interface LiveLeadClassification {
   id: number;
   chatId: string | null;
   number: string | null;
   username: string | null;
   name: string | null;
+  email: string | null;
   displayName: string;
   summary: string | null;
+  /** Property type (Apartment, Villa, Townhouse, Studio, Other). */
   leadType: string | null;
   stage: string | null;
   priority: string | null;
@@ -48,6 +58,39 @@ export interface LiveLeadClassificationsResponse {
   items: LiveLeadClassification[];
   nextCursor: string | null;
   supportsArchive: boolean;
+}
+
+export interface ManualLeadInput {
+  name: string | null;
+  phoneNumber: string;
+  email: string | null;
+  propertyType: LeadPropertyType;
+  service: LeadService;
+}
+
+export type CalendarEventKind = "operation" | "booking" | "blocked" | "risk" | "occupied";
+
+export interface LiveCalendarEvent {
+  id: string;
+  title: string;
+  description: string | null;
+  /** Asia/Dubai calendar day, YYYY-MM-DD. */
+  eventDate: string;
+  startTime: string | null;
+  endTime: string | null;
+  kind: CalendarEventKind;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LiveCalendarEventInput {
+  title: string;
+  description?: string | null;
+  eventDate: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  kind?: CalendarEventKind;
 }
 
 /** Carries the HTTP status so callers can separate "not configured" from real failures. */
@@ -91,6 +134,10 @@ interface AiUpdateResponse {
 }
 
 const LIVE_EMAILS = new Set(["info@paterhaus.com", "r_tszi@paterhaus.com"]);
+/** Accounts that may create leads manually; the backend enforces the same list. */
+const MANUAL_LEAD_EMAILS = new Set(["info@paterhaus.com", "r_tszi@paterhaus.com"]);
+/** The reduced workspace: Owner Pipeline, Marketing, Conversations, Calendar only. */
+const FOCUSED_WORKSPACE_EMAILS = new Set(["r_tszi@paterhaus.com"]);
 
 let accessToken: string | null = null;
 let accessTokenEmail: string | null = null;
@@ -100,6 +147,21 @@ export const normalizePaterhausEmail = (email: string): string => email.trim().t
 
 export const isLivePaterhausConversationsEmail = (email: string | null | undefined): boolean =>
   typeof email === "string" && LIVE_EMAILS.has(normalizePaterhausEmail(email));
+
+export const canCreateManualPaterhausLead = (email: string | null | undefined): boolean =>
+  typeof email === "string" && MANUAL_LEAD_EMAILS.has(normalizePaterhausEmail(email));
+
+export const isFocusedPaterhausWorkspaceEmail = (email: string | null | undefined): boolean =>
+  typeof email === "string" && FOCUSED_WORKSPACE_EMAILS.has(normalizePaterhausEmail(email));
+
+/**
+ * Digits only: strips spaces, hyphens, dots, parentheses and a leading `+`.
+ * Never prepends a country code. Returns null when not a plausible number.
+ */
+export const normalizeManualLeadPhone = (input: string): string | null => {
+  const stripped = input.trim().replace(/^\+/, "").replace(/[\s\-().]/g, "");
+  return /^\d{7,15}$/.test(stripped) ? stripped : null;
+};
 
 const apiBaseUrl = (): string => {
   const value = import.meta.env.VITE_PATERHAUS_API_BASE_URL?.trim().replace(/\/+$/, "");
@@ -172,11 +234,23 @@ const authorizedRequest = async <Response>(
   }
   if (!response.ok) {
     throw new LiveConversationsError(
-      "Live conversations could not be loaded.",
+      (await readErrorMessage(response)) ?? "Live conversations could not be loaded.",
       response.status,
     );
   }
+  if (response.status === 204) return undefined as Response;
   return response.json() as Promise<Response>;
+};
+
+/** Surfaces backend validation/authorization messages (400/403); other errors stay generic. */
+const readErrorMessage = async (response: globalThis.Response): Promise<string | null> => {
+  if (response.status !== 400 && response.status !== 403) return null;
+  try {
+    const body = (await response.json()) as { message?: unknown };
+    return typeof body.message === "string" && body.message.trim() ? body.message : null;
+  } catch {
+    return null;
+  }
 };
 
 export const fetchLiveConversations = (
@@ -226,5 +300,37 @@ export const fetchLiveLeadClassifications = (
   signal?: AbortSignal,
 ): Promise<LiveLeadClassificationsResponse> =>
   authorizedRequest(email, "/api/paterhaus/lead-classifications?limit=100", { signal });
+
+export const createManualLead = (
+  email: string,
+  input: ManualLeadInput,
+): Promise<LiveLeadClassification> =>
+  authorizedRequest(email, "/api/paterhaus/leads/manual", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+
+export const fetchLiveCalendarEvents = (
+  email: string,
+  range?: { from: string; to: string },
+  signal?: AbortSignal,
+): Promise<{ items: LiveCalendarEvent[]; timeZone: string }> => {
+  const query = range ? `?from=${range.from}&to=${range.to}` : "";
+  return authorizedRequest(email, `/api/paterhaus/calendar/events${query}`, { signal });
+};
+
+export const createLiveCalendarEvent = (
+  email: string,
+  input: LiveCalendarEventInput,
+): Promise<LiveCalendarEvent> =>
+  authorizedRequest(email, "/api/paterhaus/calendar/events", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+
+export const deleteLiveCalendarEvent = (email: string, eventId: string): Promise<void> =>
+  authorizedRequest(email, `/api/paterhaus/calendar/events/${eventId}`, { method: "DELETE" });
 
 export const resetPaterhausConversationAccess = (): void => clearAccessToken();
