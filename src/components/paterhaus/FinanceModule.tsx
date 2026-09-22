@@ -195,7 +195,7 @@ export const FinanceModule = () => {
         </Card>
       </div>
       <Sheet open={Boolean(selected)} onOpenChange={(open) => !open && setSelected(null)}>
-        <SheetContent className="dark w-full overflow-y-auto border-border bg-background sm:max-w-2xl">
+        <SheetContent className="paterhaus w-full overflow-y-auto border-border bg-background sm:max-w-2xl">
           {selected && (
             <>
               <SheetHeader>

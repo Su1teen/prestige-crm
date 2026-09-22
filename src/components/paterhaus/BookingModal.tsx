@@ -115,7 +115,7 @@ export const BookingModal = ({ lead, isOpen, onClose }: BookingModalProps) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && resetAndClose()}>
-      <DialogContent className="dark max-h-[90vh] overflow-y-auto border-border bg-background sm:max-w-lg">
+      <DialogContent className="paterhaus max-h-[90vh] overflow-y-auto border-border bg-background sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarPlus className="h-5 w-5 text-primary" />

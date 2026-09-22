@@ -57,7 +57,7 @@ const LeadDetail = ({
   if (!lead) return null;
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="dark w-full overflow-y-auto border-border bg-background sm:max-w-lg">
+      <SheetContent className="paterhaus w-full overflow-y-auto border-border bg-background sm:max-w-lg">
         <SheetHeader>
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -328,7 +328,7 @@ export const WhatsAppBotModule = () => {
       <LeadDetail lead={selected} open={selected !== null} onOpenChange={(open) => !open && setSelected(null)} />
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="dark border-border bg-background">
+        <DialogContent className="paterhaus border-border bg-background">
           <DialogHeader>
             <DialogTitle>{t("wa.createLead")}</DialogTitle>
             <DialogDescription>{t("wa.intake")}</DialogDescription>

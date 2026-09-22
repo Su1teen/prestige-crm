@@ -260,7 +260,7 @@ export const FilesHubModule = ({ onOpenProperty }: { onOpenProperty?: (propertyI
         </Card>
       </div>
       <Dialog open={selected !== null} onOpenChange={(open) => !open && setSelectedId(null)}>
-        <DialogContent className="dark max-h-[85vh] overflow-y-auto border-border bg-background">
+        <DialogContent className="paterhaus max-h-[85vh] overflow-y-auto border-border bg-background">
           {selected && (
             <>
               <DialogHeader>

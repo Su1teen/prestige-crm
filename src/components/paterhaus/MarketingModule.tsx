@@ -836,7 +836,7 @@ export const MarketingModule = () => {
         </Card>
       </div>
       <Dialog open={selectedCampaign !== null} onOpenChange={(open) => !open && setSelectedCampaign(null)}>
-        <DialogContent className="dark max-h-[85vh] overflow-y-auto border-border bg-background">
+        <DialogContent className="paterhaus max-h-[85vh] overflow-y-auto border-border bg-background">
           {selectedCampaign && (
             <>
               <DialogHeader>
@@ -894,7 +894,7 @@ export const MarketingModule = () => {
         </DialogContent>
       </Dialog>
       <Dialog open={showSimulate} onOpenChange={setShowSimulate}>
-        <DialogContent className="dark max-h-[85vh] overflow-y-auto border-border bg-background">
+        <DialogContent className="paterhaus max-h-[85vh] overflow-y-auto border-border bg-background">
           <DialogHeader>
             <DialogTitle>Simulate Meta Lead</DialogTitle>
             <DialogDescription>
@@ -978,7 +978,7 @@ export const MarketingModule = () => {
       </Dialog>
       {/* P1 — Campaign creation dialog (Marketing workspace) */}
       <Dialog open={showCampaignForm} onOpenChange={setShowCampaignForm}>
-        <DialogContent className="dark border-border bg-background">
+        <DialogContent className="paterhaus border-border bg-background">
           <DialogHeader>
             <DialogTitle>{t("marketing.addCampaign")}</DialogTitle>
             <DialogDescription>{t("marketing.addCampaignDescription")}</DialogDescription>

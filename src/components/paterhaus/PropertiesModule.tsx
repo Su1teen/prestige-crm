@@ -130,7 +130,7 @@ const PropertyDetail = ({
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="dark w-full overflow-y-auto border-border bg-background sm:max-w-3xl">
+        <SheetContent className="paterhaus w-full overflow-y-auto border-border bg-background sm:max-w-3xl">
           {property && (
             <>
               <SheetHeader>
@@ -551,7 +551,7 @@ const PropertyDetail = ({
         </SheetContent>
       </Sheet>
       <Dialog open={showSnagDialog} onOpenChange={setShowSnagDialog}>
-        <DialogContent className="dark border-border bg-background">
+        <DialogContent className="paterhaus border-border bg-background">
           <DialogHeader>
             <DialogTitle>Create Snag Report</DialogTitle>
             <DialogDescription>

@@ -41,7 +41,7 @@ const StayDetail = ({
   const tasks = workspace.tasks.filter((task) => task.stayId === stay.id);
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="dark w-full overflow-y-auto border-border bg-background sm:max-w-2xl">
+      <SheetContent className="paterhaus w-full overflow-y-auto border-border bg-background sm:max-w-2xl">
         <SheetHeader>
           <p className="text-xs uppercase tracking-[0.16em] text-primary">{stay.reservationId}</p>
           <SheetTitle>{guest?.name ?? "Guest stay"}</SheetTitle>

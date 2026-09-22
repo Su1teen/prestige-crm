@@ -104,7 +104,7 @@ export const CreateDialog = ({
         onOpenChange(value);
       }}
     >
-      <DialogContent className="dark max-h-[90vh] overflow-y-auto border-border bg-background sm:max-w-lg">
+      <DialogContent className="paterhaus max-h-[90vh] overflow-y-auto border-border bg-background sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{t("create.dialogTitle")}</DialogTitle>
           <DialogDescription>{t("create.dialogDescription")}</DialogDescription>

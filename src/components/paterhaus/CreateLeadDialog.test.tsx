@@ -81,10 +81,11 @@ beforeEach(() => {
 });
 
 describe("CreateLeadDialog", () => {
-  it("applies the dark Paterhaus styling to the dialog content", () => {
+  it("applies the bright Paterhaus styling to the dialog content", () => {
     renderDialog("en");
     const dialog = screen.getByTestId("create-lead-dialog");
-    expect(dialog.className).toContain("dark");
+    expect(dialog.className).toContain("paterhaus");
+    expect(dialog.className).not.toContain("dark");
     expect(dialog.className).toContain("bg-background");
     expect(dialog.className).toContain("border-border");
   });

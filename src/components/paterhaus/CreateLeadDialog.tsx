@@ -131,7 +131,7 @@ export const CreateLeadDialog = ({
   return (
     <Dialog open={open} onOpenChange={close}>
       <DialogContent
-        className="dark max-h-[90vh] overflow-y-auto border-border bg-background text-foreground sm:max-w-lg"
+        className="paterhaus max-h-[90vh] overflow-y-auto border-border bg-background text-foreground sm:max-w-lg"
         data-testid="create-lead-dialog"
       >
         <DialogHeader>

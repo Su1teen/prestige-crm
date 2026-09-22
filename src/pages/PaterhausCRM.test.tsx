@@ -68,6 +68,7 @@ vi.mock("@/components/paterhaus/SettingsModule", () => ({ SettingsModule: () => 
 vi.mock("@/components/paterhaus/PropertiesModule", () => ({ PropertiesModule: () => <div data-testid="module-properties">properties</div> }));
 vi.mock("@/components/paterhaus/OperationsBoardModule", () => ({ OperationsBoardModule: () => <div data-testid="module-operations">operations</div> }));
 vi.mock("@/components/paterhaus/FilesHubModule", () => ({ FilesHubModule: () => <div data-testid="module-files">files</div> }));
+vi.mock("@/components/paterhaus/LiveFilesHubModule", () => ({ LiveFilesHubModule: () => <div data-testid="module-live-files">live files</div> }));
 vi.mock("@/components/paterhaus/GuestsStaysModule", () => ({ GuestsStaysModule: () => <div data-testid="module-stays">stays</div> }));
 vi.mock("@/components/paterhaus/FinanceModule", () => ({ FinanceModule: () => <div data-testid="module-finance">finance</div> }));
 vi.mock("@/components/paterhaus/ComplianceModule", () => ({ ComplianceModule: () => <div data-testid="module-compliance">compliance</div> }));
@@ -86,7 +87,7 @@ beforeEach(() => {
 });
 
 describe("PaterhausCRM navigation", () => {
-  it("shows exactly Owner Pipeline, Marketing, Conversations and Calendar to r_tszi@paterhaus.com", () => {
+  it("shows exactly Owner Pipeline, Marketing, Conversations, Files and Calendar to r_tszi@paterhaus.com", () => {
     currentUser = { email: "r_tszi@paterhaus.com", role: "marketing" };
 
     render(<PaterhausCRM onLogout={vi.fn()} />);
@@ -95,6 +96,7 @@ describe("PaterhausCRM navigation", () => {
       "nav.owner_pipeline",
       "nav.marketing",
       "nav.conversations",
+      "nav.files_documents",
       "nav.calendar",
     ]);
     expect(screen.queryByText("nav.portfolio")).not.toBeInTheDocument();
@@ -103,7 +105,7 @@ describe("PaterhausCRM navigation", () => {
     expect(screen.queryByText("shell.demoWorkspace")).not.toBeInTheDocument();
   });
 
-  it("lets r_tszi@paterhaus.com move between the four sections and never reach Portfolio", () => {
+  it("lets r_tszi@paterhaus.com move between the five sections and never reach Portfolio", () => {
     currentUser = { email: "r_tszi@paterhaus.com", role: "marketing" };
 
     render(<PaterhausCRM onLogout={vi.fn()} />);
@@ -113,11 +115,20 @@ describe("PaterhausCRM navigation", () => {
     expect(screen.getByTestId("module-marketing")).toBeInTheDocument();
     fireEvent.click(within(nav).getByText("nav.conversations"));
     expect(screen.getByTestId("module-conversations")).toBeInTheDocument();
+    fireEvent.click(within(nav).getByText("nav.files_documents"));
+    expect(screen.getByTestId("module-live-files")).toBeInTheDocument();
     fireEvent.click(within(nav).getByText("nav.calendar"));
     expect(screen.getByTestId("module-calendar")).toBeInTheDocument();
     fireEvent.click(within(nav).getByText("nav.owner_pipeline"));
     expect(screen.getByTestId("module-pipeline")).toBeInTheDocument();
     expect(screen.queryByTestId("module-portfolio")).not.toBeInTheDocument();
+  });
+
+  it("uses the bright Paterhaus shell without forcing dark mode", () => {
+    const { container } = render(<PaterhausCRM onLogout={vi.fn()} />);
+    const shell = container.querySelector(".paterhaus");
+    expect(shell).toBeInTheDocument();
+    expect(shell).not.toHaveClass("dark");
   });
 
   it("keeps Portfolio and the full admin navigation for info@paterhaus.com", () => {

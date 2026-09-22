@@ -645,7 +645,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
           </div>
         </Card>
       <Dialog open={actionKind !== null} onOpenChange={(open) => !open && setActionKind(null)}>
-        <DialogContent className="dark max-w-lg border-border bg-background">
+        <DialogContent className="paterhaus max-w-lg border-border bg-background">
           <DialogHeader>
             <DialogTitle>{actionKind ? t(actionTitleKeys[actionKind]) : t("portfolio.confirmAction")}</DialogTitle>
             <DialogDescription>

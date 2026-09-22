@@ -361,7 +361,7 @@ export const OpsCopilot = ({ propertyId, conversationId, onOpenProperty, onDraft
         <Sparkles className="h-4 w-4" /> Ops Copilot
       </Button>
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent className="dark w-full overflow-y-auto border-border bg-background sm:max-w-lg">
+        <SheetContent className="paterhaus w-full overflow-y-auto border-border bg-background sm:max-w-lg">
           <SheetHeader>
             <SheetTitle>Ops Copilot</SheetTitle>
             <SheetDescription>Current context: {contextLabel}</SheetDescription>
@@ -450,7 +450,7 @@ export const OpsCopilot = ({ propertyId, conversationId, onOpenProperty, onDraft
         </div>
       )}
       <Dialog open={confirmAction !== null} onOpenChange={(open) => !open && setConfirmAction(null)}>
-        <DialogContent className="dark border-border bg-background">
+        <DialogContent className="paterhaus border-border bg-background">
           <DialogHeader>
             <DialogTitle>Confirm Copilot action</DialogTitle>
             <DialogDescription>

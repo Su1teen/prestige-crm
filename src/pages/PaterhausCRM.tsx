@@ -62,6 +62,7 @@ import { TeamVendorsModule } from "@/components/paterhaus/TeamVendorsModule";
 import { NotificationsModule } from "@/components/paterhaus/NotificationsModule";
 import { SettingsModule } from "@/components/paterhaus/SettingsModule";
 import { FilesHubModule } from "@/components/paterhaus/FilesHubModule";
+import { LiveFilesHubModule } from "@/components/paterhaus/LiveFilesHubModule";
 import { KnowledgeBaseModule } from "@/components/paterhaus/KnowledgeBaseModule";
 import { CreateDialog } from "@/components/paterhaus/CreateDialog";
 import { Card } from "@/components/ui/card";
@@ -112,12 +113,13 @@ const MARKETING_SECTIONS: ReadonlySet<PaterhausSection> = new Set([
 
 /**
  * Focused workspace (r_tszi@paterhaus.com): exactly Owner Pipeline, Marketing,
- * Conversations and Calendar. Portfolio is never rendered for this profile.
+ * Conversations, Files and Calendar. Portfolio is never rendered for this profile.
  */
 const FOCUSED_SECTIONS: ReadonlySet<PaterhausSection> = new Set([
   "pipeline",
   "marketing",
   "conversations",
+  "files",
   "calendar",
 ]);
 
@@ -228,7 +230,7 @@ const marketingNavGroups: NavGroup[] = [
   },
 ];
 
-/** Flat nav for the focused workspace: four sections, no Portfolio. */
+/** Focused navigation: exactly five sections, no Portfolio or admin modules. */
 const focusedNavGroups: NavGroup[] = [
   {
     id: "sales",
@@ -242,7 +244,10 @@ const focusedNavGroups: NavGroup[] = [
   {
     id: "operations",
     label: "nav.operations",
-    items: [{ id: "calendar", label: "nav.calendar", icon: CalendarDays }],
+    items: [
+      { id: "files", label: "nav.files_documents", icon: FolderOpen },
+      { id: "calendar", label: "nav.calendar", icon: CalendarDays },
+    ],
   },
 ];
 
@@ -374,7 +379,7 @@ const WorkspaceSidebar = ({
     <motion.aside
       animate={{ width: collapsed ? 76 : 248 }}
       transition={{ duration: 0.2 }}
-      className="sticky top-0 hidden h-screen flex-shrink-0 flex-col border-r border-border bg-sidebar md:flex"
+      className="sticky top-0 hidden h-dvh flex-shrink-0 flex-col border-r border-border bg-sidebar md:flex"
     >
       <div className="flex h-16 items-center gap-3 border-b border-border px-5">
         <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-primary/40 bg-primary/10 text-sm font-semibold text-primary">PH</div>
@@ -433,7 +438,7 @@ const GlobalSearch = ({
   };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="dark overflow-hidden border-border bg-background p-0">
+      <DialogContent className="paterhaus overflow-hidden border-border bg-background p-0">
         <DialogTitle className="sr-only">{t("shell.search")}</DialogTitle>
         <Command className="bg-background">
           <CommandInput placeholder={t("shell.searchPlaceholder")} />
@@ -576,7 +581,11 @@ const PaterhausWorkspaceInner = ({ onLogout }: { onLogout: () => void }) => {
     if (activeSection === "marketing") return <MarketingModule />;
     if (activeSection === "operations") return <OperationsBoardModule onPropertySelect={openProperty} initialTaskId={targetTaskId} />;
     if (activeSection === "calendar") return <CalendarModule onPropertySelect={openProperty} />;
-    if (activeSection === "files") return <FilesHubModule onOpenProperty={openProperty} />;
+    if (activeSection === "files") {
+      return isFocusedPaterhausWorkspaceEmail(user?.email)
+        ? <LiveFilesHubModule email={user?.email ?? ""} />
+        : <FilesHubModule onOpenProperty={openProperty} />;
+    }
     if (activeSection === "knowledge") return <KnowledgeBaseModule />;
     if (activeSection === "stays") return <GuestsStaysModule onPropertySelect={openProperty} />;
     if (activeSection === "conversations") return <ConversationsModule onPropertySelect={openProperty} initialConversationId={targetConversationId} />;
@@ -588,11 +597,11 @@ const PaterhausWorkspaceInner = ({ onLogout }: { onLogout: () => void }) => {
   };
 
   return (
-    <div className="paterhaus dark min-h-screen overflow-x-hidden bg-background text-foreground">
-      <div className="flex min-h-screen min-w-0">
+    <div className="paterhaus h-dvh overflow-hidden bg-background text-foreground">
+      <div className="flex h-full min-w-0">
         <WorkspaceSidebar section={activeSection} collapsed={collapsed} onSectionChange={setActiveSection} onCollapse={() => setCollapsed((value) => !value)} role={role} />
-        <div className="min-w-0 flex-1">
-          <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
+        <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
+          <header className="sticky top-0 z-20 flex-none border-b border-border bg-background/95 backdrop-blur">
             <div className="flex min-h-16 items-center justify-between gap-3 px-4 py-2 lg:px-6">
               <div className="flex min-w-0 items-center gap-2">
                 <Button type="button" variant="ghost" size="icon" className="md:hidden" aria-label={t("shell.openNav")} onClick={() => setMobileNavOpen(true)}>
@@ -618,7 +627,7 @@ const PaterhausWorkspaceInner = ({ onLogout }: { onLogout: () => void }) => {
                       <span className="hidden sm:inline">{t("shell.create")}</span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="dark border-border bg-background">
+                  <DropdownMenuContent align="end" className="paterhaus border-border bg-background">
                     <DropdownMenuItem onClick={() => quickCreate("pipeline", t("create.newLeadHint"))}>{t("create.newLead")}</DropdownMenuItem>
                     {isSectionAllowed("operations", role) && <DropdownMenuItem onClick={() => quickCreate("operations", t("create.newTaskHint"))}>{t("create.newTask")}</DropdownMenuItem>}
                     {isSectionAllowed("files", role) && <DropdownMenuItem onClick={() => quickCreate("files", t("create.uploadFileHint"))}>{t("create.uploadFile")}</DropdownMenuItem>}
@@ -635,11 +644,11 @@ const PaterhausWorkspaceInner = ({ onLogout }: { onLogout: () => void }) => {
               </div>
             </div>
           </header>
-          <main className={activeSection === "conversations" ? "min-w-0 p-3 lg:p-4" : "min-w-0 p-4 lg:p-6"}>{renderSection()}</main>
+          <main className={activeSection === "conversations" ? "min-h-0 min-w-0 flex-1 overflow-hidden p-3 lg:p-4" : "min-h-0 min-w-0 flex-1 overflow-y-auto p-4 lg:p-6"}>{renderSection()}</main>
         </div>
       </div>
       <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-        <SheetContent side="left" className="dark w-[280px] overflow-y-auto border-border bg-sidebar p-4">
+        <SheetContent side="left" className="paterhaus w-[280px] overflow-y-auto border-border bg-sidebar p-4">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-3 text-left">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-primary/40 bg-primary/10 text-sm font-semibold text-primary">PH</span>
@@ -669,7 +678,7 @@ const PaterhausWorkspaceInner = ({ onLogout }: { onLogout: () => void }) => {
         }}
       />
       <Sheet open={notificationsOpen} onOpenChange={setNotificationsOpen}>
-        <SheetContent className="dark w-full overflow-y-auto border-border bg-background sm:max-w-xl">
+        <SheetContent className="paterhaus w-full overflow-y-auto border-border bg-background sm:max-w-xl">
           <SheetHeader><SheetTitle>{t("nav.notifications")}</SheetTitle></SheetHeader>
           <div className="mt-5"><NotificationsModule onPropertySelect={openProperty} onConversationSelect={openConversation} onTaskSelect={openTask} /></div>
         </SheetContent>

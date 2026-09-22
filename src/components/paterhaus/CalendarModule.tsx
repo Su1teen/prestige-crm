@@ -88,7 +88,7 @@ const EventDetail = ({
   const booking = workspace.bookings.find((item) => item.id === event.sourceId);
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="dark border-border bg-background">
+      <SheetContent className="paterhaus border-border bg-background">
         <SheetHeader>
           <StatusPill status={event.kind} />
           <SheetTitle>{event.title}</SheetTitle>

@@ -180,7 +180,7 @@ export const SettingsModule = () => {
               <SelectTrigger className="mt-1">
                 <SelectValue placeholder="Choose report cadence" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="paterhaus">
                 <SelectItem value="Monthly">Monthly</SelectItem>
                 <SelectItem value="Quarterly">Quarterly</SelectItem>
               </SelectContent>

@@ -213,7 +213,7 @@ const CreateEventDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={close}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="paterhaus sm:max-w-md">
         <DialogHeader>
           <DialogTitle>New calendar event</DialogTitle>
           <DialogDescription>Dates and times are in Dubai time (Asia/Dubai) and are saved for everyone.</DialogDescription>

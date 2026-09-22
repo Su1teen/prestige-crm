@@ -150,7 +150,7 @@ const OpportunityDetail = ({
   };
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="dark w-full overflow-y-auto border-border bg-background sm:max-w-2xl">
+      <SheetContent className="paterhaus w-full overflow-y-auto border-border bg-background sm:max-w-2xl">
         <SheetHeader>
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -692,7 +692,7 @@ const DemoOwnerPipelineModule = () => {
                   {t("bulk.assignTo")}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent>
+              <DropdownMenuContent className="paterhaus">
                 <DropdownMenuLabel>{t("bulk.assignTo")}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {Array.from(new Set(workspace.opportunities.map((o) => o.assignedTo))).map((assignee) => (
@@ -708,7 +708,7 @@ const DemoOwnerPipelineModule = () => {
                   {t("bulk.changeStage")}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent>
+              <DropdownMenuContent className="paterhaus">
                 <DropdownMenuLabel>{t("bulk.changeStage")}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {stages.map((stage) => (
@@ -738,7 +738,7 @@ const DemoOwnerPipelineModule = () => {
                   {t("bulk.removeTag")}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent>
+              <DropdownMenuContent className="paterhaus">
                 <DropdownMenuLabel>{t("bulk.removeTag")}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {TAG_PRESETS.map((tag) => (
@@ -919,7 +919,7 @@ const DemoOwnerPipelineModule = () => {
       />
       <LeadDetailsModal lead={leadModal} isOpen={leadModal !== null} onClose={() => setLeadModal(null)} />
       <Dialog open={showLeadDialog} onOpenChange={setShowLeadDialog}>
-        <DialogContent className="dark border-border bg-background">
+        <DialogContent className="paterhaus border-border bg-background">
           <DialogHeader>
             <DialogTitle>{t("pipeline.addOwnerLead")}</DialogTitle>
             <DialogDescription>
@@ -1058,7 +1058,7 @@ const DemoOwnerPipelineModule = () => {
         </DialogContent>
       </Dialog>
       <Dialog open={lostOpportunity !== null} onOpenChange={(open) => !open && setLostOpportunity(null)}>
-        <DialogContent className="dark border-border bg-background">
+        <DialogContent className="paterhaus border-border bg-background">
           <DialogHeader>
             <DialogTitle>{t("lost.title")}</DialogTitle>
             <DialogDescription>{t("lost.description")}</DialogDescription>

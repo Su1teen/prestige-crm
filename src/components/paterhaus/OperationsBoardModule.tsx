@@ -96,7 +96,7 @@ const TaskDetail = ({
   const compliance = workspace.compliance.find((item) => item.id === task.complianceItemId);
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="dark w-full overflow-y-auto border-border bg-background sm:max-w-2xl">
+      <SheetContent className="paterhaus w-full overflow-y-auto border-border bg-background sm:max-w-2xl">
         <SheetHeader>
           <p className="text-xs uppercase tracking-[0.16em] text-primary">{task.id}</p>
           <SheetTitle>{task.title}</SheetTitle>

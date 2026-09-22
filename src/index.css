@@ -76,16 +76,61 @@
   }
 
   .paterhaus {
-    --primary: 31 36% 57%;
-    --primary-foreground: 224 24% 8%;
-    --accent: 166 25% 38%;
-    --accent-foreground: 214 32% 94%;
-    --ring: 31 36% 57%;
-    --sidebar-primary: 31 36% 57%;
-    --sidebar-primary-foreground: 224 24% 8%;
-    --sidebar-accent: 31 22% 18%;
-    --sidebar-accent-foreground: 35 35% 82%;
-    --sidebar-ring: 31 36% 57%;
+    --background: 38 27% 97%;
+    --foreground: 215 24% 17%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 24% 17%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 24% 17%;
+    --primary: 32 43% 40%;
+    --primary-foreground: 40 33% 98%;
+    --secondary: 164 18% 93%;
+    --secondary-foreground: 166 31% 23%;
+    --muted: 36 18% 93%;
+    --muted-foreground: 215 13% 42%;
+    --accent: 166 32% 28%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 3 68% 46%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 35 17% 84%;
+    --input: 35 17% 84%;
+    --ring: 32 43% 40%;
+    --sidebar-background: 38 24% 94%;
+    --sidebar-foreground: 215 18% 30%;
+    --sidebar-primary: 32 43% 40%;
+    --sidebar-primary-foreground: 40 33% 98%;
+    --sidebar-accent: 34 32% 87%;
+    --sidebar-accent-foreground: 28 38% 24%;
+    --sidebar-border: 35 17% 82%;
+    --sidebar-ring: 32 43% 40%;
+    --status-success: 158 64% 27%;
+    --status-warning: 31 79% 29%;
+    --status-danger: 3 66% 42%;
+    --status-info: 202 69% 36%;
+    --status-violet: 263 52% 43%;
+    --shadow-card: 0 1px 2px rgba(50, 42, 30, 0.06), 0 8px 24px -18px rgba(50, 42, 30, 0.28);
+    --shadow-elevated: 0 18px 45px -24px rgba(50, 42, 30, 0.32), 0 4px 12px -8px rgba(50, 42, 30, 0.2);
+    --shadow-hover: 0 22px 50px -24px rgba(50, 42, 30, 0.38), 0 8px 20px -14px rgba(50, 42, 30, 0.24);
+  }
+
+  .paterhaus :where(.text-emerald-100, .text-emerald-200, .text-emerald-300) {
+    color: hsl(var(--status-success));
+  }
+
+  .paterhaus :where(.text-amber-100, .text-amber-200, .text-amber-300) {
+    color: hsl(var(--status-warning));
+  }
+
+  .paterhaus :where(.text-red-100, .text-red-200, .text-red-300, .text-rose-300) {
+    color: hsl(var(--status-danger));
+  }
+
+  .paterhaus :where(.text-blue-100, .text-blue-200, .text-blue-300, .text-sky-200, .text-sky-300, .text-sky-400, .text-cyan-200, .text-cyan-300) {
+    color: hsl(var(--status-info));
+  }
+
+  .paterhaus :where(.text-violet-200, .text-violet-300, .text-purple-300) {
+    color: hsl(var(--status-violet));
   }
 }
 

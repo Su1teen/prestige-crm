@@ -100,7 +100,7 @@ export const NotificationsModule = ({
             <SelectTrigger className="mt-1">
               <SelectValue placeholder="Filter by read state" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="paterhaus">
               <SelectItem value="All">All notifications</SelectItem>
               <SelectItem value="Unread">Unread only</SelectItem>
               <SelectItem value="Read">Read only</SelectItem>
@@ -118,7 +118,7 @@ export const NotificationsModule = ({
             <SelectTrigger className="mt-1">
               <SelectValue placeholder="Filter by priority" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="paterhaus">
               {priorities.map((priority) => (
                 <SelectItem key={priority} value={priority}>
                   {priority === "All" ? "All priorities" : priority}

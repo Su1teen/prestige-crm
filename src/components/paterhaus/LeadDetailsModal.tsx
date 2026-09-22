@@ -181,7 +181,7 @@ export const LeadDetailsModal = ({ lead, isOpen, onClose }: LeadDetailsModalProp
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="dark max-h-[90vh] overflow-y-auto border-border bg-background sm:max-w-4xl">
+        <DialogContent className="paterhaus max-h-[90vh] overflow-y-auto border-border bg-background sm:max-w-4xl">
           <DialogHeader>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">

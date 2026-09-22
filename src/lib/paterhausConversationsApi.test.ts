@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  createLiveAttachmentDownloadUrl,
   fetchLiveConversationCapabilities,
   fetchLiveConversations,
+  fetchLiveFiles,
   fetchLiveLeadClassifications,
   isLivePaterhausConversationsEmail,
   LiveConversationsError,
@@ -69,12 +71,14 @@ describe("Paterhaus conversations API client", () => {
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(jsonResponse({ accessToken: "token", expiresIn: 900 }))
       .mockResolvedValueOnce(
-        jsonResponse({ manualMessages: true, attachments: false, maxMessageLength: 4096 }),
+        jsonResponse({ manualMessages: true, attachments: false, manualAttachments: false, incomingAttachments: true, maxMessageLength: 4096 }),
       );
 
     await expect(fetchLiveConversationCapabilities("info@paterhaus.com")).resolves.toEqual({
       manualMessages: true,
       attachments: false,
+      manualAttachments: false,
+      incomingAttachments: true,
       maxMessageLength: 4096,
     });
   });
@@ -94,6 +98,30 @@ describe("Paterhaus conversations API client", () => {
       headers: { "Idempotency-Key": "idem-key-1234", Authorization: "Bearer token" },
       body: JSON.stringify({ text: "Manual reply" }),
     });
+  });
+
+  it("lists live files with encoded filters and requests signed downloads", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse({ accessToken: "token", expiresIn: 900 }))
+      .mockResolvedValueOnce(jsonResponse({ items: [], nextCursor: null }))
+      .mockResolvedValueOnce(jsonResponse({ url: "https://signed.example/file", expiresIn: 300 }));
+
+    await fetchLiveFiles("r_tszi@paterhaus.com", {
+      limit: 25,
+      cursor: "50",
+      search: "letter of intent",
+      kind: "word",
+    });
+    await createLiveAttachmentDownloadUrl("r_tszi@paterhaus.com", "91");
+
+    expect(fetchMock.mock.calls[1]?.[0]).toBe(
+      "https://api.example.com/api/paterhaus/files?limit=25&cursor=50&search=letter+of+intent&kind=word",
+    );
+    expect(fetchMock.mock.calls[2]).toEqual([
+      "https://api.example.com/api/paterhaus/attachments/91/download-url",
+      expect.objectContaining({ method: "POST" }),
+    ]);
   });
 
   it("preserves the response status on failures", async () => {

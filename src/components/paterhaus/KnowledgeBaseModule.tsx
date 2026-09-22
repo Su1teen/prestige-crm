@@ -443,7 +443,7 @@ export const KnowledgeBaseModule = () => {
         )}
       </Card>
       <Dialog open={selected !== null} onOpenChange={(open) => !open && setSelectedId(null)}>
-        <DialogContent className="dark max-h-[85vh] overflow-y-auto border-border bg-background">
+        <DialogContent className="paterhaus max-h-[85vh] overflow-y-auto border-border bg-background">
           {selected && (
             <>
               <DialogHeader>
@@ -557,7 +557,7 @@ export const KnowledgeBaseModule = () => {
         </DialogContent>
       </Dialog>
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent className="dark max-h-[85vh] overflow-y-auto border-border bg-background">
+        <DialogContent className="paterhaus max-h-[85vh] overflow-y-auto border-border bg-background">
           <DialogHeader>
             <DialogTitle>{t("knowledge.addTitle")}</DialogTitle>
             <DialogDescription>{t("knowledge.addDescription")}</DialogDescription>

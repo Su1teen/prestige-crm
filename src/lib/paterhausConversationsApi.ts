@@ -19,12 +19,48 @@ export interface LiveConversationMessage {
   text: string;
   timeRaw: string | null;
   sentAt: string | null;
+  attachments: LiveAttachment[];
+}
+
+export type LiveAttachmentKind =
+  | "image"
+  | "audio"
+  | "pdf"
+  | "word"
+  | "spreadsheet"
+  | "text"
+  | "other";
+
+export interface LiveAttachment {
+  id: string;
+  fileName: string;
+  mimeType: string | null;
+  kind: LiveAttachmentKind;
+  sizeBytes: number | null;
+  caption: string | null;
+  summary: string | null;
+  createdAt: string;
+}
+
+export interface LiveFile extends LiveAttachment {
+  chatId: string;
+  historyId: string | null;
+  senderType: string;
+  senderName: string | null;
+  number: string | null;
 }
 
 export interface LiveConversationCapabilities {
   manualMessages: boolean;
   attachments: boolean;
+  manualAttachments: boolean;
+  incomingAttachments: boolean;
   maxMessageLength: number;
+}
+
+export interface LiveFilesResponse {
+  items: LiveFile[];
+  nextCursor: string | null;
 }
 
 /** `pater_classification.lead_type`: the PROPERTY type of the lead, never the contact's role. */
@@ -137,7 +173,7 @@ interface AiUpdateResponse {
 const LIVE_EMAILS = new Set(["info@paterhaus.com", "r_tszi@paterhaus.com"]);
 /** Accounts that may create leads manually; the backend enforces the same list. */
 const MANUAL_LEAD_EMAILS = new Set(["info@paterhaus.com", "r_tszi@paterhaus.com"]);
-/** The reduced workspace: Owner Pipeline, Marketing, Conversations, Calendar only. */
+/** The reduced workspace: Owner Pipeline, Marketing, Conversations, Files and Calendar only. */
 const FOCUSED_WORKSPACE_EMAILS = new Set(["r_tszi@paterhaus.com"]);
 
 let accessToken: string | null = null;
@@ -243,9 +279,8 @@ const authorizedRequest = async <Response>(
   return response.json() as Promise<Response>;
 };
 
-/** Surfaces backend validation/authorization messages (400/403); other errors stay generic. */
+/** Surfaces only the backend's deliberately safe public error message. */
 const readErrorMessage = async (response: globalThis.Response): Promise<string | null> => {
-  if (response.status !== 400 && response.status !== 403) return null;
   try {
     const body = (await response.json()) as { message?: unknown };
     return typeof body.message === "string" && body.message.trim() ? body.message : null;
@@ -294,6 +329,39 @@ export const sendLiveConversationMessage = (
     method: "POST",
     headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
     body: JSON.stringify({ text }),
+  });
+
+export const fetchLiveConversationAttachments = (
+  email: string,
+  conversationId: number,
+  signal?: AbortSignal,
+): Promise<{ items: LiveFile[] }> =>
+  authorizedRequest(email, `/api/paterhaus/conversations/${conversationId}/attachments`, { signal });
+
+export const fetchLiveFiles = (
+  email: string,
+  query: {
+    limit?: number;
+    cursor?: string | null;
+    search?: string;
+    kind?: LiveAttachmentKind;
+  } = {},
+  signal?: AbortSignal,
+): Promise<LiveFilesResponse> => {
+  const params = new URLSearchParams();
+  params.set("limit", String(query.limit ?? 50));
+  if (query.cursor) params.set("cursor", query.cursor);
+  if (query.search?.trim()) params.set("search", query.search.trim());
+  if (query.kind) params.set("kind", query.kind);
+  return authorizedRequest(email, `/api/paterhaus/files?${params.toString()}`, { signal });
+};
+
+export const createLiveAttachmentDownloadUrl = (
+  email: string,
+  attachmentId: string,
+): Promise<{ url: string; expiresIn: number }> =>
+  authorizedRequest(email, `/api/paterhaus/attachments/${attachmentId}/download-url`, {
+    method: "POST",
   });
 
 export const fetchLiveLeadClassifications = (

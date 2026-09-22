@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  createLiveAttachmentDownloadUrl,
   fetchLiveConversationCapabilities,
   fetchLiveConversationMessages,
   fetchLiveConversations,
@@ -27,6 +28,7 @@ vi.mock("@/lib/paterhausConversationsApi", async (importOriginal) => {
     fetchLiveConversationCapabilities: vi.fn(),
     sendLiveConversationMessage: vi.fn(),
     updateLiveConversationAi: vi.fn(),
+    createLiveAttachmentDownloadUrl: vi.fn(),
   };
 });
 
@@ -61,6 +63,7 @@ const detail = (aiEnabled: boolean): LiveConversationDetail => ({
       text: "First incoming message",
       timeRaw: "2026-08-28, 23:50:12.438",
       sentAt: "2026-08-28T18:50:12.438Z",
+      attachments: [],
     },
     {
       id: 24,
@@ -71,6 +74,7 @@ const detail = (aiEnabled: boolean): LiveConversationDetail => ({
       text: "Second outgoing message",
       timeRaw: "2026-08-28, 23:50:14.112",
       sentAt: "2026-08-28T18:50:14.112Z",
+      attachments: [],
     },
   ],
 });
@@ -80,12 +84,15 @@ const detailMock = vi.mocked(fetchLiveConversationMessages);
 const updateMock = vi.mocked(updateLiveConversationAi);
 const capabilitiesMock = vi.mocked(fetchLiveConversationCapabilities);
 const sendMock = vi.mocked(sendLiveConversationMessage);
+const downloadMock = vi.mocked(createLiveAttachmentDownloadUrl);
 
 beforeEach(() => {
   vi.clearAllMocks();
   capabilitiesMock.mockResolvedValue({
     manualMessages: true,
     attachments: false,
+    manualAttachments: false,
+    incomingAttachments: true,
     maxMessageLength: 4096,
   });
 });
@@ -121,6 +128,7 @@ describe("LiveConversationsModule", () => {
       expect(updateMock).toHaveBeenCalledWith("info@paterhaus.com", 6, false),
     );
     expect(await screen.findByRole("button", { name: "Resume AI" })).toBeInTheDocument();
+    expect(screen.getByTestId("live-composer")).toBeInTheDocument();
   });
 
   it("sends aiEnabled true when resuming AI", async () => {
@@ -199,6 +207,8 @@ describe("LiveConversationsModule", () => {
     capabilitiesMock.mockResolvedValue({
       manualMessages: false,
       attachments: false,
+      manualAttachments: false,
+      incomingAttachments: true,
       maxMessageLength: 4096,
     });
 
@@ -217,12 +227,13 @@ describe("LiveConversationsModule", () => {
       message: {
         id: 25,
         chatId: "canonical-chat-id",
-        senderName: "info@paterhaus.com",
+        senderName: "Ruslan",
         senderType: "human",
         direction: "outbound",
         text: "Manager reply text",
         timeRaw: "2026-08-29, 10:00:00.000",
         sentAt: "2026-08-29T05:00:00.000Z",
+        attachments: [],
       },
     });
 
@@ -242,6 +253,50 @@ describe("LiveConversationsModule", () => {
     );
     expect(await screen.findByTestId("live-message-25")).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Reply message" })).toHaveValue("");
+    expect(screen.getByText("Ruslan")).toBeInTheDocument();
+  });
+
+  it("renders a clean attachment card, hides extracted content and requests a signed download URL", async () => {
+    listMock.mockResolvedValue({ items: [conversation(true)], nextCursor: null });
+    detailMock.mockResolvedValue({
+      ...detail(true),
+      messages: [{
+        ...detail(true).messages[0],
+        text: "",
+        attachments: [{
+          id: "91",
+          fileName: "Letter of Intent.docx",
+          mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          kind: "word",
+          sizeBytes: 42905,
+          caption: null,
+          summary: "Letter of intent regarding a pilot implementation.",
+          createdAt: "2026-09-22T10:00:00.000Z",
+        }],
+      }],
+    });
+    downloadMock.mockResolvedValue({ url: "https://signed.example/file", expiresIn: 300 });
+    const open = vi.spyOn(window, "open").mockReturnValue({} as Window);
+
+    render(<LiveConversationsModule email="r_tszi@paterhaus.com" />);
+
+    expect(await screen.findByText("Letter of Intent.docx")).toBeInTheDocument();
+    expect(screen.getByText("Word document · 41.9 KB")).toBeInTheDocument();
+    expect(screen.getByText("Letter of intent regarding a pilot implementation.")).toBeInTheDocument();
+    expect(screen.queryByText(/Extracted document content/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Download" }));
+    await waitFor(() => expect(downloadMock).toHaveBeenCalledWith("r_tszi@paterhaus.com", "91"));
+    expect(open).toHaveBeenCalledWith("https://signed.example/file", "_blank", "noopener,noreferrer");
+  });
+
+  it("can collapse and expand the desktop conversation list", async () => {
+    listMock.mockResolvedValue({ items: [conversation(true)], nextCursor: null });
+    detailMock.mockResolvedValue(detail(true));
+    render(<LiveConversationsModule email="info@paterhaus.com" />);
+
+    const collapse = await screen.findByRole("button", { name: "Collapse conversation list" });
+    fireEvent.click(collapse);
+    expect(screen.getByRole("button", { name: "Expand conversation list" })).toBeInTheDocument();
   });
 
   it("keeps the draft and reports the failure when delivery fails", async () => {
