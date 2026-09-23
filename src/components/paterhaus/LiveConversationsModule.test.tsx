@@ -256,7 +256,7 @@ describe("LiveConversationsModule", () => {
     expect(screen.getByText("Ruslan")).toBeInTheDocument();
   });
 
-  it("renders a clean attachment card, hides extracted content and requests a signed download URL", async () => {
+  it("renders a compact attachment card and starts exactly one signed download", async () => {
     listMock.mockResolvedValue({ items: [conversation(true)], nextCursor: null });
     detailMock.mockResolvedValue({
       ...detail(true),
@@ -270,23 +270,29 @@ describe("LiveConversationsModule", () => {
           kind: "word",
           sizeBytes: 42905,
           caption: null,
-          summary: "Letter of intent regarding a pilot implementation.",
+          summary: '<?xml version="1.0"?><w:document>technical document content</w:document>',
           createdAt: "2026-09-22T10:00:00.000Z",
         }],
       }],
     });
     downloadMock.mockResolvedValue({ url: "https://signed.example/file", expiresIn: 300 });
-    const open = vi.spyOn(window, "open").mockReturnValue({} as Window);
+    const open = vi.spyOn(window, "open");
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
 
     render(<LiveConversationsModule email="r_tszi@paterhaus.com" />);
 
     expect(await screen.findByText("Letter of Intent.docx")).toBeInTheDocument();
-    expect(screen.getByText("Word document · 41.9 KB")).toBeInTheDocument();
-    expect(screen.getByText("Letter of intent regarding a pilot implementation.")).toBeInTheDocument();
-    expect(screen.queryByText(/Extracted document content/)).not.toBeInTheDocument();
+    expect(screen.getByText("DOCX")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Download" })).toBeInTheDocument();
+    expect(screen.queryByText(/technical document content/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Size unavailable")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Download" }));
     await waitFor(() => expect(downloadMock).toHaveBeenCalledWith("r_tszi@paterhaus.com", "91"));
-    expect(open).toHaveBeenCalledWith("https://signed.example/file", "_blank", "noopener,noreferrer");
+    expect(downloadMock).toHaveBeenCalledTimes(1);
+    expect(click).toHaveBeenCalledOnce();
+    expect(open).not.toHaveBeenCalled();
+    click.mockRestore();
+    open.mockRestore();
   });
 
   it("can collapse and expand the desktop conversation list", async () => {

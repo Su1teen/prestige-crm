@@ -36,6 +36,7 @@ import {
   type LiveConversationDetail,
   type LiveConversationMessage,
 } from "@/lib/paterhausConversationsApi";
+import { downloadSignedAttachment } from "@/lib/paterhausAttachmentDownload";
 
 interface LiveConversationsModuleProps {
   email: string;
@@ -74,11 +75,10 @@ const kindLabel: Record<LiveAttachmentKind, string> = {
   other: "File",
 };
 
-const formatSize = (size: number | null): string => {
-  if (size === null) return "Size unavailable";
-  if (size < 1024) return `${size} B`;
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+const attachmentTypeLabel = (fileName: string, kind: LiveAttachmentKind): string => {
+  const baseName = fileName.trim().split(/[\\/]/).pop() ?? "";
+  const extension = baseName.match(/\.([a-z0-9]{1,10})$/i)?.[1];
+  return extension ? extension.toUpperCase() : kindLabel[kind];
 };
 
 const AttachmentIcon = ({ kind }: { kind: LiveAttachmentKind }) => {
@@ -111,8 +111,7 @@ const AttachmentCard = ({ attachment, downloading, onDownload }: {
       </span>
       <div className="min-w-0 flex-1">
         <p className="break-words text-sm font-semibold text-foreground [overflow-wrap:anywhere]">{attachment.fileName}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{kindLabel[attachment.kind]} · {formatSize(attachment.sizeBytes)}</p>
-        {attachment.summary && <p className="mt-2 break-words text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere]">{attachment.summary}</p>}
+        <p className="mt-0.5 text-xs text-muted-foreground">{attachmentTypeLabel(attachment.fileName, attachment.kind)}</p>
       </div>
     </div>
     <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => onDownload(attachment)} disabled={downloading}>
@@ -269,8 +268,7 @@ export const LiveConversationsModule = ({ email }: LiveConversationsModuleProps)
     setDownloadingId(attachment.id);
     try {
       const { url } = await createLiveAttachmentDownloadUrl(email, attachment.id);
-      const opened = window.open(url, "_blank", "noopener,noreferrer");
-      if (!opened) window.location.assign(url);
+      downloadSignedAttachment(url);
     } catch (requestError) {
       toast.error(attachmentDownloadError(requestError));
     } finally {

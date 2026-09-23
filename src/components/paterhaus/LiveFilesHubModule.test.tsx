@@ -49,6 +49,22 @@ describe("LiveFilesHubModule", () => {
     expect(screen.getByText("Sultan")).toBeInTheDocument();
     expect(screen.getByText("77021464983")).toBeInTheDocument();
     expect(screen.getByText("Letter of intent regarding a pilot implementation.")).toBeInTheDocument();
+    expect(screen.getByText("22 Sept 2026, 15:00")).toBeInTheDocument();
+  });
+
+  it("replaces technical parser output while keeping normal file summaries", async () => {
+    filesMock.mockResolvedValue({
+      items: [{
+        ...file,
+        summary: '<?xml version="1.0"?><w:document>technical parser output</w:document>',
+      }],
+      nextCursor: null,
+    });
+
+    render(<LiveFilesHubModule email="r_tszi@paterhaus.com" />);
+
+    expect(await screen.findByText("No summary available")).toBeInTheDocument();
+    expect(screen.queryByText(/technical parser output/)).not.toBeInTheDocument();
   });
 
   it("searches and filters through the backend API", async () => {
@@ -74,15 +90,20 @@ describe("LiveFilesHubModule", () => {
     ));
   });
 
-  it("requests a temporary backend URL before opening a download", async () => {
+  it("requests one temporary backend URL and starts one browser download", async () => {
     downloadMock.mockResolvedValue({ url: "https://signed.example/file", expiresIn: 300 });
-    const open = vi.spyOn(window, "open").mockReturnValue({} as Window);
+    const open = vi.spyOn(window, "open");
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     render(<LiveFilesHubModule email="r_tszi@paterhaus.com" />);
     await screen.findByText("Letter of Intent.docx");
 
     fireEvent.click(screen.getByRole("button", { name: /Download Letter of Intent\.docx/ }));
     await waitFor(() => expect(downloadMock).toHaveBeenCalledWith("r_tszi@paterhaus.com", "91"));
-    expect(open).toHaveBeenCalledWith("https://signed.example/file", "_blank", "noopener,noreferrer");
+    expect(downloadMock).toHaveBeenCalledTimes(1);
+    expect(click).toHaveBeenCalledOnce();
+    expect(open).not.toHaveBeenCalled();
+    click.mockRestore();
+    open.mockRestore();
   });
 
   it("shows a useful error when a signed URL cannot be created", async () => {

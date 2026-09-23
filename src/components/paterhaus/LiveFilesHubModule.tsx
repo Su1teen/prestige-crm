@@ -20,6 +20,7 @@ import {
   type LiveAttachmentKind,
   type LiveFile,
 } from "@/lib/paterhausConversationsApi";
+import { downloadSignedAttachment } from "@/lib/paterhausAttachmentDownload";
 
 interface LiveFilesHubModuleProps {
   email: string;
@@ -67,7 +68,7 @@ const formatReceived = (value: string): string => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Dubai",
+    timeZone: "Asia/Almaty",
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -75,6 +76,21 @@ const formatReceived = (value: string): string => {
     minute: "2-digit",
   }).format(date);
 };
+
+const hasTechnicalSummary = (summary: string): boolean => {
+  const normalized = summary.trim().toLowerCase();
+  return [
+    "<?xml",
+    "<w:document",
+    "xmlns:",
+    "schemas.microsoft.com",
+    "wordprocessingml",
+    '{"data":"<?xml',
+  ].some((marker) => normalized.includes(marker));
+};
+
+const displaySummary = (summary: string | null): string =>
+  !summary || hasTechnicalSummary(summary) ? "No summary available" : summary;
 
 const downloadError = (error: unknown): string => {
   if (error instanceof LiveConversationsError) {
@@ -140,8 +156,7 @@ export const LiveFilesHubModule = ({ email }: LiveFilesHubModuleProps) => {
     setDownloadingId(file.id);
     try {
       const { url } = await createLiveAttachmentDownloadUrl(email, file.id);
-      const opened = window.open(url, "_blank", "noopener,noreferrer");
-      if (!opened) window.location.assign(url);
+      downloadSignedAttachment(url);
     } catch (requestError) {
       toast.error(downloadError(requestError));
     } finally {
@@ -229,7 +244,7 @@ export const LiveFilesHubModule = ({ email }: LiveFilesHubModuleProps) => {
                   <p className="break-words text-sm text-foreground [overflow-wrap:anywhere]"><span className="mr-2 text-xs text-muted-foreground lg:hidden">From</span>{file.senderName ?? "Unknown contact"}</p>
                   <p className="break-words text-sm text-muted-foreground [overflow-wrap:anywhere]"><span className="mr-2 text-xs lg:hidden">Contact</span>{file.number ?? file.chatId}</p>
                   <time className="text-xs text-muted-foreground">{formatReceived(file.createdAt)}</time>
-                  <p className="break-words text-sm leading-5 text-muted-foreground [overflow-wrap:anywhere]">{file.summary ?? "No summary available"}</p>
+                  <p className="break-words text-sm leading-5 text-muted-foreground [overflow-wrap:anywhere]">{displaySummary(file.summary)}</p>
                   <Button type="button" variant="outline" size="sm" onClick={() => void download(file)} disabled={downloadingId === file.id}>
                     {downloadingId === file.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                     <span className="lg:sr-only">Download {file.fileName}</span>
