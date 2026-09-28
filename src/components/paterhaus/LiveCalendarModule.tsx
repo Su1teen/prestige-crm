@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Loader2, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -17,6 +17,7 @@ import {
   createLiveCalendarEvent,
   deleteLiveCalendarEvent,
   fetchLiveCalendarEvents,
+  updateLiveCalendarEvent,
   type CalendarEventKind,
   type LiveCalendarEvent,
 } from "@/lib/paterhausConversationsApi";
@@ -150,18 +151,27 @@ const CreateEventDialog = ({
   email,
   open,
   initialDate,
+  editingEvent,
   onOpenChange,
   onCreated,
 }: {
   email: string;
   open: boolean;
   initialDate: string;
+  editingEvent?: LiveCalendarEvent | null;
   onOpenChange: (open: boolean) => void;
   onCreated: (event: LiveCalendarEvent) => void;
 }) => {
   const emptyForm = useCallback(
-    (): FormState => ({ title: "", description: "", eventDate: initialDate, startTime: "", endTime: "", kind: "operation" }),
-    [initialDate],
+    (): FormState => ({
+      title: editingEvent?.title ?? "",
+      description: editingEvent?.description ?? "",
+      eventDate: editingEvent?.eventDate ?? initialDate,
+      startTime: editingEvent?.startTime ?? "",
+      endTime: editingEvent?.endTime ?? "",
+      kind: editingEvent?.kind ?? "operation",
+    }),
+    [initialDate, editingEvent],
   );
   const [form, setForm] = useState<FormState>(emptyForm);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -194,15 +204,18 @@ const CreateEventDialog = ({
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const created = await createLiveCalendarEvent(email, {
+      const input = {
         title: form.title.trim(),
         description: form.description.trim() || null,
         eventDate: form.eventDate,
         startTime: form.startTime || null,
         endTime: form.endTime || null,
         kind: form.kind,
-      });
-      onCreated(created);
+      };
+      const saved = await (editingEvent
+        ? updateLiveCalendarEvent(email, editingEvent.id, input)
+        : createLiveCalendarEvent(email, input));
+      onCreated(saved);
       onOpenChange(false);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Event could not be saved right now.");
@@ -215,7 +228,7 @@ const CreateEventDialog = ({
     <Dialog open={open} onOpenChange={close}>
       <DialogContent className="paterhaus sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>New calendar event</DialogTitle>
+          <DialogTitle>{editingEvent ? "Edit calendar event" : "New calendar event"}</DialogTitle>
           <DialogDescription>Dates and times are in Dubai time (Asia/Dubai) and are saved for everyone.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} noValidate className="space-y-4" data-testid="create-event-form">
@@ -320,6 +333,8 @@ export const LiveCalendarModule = ({ email }: { email: string }) => {
   const [notice, setNotice] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<string>(today);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<LiveCalendarEvent | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<LiveCalendarEvent | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
@@ -374,6 +389,7 @@ export const LiveCalendarModule = ({ email }: { email: string }) => {
     try {
       await deleteLiveCalendarEvent(email, event.id);
       setItems((current) => current.filter((item) => item.id !== event.id));
+      setDeleteTarget(null);
       setNotice(`Event "${event.title}" deleted.`);
     } catch {
       setError("Event could not be deleted right now.");
@@ -523,16 +539,21 @@ export const LiveCalendarModule = ({ email }: { email: string }) => {
                       </p>
                       {event.description && <p className="mt-1 text-xs opacity-80">{event.description}</p>}
                     </div>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7 flex-shrink-0"
-                      aria-label={`Delete ${event.title}`}
-                      disabled={deletingId === event.id}
-                      onClick={() => void handleDelete(event)}
-                    >
-                      {deletingId === event.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                    </Button>
+                    <div className="flex flex-shrink-0 gap-1">
+                      <Button size="icon" variant="ghost" className="h-7 w-7" aria-label={`Edit ${event.title}`} onClick={() => { setEditingEvent(event); setCreateOpen(true); }}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7"
+                        aria-label={`Delete ${event.title}`}
+                        disabled={deletingId === event.id}
+                        onClick={() => setDeleteTarget(event)}
+                      >
+                        {deletingId === event.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))
@@ -544,9 +565,24 @@ export const LiveCalendarModule = ({ email }: { email: string }) => {
         email={email}
         open={createOpen}
         initialDate={selectedDay}
-        onOpenChange={setCreateOpen}
+        editingEvent={editingEvent}
+        onOpenChange={(open) => { setCreateOpen(open); if (!open) setEditingEvent(null); }}
         onCreated={handleCreated}
       />
+      <Dialog open={Boolean(deleteTarget)} onOpenChange={(open) => { if (!open && !deletingId) setDeleteTarget(null); }}>
+        <DialogContent className="paterhaus sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete calendar event?</DialogTitle>
+            <DialogDescription>This will permanently delete {deleteTarget?.title} for everyone.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteTarget(null)} disabled={Boolean(deletingId)}>Cancel</Button>
+            <Button variant="destructive" disabled={Boolean(deletingId)} onClick={() => { if (deleteTarget) void handleDelete(deleteTarget); }}>
+              {deletingId ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Delete event
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

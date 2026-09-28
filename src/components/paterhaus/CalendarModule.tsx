@@ -6,7 +6,6 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { usePaterhausWorkspace } from "@/contexts/PaterhausWorkspaceContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { isFocusedPaterhausWorkspaceEmail } from "@/lib/paterhausConversationsApi";
 import { LiveCalendarModule } from "./LiveCalendarModule";
 import { PATERHAUS_TODAY } from "@/data/paterhaus";
 import type { Task } from "@/types/paterhaus";
@@ -431,10 +430,10 @@ const DemoCalendarModule = ({ onPropertySelect }: { onPropertySelect?: (property
   );
 };
 
-/** Focused workspace accounts get the persistent backend calendar; everyone else keeps the demo view. */
+/** Every authenticated Paterhaus account shares the persistent backend calendar; other workspaces keep the demo view. */
 export const CalendarModule = ({ onPropertySelect }: { onPropertySelect?: (propertyId: string) => void }) => {
   const { user } = useAuth();
-  return isFocusedPaterhausWorkspaceEmail(user?.email) ? (
+  return user?.workspace === "paterhaus" ? (
     <LiveCalendarModule email={user?.email ?? ""} />
   ) : (
     <DemoCalendarModule onPropertySelect={onPropertySelect} />

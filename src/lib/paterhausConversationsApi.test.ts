@@ -8,7 +8,9 @@ import {
   isLivePaterhausConversationsEmail,
   LiveConversationsError,
   resetPaterhausConversationAccess,
+  setPaterhausSession,
   sendLiveConversationMessage,
+  updateLiveCalendarEvent,
 } from "./paterhausConversationsApi";
 
 const jsonResponse = (body: unknown, status = 200): Response =>
@@ -21,9 +23,11 @@ describe("Paterhaus conversations API client", () => {
   beforeEach(() => {
     vi.stubEnv("VITE_PATERHAUS_API_BASE_URL", "https://api.example.com/");
     resetPaterhausConversationAccess();
+    setPaterhausSession("test-session");
   });
 
   afterEach(() => {
+    setPaterhausSession(null);
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
@@ -138,6 +142,21 @@ describe("Paterhaus conversations API client", () => {
 
     expect(error).toBeInstanceOf(LiveConversationsError);
     expect((error as LiveConversationsError).status).toBe(409);
+  });
+
+  it("updates shared calendar events via authenticated PATCH", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(jsonResponse({ accessToken: "token", expiresIn: 900 }))
+      .mockResolvedValueOnce(jsonResponse({ id: "event-1", title: "Updated" }));
+    await updateLiveCalendarEvent("info@paterhaus.com", "event-1", { title: "Updated" });
+    expect(fetchMock.mock.calls[1]).toEqual([
+      "https://api.example.com/api/paterhaus/calendar/events/event-1",
+      expect.objectContaining({
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer token" },
+        body: JSON.stringify({ title: "Updated" }),
+      }),
+    ]);
   });
 
   it("requests lead classifications from the protected endpoint", async () => {

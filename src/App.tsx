@@ -23,7 +23,7 @@ const isSteppeWorkspace = (workspace: WorkspaceId | null): boolean =>
   workspace !== null && STEPPE_WORKSPACES.includes(workspace);
 
 const AppRoutes = () => {
-  const { isAuthenticated, logout, user } = useAuth();
+  const { authReady, isAuthenticated, logout, user } = useAuth();
   const workspace = user?.workspace ?? null;
   const homePath = workspace ? workspacePath(workspace) : "/";
 
@@ -40,6 +40,8 @@ const AppRoutes = () => {
     ) : (
       <Navigate to={isAuthenticated ? homePath : "/"} replace />
     );
+
+  if (!authReady) return <div role="status">Restoring session…</div>;
 
   return (
     <Routes>

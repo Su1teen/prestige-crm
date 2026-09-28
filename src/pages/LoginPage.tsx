@@ -15,17 +15,20 @@ const LoginPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
     setSubmitting(true);
-    const user = login(email, password);
-    setSubmitting(false);
-    if (!user) {
-      setError(t("login.error"));
-      return;
+    try {
+      const user = await login(email, password);
+      if (!user) {
+        setError(t("login.error"));
+        return;
+      }
+      navigate(workspacePath(user.workspace as WorkspaceId), { replace: true });
+    } finally {
+      setSubmitting(false);
     }
-    navigate(workspacePath(user.workspace as WorkspaceId), { replace: true });
   };
 
   return (

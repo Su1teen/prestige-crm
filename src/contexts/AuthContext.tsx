@@ -1,4 +1,5 @@
-import { createContext, useCallback, type ReactNode, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useEffect, useRef, type ReactNode, useContext, useMemo, useState } from "react";
+import { fetchPaterhausSessionUser, getPaterhausSession, loginPaterhaus, resetPaterhausConversationAccess, setPaterhausSession } from "@/lib/paterhausConversationsApi";
 
 export type WorkspaceId = "cosmonaut" | "b2b" | "paterhaus" | "steppe";
 
@@ -15,7 +16,7 @@ interface CredentialEntry {
   role: UserRole;
   /** When false, any non-empty password is accepted. */
   passwordRequired: boolean;
-  /** Exact password match required when `passwordRequired` is true. */
+  /** Paterhaus password verification is delegated to the backend. */
   password?: string;
 }
 
@@ -25,25 +26,16 @@ const CREDENTIALS: Record<string, CredentialEntry> = {
   // B2B Sales
   "admin@sales.com": { workspace: "b2b", role: "admin", passwordRequired: false },
   // Paterhaus Admin
-  "info@paterhaus.com": {
-    workspace: "paterhaus",
-    role: "admin",
-    passwordRequired: true,
-    password: "admin2026_pater",
-  },
+  "info@paterhaus.com": { workspace: "paterhaus", role: "admin", passwordRequired: true },
   // Paterhaus Marketing
-  "r_tszi@paterhaus.com": {
-    workspace: "paterhaus",
-    role: "marketing",
-    passwordRequired: true,
-    password: "Paterhaus_2026",
-  },
+  "r_tszi@paterhaus.com": { workspace: "paterhaus", role: "marketing", passwordRequired: true },
 };
 
 interface AuthContextValue {
   user: AuthUser | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => AuthUser | null;
+  login: (email: string, password: string) => Promise<AuthUser | null>;
+  authReady: boolean;
   logout: () => void;
 }
 
@@ -67,7 +59,7 @@ const getStoredUser = (): AuthUser | null => {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<AuthUser> & { workspace?: string; role?: string };
     if (!parsed.email || !parsed.workspace || !parsed.role) return null;
-    if (!isWorkspace(parsed.workspace) || !isRole(parsed.role)) return null;
+    if (!isWorkspace(parsed.workspace) || !isRole(parsed.role) || parsed.workspace === "paterhaus") return null;
     return { email: parsed.email, workspace: parsed.workspace, role: parsed.role };
   } catch {
     return null;
@@ -80,9 +72,28 @@ export const isPaterhausWorkspace = (workspace: WorkspaceId | null): boolean => 
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<AuthUser | null>(getStoredUser);
+  const [authReady, setAuthReady] = useState(!getPaterhausSession());
+  const authVersion = useRef(0);
+
+  useEffect(() => {
+    if (!getPaterhausSession()) return;
+    const version = ++authVersion.current;
+    fetchPaterhausSessionUser()
+      .then((account) => {
+        if (version === authVersion.current) setUser({
+          email: account.email, role: account.role === "ADMIN" ? "admin" : "marketing", workspace: "paterhaus",
+        });
+      })
+      .catch(() => {
+        if (version === authVersion.current) setPaterhausSession(null);
+      })
+      .finally(() => { if (version === authVersion.current) setAuthReady(true); });
+  }, []);
 
   const persist = useCallback((nextUser: AuthUser | null) => {
-    if (nextUser) {
+    if (nextUser?.workspace === "paterhaus") {
+      localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+    } else if (nextUser) {
       localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(nextUser));
     } else {
       localStorage.removeItem(AUTH_USER_STORAGE_KEY);
@@ -91,28 +102,47 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   const login = useCallback(
-    (email: string, password: string): AuthUser | null => {
+    async (email: string, password: string): Promise<AuthUser | null> => {
       const normalizedEmail = email.trim().toLowerCase();
-      const entry = CREDENTIALS[normalizedEmail];
-      if (!entry) return null;
       if (!password.trim()) return null;
-      if (entry.passwordRequired && entry.password !== password) return null;
-      const nextUser: AuthUser = {
-        email: normalizedEmail,
-        workspace: entry.workspace,
-        role: entry.role,
-      };
+      if (normalizedEmail.endsWith("@paterhaus.com")) {
+        try {
+          const result = await loginPaterhaus(normalizedEmail, password);
+          authVersion.current++;
+          setPaterhausSession(result.accessToken);
+          resetPaterhausConversationAccess();
+          const nextUser: AuthUser = {
+            email: result.user.email,
+            workspace: "paterhaus",
+            role: result.user.role === "ADMIN" ? "admin" : "marketing",
+          };
+          persist(nextUser);
+          setAuthReady(true);
+          return nextUser;
+        } catch {
+          return null;
+        }
+      }
+      const entry = CREDENTIALS[normalizedEmail];
+      if (!entry || entry.workspace === "paterhaus") return null;
+      const nextUser: AuthUser = { email: normalizedEmail, workspace: entry.workspace, role: entry.role };
       persist(nextUser);
       return nextUser;
     },
     [persist],
   );
 
-  const logout = useCallback(() => persist(null), [persist]);
+  const logout = useCallback(() => {
+    authVersion.current++;
+    setPaterhausSession(null);
+    resetPaterhausConversationAccess();
+    setAuthReady(true);
+    persist(null);
+  }, [persist]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, isAuthenticated: user !== null, login, logout }),
-    [user, login, logout],
+    () => ({ user, authReady, isAuthenticated: user !== null, login, logout }),
+    [user, authReady, login, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

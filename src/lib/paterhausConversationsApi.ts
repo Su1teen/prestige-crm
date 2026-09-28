@@ -176,6 +176,37 @@ const MANUAL_LEAD_EMAILS = new Set(["info@paterhaus.com", "r_tszi@paterhaus.com"
 /** The reduced workspace: Owner Pipeline, Marketing, Conversations, Files and Calendar only. */
 const FOCUSED_WORKSPACE_EMAILS = new Set(["r_tszi@paterhaus.com"]);
 
+const SESSION_KEY = "paterhaus:session";
+
+export const getPaterhausSession = (): string | null => sessionStorage.getItem(SESSION_KEY);
+export const setPaterhausSession = (token: string | null): void => {
+  if (token) sessionStorage.setItem(SESSION_KEY, token);
+  else sessionStorage.removeItem(SESSION_KEY);
+};
+
+export const loginPaterhaus = async (email: string, password: string): Promise<{
+  accessToken: string;
+  user: { email: string; role: "ADMIN" | "MARKETING" };
+}> => {
+  const response = await fetch(`${apiBaseUrl()}/api/paterhaus/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!response.ok) throw new LiveConversationsError("Invalid credentials or login unavailable.", response.status);
+  return response.json();
+};
+
+export const fetchPaterhausSessionUser = async (): Promise<{ email: string; role: "ADMIN" | "MARKETING" }> => {
+  const token = getPaterhausSession();
+  if (!token) throw new LiveConversationsError("Session expired.", 401);
+  const response = await fetch(`${apiBaseUrl()}/api/paterhaus/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new LiveConversationsError("Session expired.", response.status);
+  return response.json();
+};
+
 let accessToken: string | null = null;
 let accessTokenEmail: string | null = null;
 let accessTokenExpiresAt = 0;
@@ -226,10 +257,11 @@ const getAccessToken = async (email: string, signal?: AbortSignal): Promise<stri
     return accessToken;
   }
 
+  const session = getPaterhausSession();
+  if (!session) throw new LiveConversationsError("Paterhaus session expired.", 401);
   const response = await fetch(`${apiBaseUrl()}/api/paterhaus/conversations/access-token`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: normalizedEmail }),
+    headers: { Authorization: `Bearer ${session}` },
     signal,
   });
   if (!response.ok) {
@@ -395,6 +427,17 @@ export const createLiveCalendarEvent = (
 ): Promise<LiveCalendarEvent> =>
   authorizedRequest(email, "/api/paterhaus/calendar/events", {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+
+export const updateLiveCalendarEvent = (
+  email: string,
+  eventId: string,
+  input: Partial<LiveCalendarEventInput>,
+): Promise<LiveCalendarEvent> =>
+  authorizedRequest(email, `/api/paterhaus/calendar/events/${eventId}`, {
+    method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });

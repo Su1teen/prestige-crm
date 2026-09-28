@@ -1,13 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Bell,
-  BookOpenText,
   BriefcaseBusiness,
   CalendarDays,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  CircleDollarSign,
   FolderOpen,
   Home,
   LayoutDashboard,
@@ -16,9 +13,6 @@ import {
   Menu,
   MessageSquare,
   Plus,
-  Search,
-  Settings,
-  ShieldCheck,
   UsersRound,
   Wrench,
   type LucideIcon,
@@ -27,45 +21,25 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { usePaterhausWorkspace, PaterhausWorkspaceProvider } from "@/contexts/PaterhausWorkspaceContext";
 import { useAuth, type UserRole } from "@/contexts/AuthContext";
 import {
   canCreateManualPaterhausLead,
   isFocusedPaterhausWorkspaceEmail,
 } from "@/lib/paterhausConversationsApi";
-import { PortfolioOverview } from "@/components/paterhaus/PortfolioOverview";
-import { PropertiesModule } from "@/components/paterhaus/PropertiesModule";
+import { ProductionOverview } from "@/components/paterhaus/ProductionOverview";
+import { ProductionPropertiesModule, ProductionContractorsModule, ProductionGuestsStaysModule } from "@/components/paterhaus/ProductionOperationsRecords";
 import { OwnerPipelineModule } from "@/components/paterhaus/OwnerPipelineModule";
-import { MarketingModule } from "@/components/paterhaus/MarketingModule";
-import { OperationsBoardModule } from "@/components/paterhaus/OperationsBoardModule";
+import { ProductionMarketingModule } from "@/components/paterhaus/ProductionMarketingModule";
+import { ProductionProjectsModule } from "@/components/paterhaus/ProductionProjectsModule";
 import { CalendarModule } from "@/components/paterhaus/CalendarModule";
-import { GuestsStaysModule } from "@/components/paterhaus/GuestsStaysModule";
 import { ConversationsModule } from "@/components/paterhaus/ConversationsModule";
-import { FinanceModule } from "@/components/paterhaus/FinanceModule";
-import { ComplianceModule } from "@/components/paterhaus/ComplianceModule";
-import { TeamVendorsModule } from "@/components/paterhaus/TeamVendorsModule";
-import { NotificationsModule } from "@/components/paterhaus/NotificationsModule";
-import { SettingsModule } from "@/components/paterhaus/SettingsModule";
-import { FilesHubModule } from "@/components/paterhaus/FilesHubModule";
-import { LiveFilesHubModule } from "@/components/paterhaus/LiveFilesHubModule";
-import { KnowledgeBaseModule } from "@/components/paterhaus/KnowledgeBaseModule";
-import { CreateDialog } from "@/components/paterhaus/CreateDialog";
-import { Card } from "@/components/ui/card";
+import { ProductionFilesModule } from "@/components/paterhaus/ProductionFilesModule";
 import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { CreateLeadProvider, useCreateLead } from "@/contexts/CreateLeadContext";
@@ -100,15 +74,8 @@ interface NavGroup {
 }
 
 /** Sections visible to the Marketing role (restricted workspace). */
-const MARKETING_SECTIONS: ReadonlySet<PaterhausSection> = new Set([
-  "overview",
-  "pipeline",
-  "marketing",
-  "conversations",
-  "calendar",
-  "knowledge",
-  "notifications",
-  "settings",
+const ADMIN_SECTIONS: ReadonlySet<PaterhausSection> = new Set([
+  "overview", "pipeline", "marketing", "conversations", "operations", "properties", "team", "stays", "calendar", "files",
 ]);
 
 /**
@@ -130,11 +97,11 @@ const getNavProfile = (role: UserRole, email: string | null | undefined): NavPro
   isFocusedPaterhausWorkspaceEmail(email) ? "focused" : role;
 
 const defaultSectionFor = (profile: NavProfile): PaterhausSection =>
-  profile === "focused" ? "pipeline" : "overview";
+  profile === "focused" || profile === "marketing" ? "pipeline" : "overview";
 
 const isSectionAllowed = (section: PaterhausSection, profile: NavProfile): boolean => {
-  if (profile === "focused") return FOCUSED_SECTIONS.has(section);
-  return profile === "admin" || MARKETING_SECTIONS.has(section);
+  if (profile === "focused" || profile === "marketing") return FOCUSED_SECTIONS.has(section);
+  return ADMIN_SECTIONS.has(section);
 };
 
 /** Full nav groups for Admin. Marketing gets a filtered subset. */
@@ -157,75 +124,12 @@ const adminNavGroups: NavGroup[] = [
     id: "operations",
     label: "nav.operations",
     items: [
-      { id: "properties", label: "nav.properties", icon: Home },
       { id: "operations", label: "nav.operations_board", icon: BriefcaseBusiness },
+      { id: "properties", label: "nav.properties", icon: Home },
+      { id: "team", label: "nav.team_vendors", icon: Wrench },
+      { id: "stays", label: "nav.guests_stays", icon: UsersRound },
       { id: "calendar", label: "nav.calendar", icon: CalendarDays },
       { id: "files", label: "nav.files_documents", icon: FolderOpen },
-      { id: "team", label: "nav.team_vendors", icon: Wrench },
-    ],
-  },
-  {
-    id: "intelligence",
-    label: "nav.intelligence",
-    items: [
-      { id: "knowledge", label: "nav.knowledge_base", icon: BookOpenText },
-    ],
-  },
-  {
-    id: "system",
-    label: "nav.system",
-    items: [
-      { id: "notifications", label: "nav.notifications", icon: Bell },
-      { id: "settings", label: "nav.settings", icon: Settings },
-    ],
-  },
-  {
-    id: "more",
-    label: "nav.more",
-    items: [
-      { id: "stays", label: "nav.guests_stays", icon: UsersRound },
-      { id: "finance", label: "nav.finance", icon: CircleDollarSign },
-      { id: "compliance", label: "nav.compliance", icon: ShieldCheck },
-    ],
-  },
-];
-
-/** Compact nav groups for Marketing role. */
-const marketingNavGroups: NavGroup[] = [
-  {
-    id: "overview",
-    label: "nav.overview",
-    items: [{ id: "overview", label: "nav.portfolio", icon: LayoutDashboard }],
-  },
-  {
-    id: "sales",
-    label: "nav.sales_marketing",
-    items: [
-      { id: "pipeline", label: "nav.owner_pipeline", icon: UsersRound },
-      { id: "marketing", label: "nav.marketing", icon: Megaphone },
-      { id: "conversations", label: "nav.conversations", icon: MessageSquare },
-    ],
-  },
-  {
-    id: "operations",
-    label: "nav.operations",
-    items: [
-      { id: "calendar", label: "nav.calendar", icon: CalendarDays },
-    ],
-  },
-  {
-    id: "intelligence",
-    label: "nav.intelligence",
-    items: [
-      { id: "knowledge", label: "nav.knowledge_base", icon: BookOpenText },
-    ],
-  },
-  {
-    id: "system",
-    label: "nav.system",
-    items: [
-      { id: "notifications", label: "nav.notifications", icon: Bell },
-      { id: "settings", label: "nav.settings", icon: Settings },
     ],
   },
 ];
@@ -252,8 +156,7 @@ const focusedNavGroups: NavGroup[] = [
 ];
 
 const getNavGroups = (profile: NavProfile): NavGroup[] => {
-  if (profile === "focused") return focusedNavGroups;
-  return profile === "marketing" ? marketingNavGroups : adminNavGroups;
+  return profile === "focused" || profile === "marketing" ? focusedNavGroups : adminNavGroups;
 };
 
 const allNavItems = adminNavGroups.flatMap((group) => group.items);
@@ -369,11 +272,10 @@ const WorkspaceSidebar = ({
   onCollapse: () => void;
   role: NavProfile;
 }) => {
-  const { tasks } = usePaterhausWorkspace();
   const { t } = useLanguage();
   const navGroups = getNavGroups(role);
   const visibleItems = navGroups.flatMap((group) => group.items);
-  const urgent = tasks.filter((task) => task.priority === "Urgent" && task.status !== "Completed").length;
+  const urgent = 0;
   const workspaceTitle = getWorkspaceTitle(role);
   return (
     <motion.aside
@@ -383,7 +285,7 @@ const WorkspaceSidebar = ({
     >
       <div className="flex h-16 items-center gap-3 border-b border-border px-5">
         <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-primary/40 bg-primary/10 text-sm font-semibold text-primary">PH</div>
-        {!collapsed && <div className="min-w-0"><p className="font-semibold text-foreground">{workspaceTitle}</p><p className="truncate text-xs text-muted-foreground">{t("ops.property_management")}</p></div>}
+        {!collapsed && <div className="min-w-0"><p className="font-semibold text-foreground">{workspaceTitle}</p><p className="truncate text-xs text-muted-foreground">Operations · Snagging · Staging</p></div>}
       </div>
       <div className="flex-1 overflow-y-auto px-3 py-4">
         {collapsed ? (
@@ -418,94 +320,6 @@ const WorkspaceSidebar = ({
   );
 };
 
-const GlobalSearch = ({
-  open,
-  onOpenChange,
-  onNavigate,
-  role,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onNavigate: (section: PaterhausSection, propertyId?: string) => void;
-  role: NavProfile;
-}) => {
-  const workspace = usePaterhausWorkspace();
-  const { t } = useLanguage();
-  const go = (section: PaterhausSection, propertyId?: string) => {
-    if (!isSectionAllowed(section, role)) return;
-    onOpenChange(false);
-    onNavigate(section, propertyId);
-  };
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="paterhaus overflow-hidden border-border bg-background p-0">
-        <DialogTitle className="sr-only">{t("shell.search")}</DialogTitle>
-        <Command className="bg-background">
-          <CommandInput placeholder={t("shell.searchPlaceholder")} />
-          <CommandList className="max-h-[420px]">
-            <CommandEmpty>{t("shell.noResults")}</CommandEmpty>
-            <CommandGroup heading={t("search.ownersLeads")}>
-              {workspace.opportunities.slice(0, 6).map((lead) => (
-                <CommandItem key={lead.id} value={`lead ${lead.ownerName} ${lead.prospectProperty}`} onSelect={() => go("pipeline")}>
-                  <UsersRound className="h-4 w-4" /> {lead.ownerName} · {lead.stage}
-                </CommandItem>
-              ))}
-              {workspace.owners.slice(0, 4).map((owner) => (
-                <CommandItem key={owner.id} value={`owner ${owner.name}`} onSelect={() => go("pipeline")}>
-                  <UsersRound className="h-4 w-4" /> {owner.name} · {t("pipeline.owner")}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-            {isSectionAllowed("properties", role) && (
-              <CommandGroup heading={t("search.properties")}>
-                {workspace.properties.map((property) => (
-                  <CommandItem key={property.id} value={`property ${property.name} ${property.area}`} onSelect={() => go("properties", property.id)}>
-                    <Home className="h-4 w-4" /> {property.name}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
-            {isSectionAllowed("stays", role) && (
-              <CommandGroup heading={t("search.guests")}>
-                {workspace.guests.slice(0, 5).map((guest) => (
-                  <CommandItem key={guest.id} value={`guest ${guest.name}`} onSelect={() => go("stays")}>
-                    <UsersRound className="h-4 w-4" /> {guest.name}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
-            {isSectionAllowed("files", role) && (
-              <CommandGroup heading={t("search.files")}>
-                {workspace.files.slice(0, 6).map((file) => (
-                  <CommandItem key={file.id} value={`file ${file.name}`} onSelect={() => go("files")}>
-                    <FolderOpen className="h-4 w-4" /> {file.name}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
-            {isSectionAllowed("operations", role) && (
-              <CommandGroup heading={t("search.tasks")}>
-                {workspace.tasks.filter((task) => task.status !== "Completed").slice(0, 6).map((task) => (
-                  <CommandItem key={task.id} value={`task ${task.title}`} onSelect={() => go("operations")}>
-                    <BriefcaseBusiness className="h-4 w-4" /> {task.title}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
-            <CommandGroup heading={t("search.knowledge")}>
-              {workspace.knowledgeItems.slice(0, 6).map((item) => (
-                <CommandItem key={item.id} value={`knowledge ${item.title} ${item.tags.join(" ")}`} onSelect={() => go("knowledge")}>
-                  <BookOpenText className="h-4 w-4" /> {item.title}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
 const PaterhausWorkspaceInner = ({ onLogout }: { onLogout: () => void }) => {
   const { user } = useAuth();
   const userRole: UserRole = user?.role ?? "admin";
@@ -514,56 +328,23 @@ const PaterhausWorkspaceInner = ({ onLogout }: { onLogout: () => void }) => {
   const [activeSection, setActiveSection] = useState<PaterhausSection>(() => defaultSectionFor(role));
   const [collapsed, setCollapsed] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [createKind, setCreateKind] = useState<"knowledge" | "ownerNote">("knowledge");
-  const [targetPropertyId, setTargetPropertyId] = useState<string>();
-  const [targetTaskId, setTargetTaskId] = useState<string>();
-  const [targetConversationId, setTargetConversationId] = useState<string>();
-  const { notifications, tasks } = usePaterhausWorkspace();
   const { t } = useLanguage();
   const { openCreateLead } = useCreateLead();
-  const unread = notifications.filter((notification) => !notification.read).length;
-  const urgent = tasks.filter((task) => task.priority === "Urgent" && task.status !== "Completed").length;
+  const urgent = 0;
   const activeGroup = groupForSection(activeSection, role);
   const userIdentity = getUserIdentity(role, user?.email ?? "");
-  const openProperty = (propertyId: string) => { if (!isSectionAllowed("properties", role)) return; setTargetPropertyId(propertyId); setActiveSection("properties"); setNotificationsOpen(false); };
-  const openConversation = (conversationId: string) => { setTargetConversationId(conversationId); setActiveSection("conversations"); setNotificationsOpen(false); };
-  const openTask = (taskId: string) => { if (!isSectionAllowed("operations", role)) return; setTargetTaskId(taskId); setActiveSection("operations"); setNotificationsOpen(false); };
+  const openProperty = (_propertyId: string) => { if (isSectionAllowed("properties", role)) setActiveSection("properties"); };
   const changeSection = (section: PaterhausSection) => {
     if (!isSectionAllowed(section, role)) return;
     setActiveSection(section);
     setMobileNavOpen(false);
   };
 
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        setSearchOpen((current) => !current);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
-
   const quickCreate = (target: PaterhausSection, message: string) => {
     if (!isSectionAllowed(target, role)) return;
-    if (target === "knowledge") {
-      setCreateKind("knowledge");
-      setCreateOpen(true);
-      return;
-    }
-    if (target === "pipeline") {
-      if (canCreateLiveLead) {
-        // Live accounts reuse the shared Create Lead modal from anywhere in the workspace.
-        openCreateLead();
-        return;
-      }
-      // "Log Owner Note" navigates to pipeline and opens the create dialog
-      setCreateKind("ownerNote");
-      setCreateOpen(true);
+    if (target === "pipeline" && canCreateLiveLead) {
+      // Live accounts reuse the shared Create Lead modal from anywhere in the workspace.
+      openCreateLead();
       return;
     }
     setActiveSection(target);
@@ -572,28 +353,17 @@ const PaterhausWorkspaceInner = ({ onLogout }: { onLogout: () => void }) => {
 
   const renderSection = () => {
     if (!isSectionAllowed(activeSection, role)) return <OwnerPipelineModule />;
-    if (activeSection === "overview") return <PortfolioOverview onNavigate={(section, propertyId) => {
-      if (isPaterhausSection(section) && isSectionAllowed(section, role)) setActiveSection(section);
-      setTargetPropertyId(propertyId);
-    }} />;
-    if (activeSection === "properties") return <PropertiesModule initialPropertyId={targetPropertyId} />;
+    if (activeSection === "overview") return <ProductionOverview />;
+    if (activeSection === "properties") return <ProductionPropertiesModule />;
     if (activeSection === "pipeline") return <OwnerPipelineModule />;
-    if (activeSection === "marketing") return <MarketingModule />;
-    if (activeSection === "operations") return <OperationsBoardModule onPropertySelect={openProperty} initialTaskId={targetTaskId} />;
+    if (activeSection === "marketing") return <ProductionMarketingModule />;
+    if (activeSection === "operations") return <ProductionProjectsModule />;
     if (activeSection === "calendar") return <CalendarModule onPropertySelect={openProperty} />;
-    if (activeSection === "files") {
-      return isFocusedPaterhausWorkspaceEmail(user?.email)
-        ? <LiveFilesHubModule email={user?.email ?? ""} />
-        : <FilesHubModule onOpenProperty={openProperty} />;
-    }
-    if (activeSection === "knowledge") return <KnowledgeBaseModule />;
-    if (activeSection === "stays") return <GuestsStaysModule onPropertySelect={openProperty} />;
-    if (activeSection === "conversations") return <ConversationsModule onPropertySelect={openProperty} initialConversationId={targetConversationId} />;
-    if (activeSection === "finance") return <FinanceModule />;
-    if (activeSection === "compliance") return <ComplianceModule />;
-    if (activeSection === "team") return <TeamVendorsModule />;
-    if (activeSection === "notifications") return <NotificationsModule onPropertySelect={openProperty} onConversationSelect={openConversation} onTaskSelect={openTask} />;
-    return <SettingsModule />;
+    if (activeSection === "files") return <ProductionFilesModule email={user?.email ?? ""} admin={role === "admin"} />;
+    if (activeSection === "stays") return <ProductionGuestsStaysModule />;
+    if (activeSection === "conversations") return <ConversationsModule onPropertySelect={openProperty} />;
+    if (activeSection === "team") return <ProductionContractorsModule />;
+    return <ProductionOverview />;
   };
 
   return (
@@ -610,16 +380,7 @@ const PaterhausWorkspaceInner = ({ onLogout }: { onLogout: () => void }) => {
                 <div className="min-w-0"><h1 className="truncate text-lg font-semibold text-foreground">{sectionLabelKey[activeSection] ? t(sectionLabelKey[activeSection]!) : "Paterhaus"}</h1><p className="hidden text-xs text-muted-foreground sm:block">{t(descriptionKeys[activeGroup.id])}</p></div>
               </div>
               <div className="flex flex-shrink-0 items-center gap-2">
-                {!canCreateLiveLead && <span className="hidden rounded-full border border-border px-2.5 py-1 text-[11px] text-muted-foreground lg:inline">{t("shell.demoWorkspace")}</span>}
                 <LanguageSwitcher />
-                <Button type="button" variant="outline" size="sm" className="hidden gap-2 text-muted-foreground sm:flex" onClick={() => setSearchOpen(true)}>
-                  <Search className="h-4 w-4" />
-                  <span className="hidden md:inline">{t("shell.search")}</span>
-                  <kbd className="hidden rounded border border-border bg-secondary/60 px-1.5 text-[10px] md:inline">⌘K</kbd>
-                </Button>
-                <Button type="button" variant="ghost" size="icon" className="sm:hidden" aria-label={t("shell.search")} onClick={() => setSearchOpen(true)}>
-                  <Search className="h-4 w-4" />
-                </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button type="button" size="sm">
@@ -629,16 +390,10 @@ const PaterhausWorkspaceInner = ({ onLogout }: { onLogout: () => void }) => {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="paterhaus border-border bg-background">
                     <DropdownMenuItem onClick={() => quickCreate("pipeline", t("create.newLeadHint"))}>{t("create.newLead")}</DropdownMenuItem>
-                    {isSectionAllowed("operations", role) && <DropdownMenuItem onClick={() => quickCreate("operations", t("create.newTaskHint"))}>{t("create.newTask")}</DropdownMenuItem>}
-                    {isSectionAllowed("files", role) && <DropdownMenuItem onClick={() => quickCreate("files", t("create.uploadFileHint"))}>{t("create.uploadFile")}</DropdownMenuItem>}
-                    {isSectionAllowed("knowledge", role) && <DropdownMenuItem onClick={() => quickCreate("knowledge", t("create.addKnowledgeHint"))}>{t("create.addKnowledge")}</DropdownMenuItem>}
-                    {!canCreateLiveLead && <DropdownMenuItem onClick={() => quickCreate("pipeline", t("create.logOwnerNoteHint"))}>{t("create.logOwnerNote")}</DropdownMenuItem>}
+                    {isSectionAllowed("operations", role) && <DropdownMenuItem onClick={() => quickCreate("operations", "Open projects")}>New project</DropdownMenuItem>}
+                    {isSectionAllowed("files", role) && <DropdownMenuItem onClick={() => quickCreate("files", "Open files")}>{t("create.uploadFile")}</DropdownMenuItem>}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button type="button" variant="ghost" size="icon" className="relative" aria-label={t("shell.notificationsUnread", { count: unread })} onClick={() => setNotificationsOpen(true)}>
-                  <Bell className="h-4 w-4" />
-                  {unread > 0 && <span className="absolute right-1 top-1 min-w-4 rounded-full bg-primary px-1 text-[10px] leading-4 text-primary-foreground">{unread}</span>}
-                </Button>
                 <div className="hidden items-center gap-2 text-right lg:flex"><div><p className="text-sm font-medium text-foreground">{userIdentity.name}</p><p className="text-xs text-muted-foreground">{userIdentity.roleLabel}</p></div><div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">{userIdentity.initials}</div></div>
                 <Button type="button" variant="outline" size="sm" onClick={onLogout}><LogOut className="h-4 w-4" /><span className="hidden sm:inline">{t("shell.logOut")}</span></Button>
               </div>
@@ -660,29 +415,6 @@ const PaterhausWorkspaceInner = ({ onLogout }: { onLogout: () => void }) => {
           </div>
         </SheetContent>
       </Sheet>
-      <GlobalSearch
-        open={searchOpen}
-        onOpenChange={setSearchOpen}
-        onNavigate={(section, propertyId) => {
-          if (propertyId) setTargetPropertyId(propertyId);
-          if (isSectionAllowed(section, role)) setActiveSection(section);
-        }}
-        role={role}
-      />
-      <CreateDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        defaultKind={createKind}
-        onNavigate={(section) => {
-          if (isSectionAllowed(section, role)) setActiveSection(section);
-        }}
-      />
-      <Sheet open={notificationsOpen} onOpenChange={setNotificationsOpen}>
-        <SheetContent className="paterhaus w-full overflow-y-auto border-border bg-background sm:max-w-xl">
-          <SheetHeader><SheetTitle>{t("nav.notifications")}</SheetTitle></SheetHeader>
-          <div className="mt-5"><NotificationsModule onPropertySelect={openProperty} onConversationSelect={openConversation} onTaskSelect={openTask} /></div>
-        </SheetContent>
-      </Sheet>
     </div>
   );
 };
@@ -699,14 +431,6 @@ const PaterhausWorkspace = ({ onLogout }: { onLogout: () => void }) => {
   );
 };
 
-const PaterhausCRM = ({ onLogout }: { onLogout: () => void }) => {
-  const { user } = useAuth();
-  const role: UserRole = user?.role ?? "admin";
-  return (
-    <PaterhausWorkspaceProvider role={role} email={user?.email}>
-      <PaterhausWorkspace onLogout={onLogout} />
-    </PaterhausWorkspaceProvider>
-  );
-};
+const PaterhausCRM = ({ onLogout }: { onLogout: () => void }) => <PaterhausWorkspace onLogout={onLogout} />;
 
 export default PaterhausCRM;

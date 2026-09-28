@@ -4,6 +4,7 @@ import {
   createLiveCalendarEvent,
   deleteLiveCalendarEvent,
   fetchLiveCalendarEvents,
+  updateLiveCalendarEvent,
   type LiveCalendarEvent,
 } from "@/lib/paterhausConversationsApi";
 import {
@@ -21,12 +22,14 @@ vi.mock("@/lib/paterhausConversationsApi", async (importOriginal) => {
     ...original,
     fetchLiveCalendarEvents: vi.fn(),
     createLiveCalendarEvent: vi.fn(),
+    updateLiveCalendarEvent: vi.fn(),
     deleteLiveCalendarEvent: vi.fn(),
   };
 });
 
 const listMock = vi.mocked(fetchLiveCalendarEvents);
 const createMock = vi.mocked(createLiveCalendarEvent);
+const updateMock = vi.mocked(updateLiveCalendarEvent);
 const deleteMock = vi.mocked(deleteLiveCalendarEvent);
 
 const event = (overrides: Partial<LiveCalendarEvent> = {}): LiveCalendarEvent => ({
@@ -160,6 +163,19 @@ describe("LiveCalendarModule", () => {
     expect(listMock).toHaveBeenCalledTimes(1);
   });
 
+  it("edits a shared event through the backend", async () => {
+    listMock.mockResolvedValue({ items: [event({ eventDate: "2026-09-03" })], timeZone: "Asia/Dubai" });
+    updateMock.mockResolvedValue(event({ eventDate: "2026-09-03", title: "Updated visit" }));
+    render(<LiveCalendarModule email="info@paterhaus.com" />);
+    await screen.findByTestId("live-calendar-event-evt-1");
+    fireEvent.click(screen.getByRole("button", { name: "Edit Snagging · Marina Gate" }));
+    expect(screen.getByLabelText("Title")).toHaveValue("Snagging · Marina Gate");
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Updated visit" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save event" }));
+    await waitFor(() => expect(updateMock).toHaveBeenCalledWith("info@paterhaus.com", "evt-1", expect.objectContaining({ title: "Updated visit" })));
+    expect(await screen.findByTestId("live-calendar-event-evt-1")).toHaveTextContent("Updated visit");
+  });
+
   it("deletes an event through the backend and removes it from the view", async () => {
     listMock.mockResolvedValue({ items: [event({ eventDate: "2026-09-03" })], timeZone: "Asia/Dubai" });
     deleteMock.mockResolvedValue(undefined);
@@ -168,6 +184,8 @@ describe("LiveCalendarModule", () => {
     await screen.findByTestId("live-calendar-event-evt-1");
 
     fireEvent.click(screen.getByRole("button", { name: "Delete Snagging · Marina Gate" }));
+    expect(deleteMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Delete event" }));
 
     await waitFor(() => expect(deleteMock).toHaveBeenCalledWith("r_tszi@paterhaus.com", "evt-1"));
     await waitFor(() => expect(screen.queryByTestId("live-calendar-event-evt-1")).not.toBeInTheDocument());

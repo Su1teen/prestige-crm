@@ -39,10 +39,9 @@ import {
   type Direction,
 } from "./p0Shared";
 import { LeadDetailsModal } from "./LeadDetailsModal";
-import { LiveOwnerPipelineModule } from "./LiveOwnerPipelineModule";
+import { ProductionPipelineModule } from "./ProductionPipelineModule";
 import { EmptyState, SectionHeader, StatusPill } from "./shared";
 import { useAuth } from "@/contexts/AuthContext";
-import { isLivePaterhausConversationsEmail } from "@/lib/paterhausConversationsApi";
 
 const stages: OpportunityStage[] = [
   "New Lead",
@@ -1119,8 +1118,8 @@ const DemoOwnerPipelineModule = () => {
 
 export const OwnerPipelineModule = () => {
   const { user } = useAuth();
-  return isLivePaterhausConversationsEmail(user?.email) ? (
-    <LiveOwnerPipelineModule email={user?.email ?? ""} />
+  return user?.workspace === "paterhaus" ? (
+    <ProductionPipelineModule />
   ) : (
     <DemoOwnerPipelineModule />
   );

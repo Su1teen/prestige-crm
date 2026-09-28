@@ -57,18 +57,18 @@ vi.mock("@/contexts/PaterhausWorkspaceContext", () => ({
   }),
 }));
 
-vi.mock("@/components/paterhaus/PortfolioOverview", () => ({ PortfolioOverview: () => <div data-testid="module-portfolio">portfolio</div> }));
+vi.mock("@/components/paterhaus/ProductionOverview", () => ({ ProductionOverview: () => <div data-testid="module-portfolio">portfolio</div> }));
 vi.mock("@/components/paterhaus/OwnerPipelineModule", () => ({ OwnerPipelineModule: () => <div data-testid="module-pipeline">pipeline</div> }));
-vi.mock("@/components/paterhaus/MarketingModule", () => ({ MarketingModule: () => <div data-testid="module-marketing">marketing</div> }));
+vi.mock("@/components/paterhaus/ProductionMarketingModule", () => ({ ProductionMarketingModule: () => <div data-testid="module-marketing">marketing</div> }));
 vi.mock("@/components/paterhaus/ConversationsModule", () => ({ ConversationsModule: () => <div data-testid="module-conversations">conversations</div> }));
 vi.mock("@/components/paterhaus/CalendarModule", () => ({ CalendarModule: () => <div data-testid="module-calendar">calendar</div> }));
 vi.mock("@/components/paterhaus/KnowledgeBaseModule", () => ({ KnowledgeBaseModule: () => <div data-testid="module-knowledge">knowledge</div> }));
 vi.mock("@/components/paterhaus/NotificationsModule", () => ({ NotificationsModule: () => <div data-testid="module-notifications">notifications</div> }));
 vi.mock("@/components/paterhaus/SettingsModule", () => ({ SettingsModule: () => <div data-testid="module-settings">settings</div> }));
-vi.mock("@/components/paterhaus/PropertiesModule", () => ({ PropertiesModule: () => <div data-testid="module-properties">properties</div> }));
-vi.mock("@/components/paterhaus/OperationsBoardModule", () => ({ OperationsBoardModule: () => <div data-testid="module-operations">operations</div> }));
+vi.mock("@/components/paterhaus/ProductionOperationsRecords", () => ({ ProductionPropertiesModule: () => <div data-testid="module-properties">properties</div>, ProductionContractorsModule: () => <div data-testid="module-team">team</div>, ProductionGuestsStaysModule: () => <div data-testid="module-stays">stays</div> }));
+vi.mock("@/components/paterhaus/ProductionProjectsModule", () => ({ ProductionProjectsModule: () => <div data-testid="module-operations">operations</div> }));
 vi.mock("@/components/paterhaus/FilesHubModule", () => ({ FilesHubModule: () => <div data-testid="module-files">files</div> }));
-vi.mock("@/components/paterhaus/LiveFilesHubModule", () => ({ LiveFilesHubModule: () => <div data-testid="module-live-files">live files</div> }));
+vi.mock("@/components/paterhaus/ProductionFilesModule", () => ({ ProductionFilesModule: () => <div data-testid="module-live-files">live files</div> }));
 vi.mock("@/components/paterhaus/GuestsStaysModule", () => ({ GuestsStaysModule: () => <div data-testid="module-stays">stays</div> }));
 vi.mock("@/components/paterhaus/FinanceModule", () => ({ FinanceModule: () => <div data-testid="module-finance">finance</div> }));
 vi.mock("@/components/paterhaus/ComplianceModule", () => ({ ComplianceModule: () => <div data-testid="module-compliance">compliance</div> }));
@@ -143,30 +143,24 @@ describe("PaterhausCRM navigation", () => {
         "nav.conversations",
         "nav.calendar",
         "nav.properties",
-        "nav.knowledge_base",
-        "nav.settings",
+        "nav.operations_board",
+        "nav.guests_stays",
+        "nav.team_vendors",
       ]),
     );
     expect(screen.getByTestId("module-portfolio")).toBeInTheDocument();
   });
 
-  it("keeps the demo marketing workspace (with Portfolio) for other marketing accounts", () => {
+  it("keeps every marketing role focused, without admin or demo modules", () => {
     currentUser = { email: "marketing@example.com", role: "marketing" };
 
     render(<PaterhausCRM onLogout={vi.fn()} />);
 
     expect(primaryNavLabels()).toEqual([
-      "nav.portfolio",
-      "nav.owner_pipeline",
-      "nav.marketing",
-      "nav.conversations",
-      "nav.calendar",
-      "nav.knowledge_base",
-      "nav.notifications",
-      "nav.settings",
+      "nav.owner_pipeline", "nav.marketing", "nav.conversations", "nav.files_documents", "nav.calendar",
     ]);
-    expect(screen.getByTestId("module-portfolio")).toBeInTheDocument();
-    expect(screen.getByText("shell.demoWorkspace")).toBeInTheDocument();
+    expect(screen.queryByTestId("module-portfolio")).not.toBeInTheDocument();
+    expect(screen.queryByText("shell.demoWorkspace")).not.toBeInTheDocument();
   });
 });
 

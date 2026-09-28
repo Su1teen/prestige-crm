@@ -3,10 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConversationsModule } from "./ConversationsModule";
 
 let currentEmail = "guest@example.com";
+let currentWorkspace = "paterhaus";
 
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({
-    user: { email: currentEmail, workspace: "paterhaus", role: "admin" },
+    user: { email: currentEmail, workspace: currentWorkspace, role: "admin" },
   }),
 }));
 
@@ -41,14 +42,22 @@ vi.mock("./LiveConversationsModule", () => ({
 
 beforeEach(() => {
   currentEmail = "guest@example.com";
+  currentWorkspace = "paterhaus";
 });
 
 describe("ConversationsModule mode selection", () => {
-  it("keeps non-allowlisted users on the demo path", () => {
+  it("keeps non-Paterhaus workspaces on the demo path", () => {
+    currentWorkspace = "steppe";
     render(<ConversationsModule />);
 
     expect(screen.getByText("conversations.eyebrow")).toBeInTheDocument();
     expect(screen.queryByText(/Live conversations for/)).not.toBeInTheDocument();
+  });
+
+  it("uses live conversations for every authenticated Paterhaus account", () => {
+    render(<ConversationsModule />);
+
+    expect(screen.getByText("Live conversations for guest@example.com")).toBeInTheDocument();
   });
 
   it("uses live mode for an allowlisted authenticated user", () => {
