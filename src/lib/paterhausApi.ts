@@ -47,6 +47,8 @@ export interface ProductionLead {
   quotedAmount: string | null; agreedAmount: string | null; currency: string;
   lostReason: string | null;
   assignedUser: CrmUser | null;
+  projects?: Array<{ id: string; name: string; status: string;
+    contractors: Array<{ contractor: { id: string; name: string } }> }>;
   externalChatId?: string | null; createdAt: string;
 }
 export interface ProjectRecord {
@@ -57,6 +59,8 @@ export interface ProjectRecord {
   milestones: Array<{ id: string; title: string; completedAt: string | null; sortOrder: number }>;
   payments: Array<{ id: string; type: string; status: string; amount: string; paidAt: string | null }>;
   contractors: Array<{ id: string; contractorId: string; contractor: { name: string } }>;
+  property?: { id: string; name: string; area: string | null } | null;
+  ownerLead?: { id: string; name: string | null } | null;
   archivedAt: string | null;
 }
 export interface PropertyRecord { id: string; name: string; area: string | null; address: string | null; type: string | null; archivedAt: string | null; }

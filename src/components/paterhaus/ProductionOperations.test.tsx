@@ -41,7 +41,7 @@ describe("production operations UI", () => {
     await screen.findByText("Snagging A");
     fireEvent.click(screen.getByRole("button", { name: "Open" }));
     fireEvent.change(screen.getByLabelText("Payment amount"), { target: { value: "3000" } });
-    fireEvent.click(screen.getByRole("button", { name: "Record" }));
+    fireEvent.click(screen.getByRole("button", { name: "Record payment" }));
     await waitFor(() => expect(projectsApi.payment).toHaveBeenCalledWith("project-1", expect.objectContaining({ amount: 3000, currency: "AED", type: "PREPAYMENT" })));
   });
 
@@ -60,8 +60,8 @@ describe("production operations UI", () => {
     render(<ProductionContractorsModule />, { wrapper });
     fireEvent.click(screen.getByRole("button", { name: "Add contractor" }));
     fireEvent.change(screen.getByLabelText("Contractor name"), { target: { value: "Supplier A" } });
-    fireEvent.click(screen.getByLabelText("SNAGGING"));
-    fireEvent.click(screen.getByLabelText("STAGING"));
+    fireEvent.click(screen.getByRole("button", { name: "Snagging" }));
+    fireEvent.click(screen.getByRole("button", { name: "Staging" }));
     fireEvent.click(screen.getByRole("button", { name: "Save contractor" }));
     await waitFor(() => expect(contractorsApi.create).toHaveBeenCalledWith(expect.objectContaining({ name: "Supplier A", serviceTypes: ["SNAGGING", "STAGING"] })));
   });

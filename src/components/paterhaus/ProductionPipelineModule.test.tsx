@@ -38,17 +38,20 @@ beforeEach(() => {
 describe("production pipeline assignment and loss", () => {
   it("assigns a lead to a CRM user through the persistent API", async () => {
     render(<ProductionPipelineModule />, { wrapper });
+    fireEvent.click(await screen.findByRole("button", { name: /Owner A/ }));
     fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
-    fireEvent.change(await screen.findByLabelText("Assignee"), { target: { value: "user-1" } });
+    fireEvent.change(await screen.findAllByLabelText("Assigned to").then((els) => els[els.length - 1]), { target: { value: "user-1" } });
     fireEvent.click(screen.getByRole("button", { name: "Save opportunity" }));
     await waitFor(() => expect(leadsApi.update).toHaveBeenCalledWith("lead-1", expect.objectContaining({ assignedUserId: "user-1" })));
   });
 
   it("records a lost reason only when the stage is lost", async () => {
     render(<ProductionPipelineModule />, { wrapper });
+    fireEvent.click(await screen.findByRole("button", { name: /Owner A/ }));
     fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
     expect(screen.queryByLabelText("Lost reason")).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Stage"), { target: { value: "lost" } });
+    const stageFields = screen.getAllByLabelText("Stage");
+    fireEvent.change(stageFields[stageFields.length - 1], { target: { value: "lost" } });
     fireEvent.change(await screen.findByLabelText("Lost reason"), { target: { value: "Price above budget" } });
     fireEvent.click(screen.getByRole("button", { name: "Save opportunity" }));
     await waitFor(() => expect(leadsApi.update).toHaveBeenCalledWith("lead-1",
@@ -62,5 +65,19 @@ describe("production pipeline assignment and loss", () => {
     });
     render(<ProductionPipelineModule />, { wrapper });
     expect(await screen.findByText(/Assigned Ops Manager/)).toBeInTheDocument();
+  });
+
+  it("opens a readable detail sheet with summary and linked project", async () => {
+    vi.mocked(opportunitiesApi.list).mockResolvedValue({
+      items: [{ ...lead, note: "Owner asked for a full snagging report.",
+        projects: [{ id: "p1", name: "Marina snag", status: "IN_PROGRESS",
+          contractors: [{ contractor: { id: "c1", name: "FixIt LLC" } }] }] }],
+      integrationStatus: "live",
+    });
+    render(<ProductionPipelineModule />, { wrapper });
+    fireEvent.click(await screen.findByRole("button", { name: /Owner A/ }));
+    expect(await screen.findAllByText("Owner asked for a full snagging report.")).not.toHaveLength(0);
+    expect(screen.getAllByText(/Marina snag/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/FixIt LLC/).length).toBeGreaterThan(0);
   });
 });

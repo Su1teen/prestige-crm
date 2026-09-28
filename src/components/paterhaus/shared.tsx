@@ -1,5 +1,6 @@
 import { ArrowUpRight, CircleAlert, CircleCheck, Clock3, Minus, TrendingUp } from "lucide-react";
 import type { ReactNode } from "react";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -150,3 +151,90 @@ export const MetricIcon = ({ kind }: { kind: "up" | "clock" | "alert" | "check" 
   if (kind === "check") return <CircleCheck className="h-4 w-4" />;
   return <Minus className="h-4 w-4" />;
 };
+
+/** Labeled form field — the wrapping label associates the caption with the control inside. */
+export const Field = ({ label, children, className }: { label: string; children: ReactNode; className?: string }) => (
+  <Label className={cn("block space-y-1.5", className)}>
+    <span className="text-xs font-medium text-muted-foreground">{label}</span>
+    {children}
+  </Label>
+);
+
+/** Styled native select — keeps change events and label association working. */
+export const selectClass =
+  "w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2";
+
+const DIRECTION_LABELS: Record<string, string> = {
+  PROPERTY_MANAGEMENT: "Property Management",
+  SNAGGING: "Snagging",
+  STAGING: "Staging",
+  UNCLASSIFIED: "Needs review",
+};
+
+const LEAD_STAGE_LABELS: Record<string, string> = {
+  new: "New",
+  contacted: "Contacted",
+  qualified: "Qualified",
+  proposal: "Proposal",
+  negotiation: "Negotiation",
+  won: "Won",
+  lost: "Lost",
+};
+
+const PROJECT_STATUS_LABELS: Record<string, string> = {
+  DRAFT: "Draft",
+  CONFIRMED: "Confirmed",
+  IN_PROGRESS: "In progress",
+  ON_HOLD: "On hold",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+};
+
+const PAYMENT_TYPE_LABELS: Record<string, string> = {
+  PREPAYMENT: "Prepayment",
+  PARTIAL: "Partial",
+  FINAL: "Final",
+  REFUND: "Refund",
+  OTHER: "Other",
+};
+
+const NEXT_ACTION_LABELS: Record<string, string> = {
+  FOLLOW_UP: "Follow up",
+  CALL: "Call",
+  SEND_PROPOSAL: "Send proposal",
+  NEGOTIATE: "Negotiate",
+  SITE_VISIT: "Site visit",
+  WAITING_CLIENT: "Waiting on client",
+  WAITING_PAYMENT: "Waiting for payment",
+  PAYMENT_RECEIVED: "Payment received",
+  CREATE_PROJECT: "Create project",
+  OTHER: "Other",
+};
+
+const pretty = (value: string) =>
+  value.replace(/_/g, " ").toLowerCase().replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
+
+export const directionLabel = (value: string) => DIRECTION_LABELS[value] ?? pretty(value);
+export const leadStageLabel = (value: string) => LEAD_STAGE_LABELS[value] ?? pretty(value);
+export const projectStatusLabel = (value: string) => PROJECT_STATUS_LABELS[value] ?? pretty(value);
+export const paymentTypeLabel = (value: string) => PAYMENT_TYPE_LABELS[value] ?? pretty(value);
+export const nextActionLabel = (value: string) => NEXT_ACTION_LABELS[value] ?? pretty(value);
+
+/** Direction pill with a consistent per-direction tint. */
+export const DirectionPill = ({ direction }: { direction: string }) => {
+  const tone =
+    direction === "SNAGGING"
+      ? "border-blue-500/30 bg-blue-500/10 text-blue-700"
+      : direction === "STAGING"
+        ? "border-violet-500/30 bg-violet-500/10 text-violet-700"
+        : direction === "PROPERTY_MANAGEMENT"
+          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
+          : "border-amber-500/30 bg-amber-500/10 text-amber-700";
+  return <Badge variant="outline" className={cn("font-medium", tone)}>{directionLabel(direction)}</Badge>;
+};
+
+/** Money display: unset amounts render as a muted zero so they don't draw attention. */
+export const moneyLabel = (amount: string | null, currency: string) =>
+  amount == null
+    ? <span className="text-muted-foreground/70">{currency} 0</span>
+    : <>{currency} {Number(amount).toLocaleString("en-AE", { minimumFractionDigits: 2 })}</>;
