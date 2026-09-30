@@ -165,50 +165,50 @@ export const selectClass =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2";
 
 const DIRECTION_LABELS: Record<string, string> = {
-  PROPERTY_MANAGEMENT: "Property Management",
+  PROPERTY_MANAGEMENT: "Управление недв.",
   SNAGGING: "Snagging",
   STAGING: "Staging",
-  UNCLASSIFIED: "Needs review",
+  UNCLASSIFIED: "Требует проверки",
 };
 
 const LEAD_STAGE_LABELS: Record<string, string> = {
-  new: "New",
+  new: "Новый",
   contacted: "Contacted",
-  qualified: "Qualified",
-  proposal: "Proposal",
-  negotiation: "Negotiation",
-  won: "Won",
-  lost: "Lost",
+  qualified: "Квалифицирован",
+  proposal: "Предложение",
+  negotiation: "Переговоры",
+  won: "Подписан",
+  lost: "Не реализовано",
 };
 
 const PROJECT_STATUS_LABELS: Record<string, string> = {
-  DRAFT: "Draft",
-  CONFIRMED: "Confirmed",
-  IN_PROGRESS: "In progress",
-  ON_HOLD: "On hold",
-  COMPLETED: "Completed",
-  CANCELLED: "Cancelled",
+  DRAFT: "Черновик",
+  CONFIRMED: "Подтверждён",
+  IN_PROGRESS: "В работе",
+  ON_HOLD: "На паузе",
+  COMPLETED: "Завершён",
+  CANCELLED: "Отменён",
 };
 
 const PAYMENT_TYPE_LABELS: Record<string, string> = {
-  PREPAYMENT: "Prepayment",
-  PARTIAL: "Partial",
-  FINAL: "Final",
-  REFUND: "Refund",
-  OTHER: "Other",
+  PREPAYMENT: "Предоплата",
+  PARTIAL: "Частичная",
+  FINAL: "Финальная",
+  REFUND: "Возврат",
+  OTHER: "Другое",
 };
 
 const NEXT_ACTION_LABELS: Record<string, string> = {
-  FOLLOW_UP: "Follow up",
-  CALL: "Call",
-  SEND_PROPOSAL: "Send proposal",
-  NEGOTIATE: "Negotiate",
-  SITE_VISIT: "Site visit",
-  WAITING_CLIENT: "Waiting on client",
-  WAITING_PAYMENT: "Waiting for payment",
-  PAYMENT_RECEIVED: "Payment received",
-  CREATE_PROJECT: "Create project",
-  OTHER: "Other",
+  FOLLOW_UP: "Follow-up",
+  CALL: "Звонок",
+  SEND_PROPOSAL: "Отправить КП",
+  NEGOTIATE: "Переговоры",
+  SITE_VISIT: "Выезд на объект",
+  WAITING_CLIENT: "Ждём клиента",
+  WAITING_PAYMENT: "Ждём оплату",
+  PAYMENT_RECEIVED: "Оплата получена",
+  CREATE_PROJECT: "Создать проект",
+  OTHER: "Другое",
 };
 
 const pretty = (value: string) =>
