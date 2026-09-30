@@ -8,6 +8,7 @@ export interface LiveConversation {
   lastMessageId: number | null;
   lastMessageTimeRaw: string | null;
   lastMessageAt: string | null;
+  archivedAt?: string | null;
 }
 
 export interface LiveConversationMessage {
@@ -331,8 +332,20 @@ const readErrorMessage = async (response: globalThis.Response): Promise<string |
 export const fetchLiveConversations = (
   email: string,
   signal?: AbortSignal,
+  archived = false,
 ): Promise<ConversationListResponse> =>
-  authorizedRequest(email, "/api/paterhaus/conversations?limit=100", { signal });
+  authorizedRequest(email, `/api/paterhaus/conversations?limit=100&archived=${archived}`, { signal });
+
+export const archiveLiveConversation = (
+  email: string,
+  conversationId: number,
+  archived: boolean,
+): Promise<{ id: number; chatId: string | null; archived: boolean; archivedAt: string | null }> =>
+  authorizedRequest(email, `/api/paterhaus/conversations/${conversationId}/archive`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ archived }),
+  });
 
 export const fetchLiveConversationMessages = (
   email: string,

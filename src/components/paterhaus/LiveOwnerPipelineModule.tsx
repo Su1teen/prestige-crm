@@ -17,36 +17,39 @@ interface LiveOwnerPipelineModuleProps {
 
 /** `leadType` is the PROPERTY type; legacy identity values are shown as "Other". */
 const PROPERTY_TYPE_LABELS: Record<string, string> = Object.fromEntries([
-  ...LEAD_PROPERTY_TYPES.map((type) => [type.toLowerCase(), type]),
-  ["flat", "Apartment"],
-  ["owner", "Other"],
-  ["guest", "Other"],
-  ["partner", "Other"],
-  ["unknown", "Other"],
+  ["flat", "Квартира"],
+  ["apartment", "Квартира"],
+  ["villa", "Вилла"],
+  ["townhouse", "Таунхаус"],
+  ["studio", "Студия"],
+  ["owner", "Другое"],
+  ["guest", "Другое"],
+  ["partner", "Другое"],
+  ["unknown", "Другое"],
 ]);
 
 const STAGE_LABELS: Record<string, string> = {
-  new: "New",
-  talking: "In conversation",
-  qualified: "Qualified",
-  proposal: "Proposal",
-  negotiation: "Negotiation",
-  won: "Won",
-  lost: "Lost",
+  new: "Новый",
+  talking: "В диалоге",
+  qualified: "Квалифицирован",
+  proposal: "Предложение",
+  negotiation: "Переговоры",
+  won: "Подписан",
+  lost: "Отказ",
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
-  low: "Low",
-  medium: "Medium",
-  high: "High",
-  urgent: "Urgent",
+  low: "Низкий",
+  medium: "Средний",
+  high: "Высокий",
+  urgent: "Срочный",
 };
 
 const WORK_TYPE_LABELS: Record<string, string> = {
   staging: "Staging",
   snagging: "Snagging",
-  property_management: "Property Management",
-  "property management": "Property Management",
+  property_management: "Управление недв.",
+  "property management": "Управление недв.",
 };
 
 const PRIORITY_TONES: Record<string, string> = {
@@ -168,9 +171,9 @@ export const LiveOwnerPipelineModule = ({ email }: LiveOwnerPipelineModuleProps)
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
-            Live AI classifications
+            Актуальные AI-классификации
           </p>
-          <h2 className="mt-1 text-xl font-semibold text-foreground">Owner Pipeline</h2>
+          <h2 className="mt-1 text-xl font-semibold text-foreground">Воронка обращений</h2>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -178,16 +181,16 @@ export const LiveOwnerPipelineModule = ({ email }: LiveOwnerPipelineModuleProps)
             <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search leads"
+              placeholder="Поиск лидов…"
               className="w-56 pl-9"
             />
           </div>
           <Button type="button" variant="ghost" size="sm" onClick={() => void load()}>
-            <RefreshCw className="h-4 w-4" /> Refresh
+            <RefreshCw className="h-4 w-4" /> Обновить
           </Button>
           {canCreateLead && (
             <Button type="button" size="sm" onClick={openCreateLead}>
-              <Plus className="h-4 w-4" /> Create lead
+              <Plus className="h-4 w-4" /> Создать лид
             </Button>
           )}
         </div>
@@ -204,14 +207,14 @@ export const LiveOwnerPipelineModule = ({ email }: LiveOwnerPipelineModuleProps)
         >
           <p>{error}</p>
           <Button type="button" variant="outline" size="sm" onClick={() => void load()}>
-            <RefreshCw className="h-4 w-4" /> Retry
+            <RefreshCw className="h-4 w-4" /> Повторить
           </Button>
         </div>
       ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-border bg-card/70 p-8 text-center text-sm text-muted-foreground">
           {items.length === 0
-            ? "No leads yet"
-            : "No leads match the current search"}
+            ? "Пока нет лидов"
+            : "Нет лидов, соответствующих поиску"}
         </div>
       ) : (
         <div className="space-y-3">
@@ -230,16 +233,16 @@ export const LiveOwnerPipelineModule = ({ email }: LiveOwnerPipelineModuleProps)
                 <div className="min-w-0">
                   <p className="truncate font-semibold text-foreground">{item.displayName}</p>
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {item.number ?? item.chatId ?? "No number"}
+                    {item.number ?? item.chatId ?? "Без номера"}
                     <span className="mx-1.5">·</span>
                     <span data-testid={`live-classification-${item.id}-email`}>
-                      {item.email ?? "Not provided"}
+                      {item.email ?? "Не указан"}
                     </span>
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" title="Property type">
-                    {label(PROPERTY_TYPE_LABELS, item.leadType, "Other")}
+                  <Badge variant="outline" title="Тип объекта">
+                    {label(PROPERTY_TYPE_LABELS, item.leadType, "Другое")}
                   </Badge>
                   <Badge variant="outline">{label(STAGE_LABELS, item.stage)}</Badge>
                   <Badge
@@ -248,8 +251,8 @@ export const LiveOwnerPipelineModule = ({ email }: LiveOwnerPipelineModuleProps)
                   >
                     {label(PRIORITY_LABELS, item.priority)}
                   </Badge>
-                  <Badge variant="outline" title="Service">
-                    {label(WORK_TYPE_LABELS, item.workType, "Not specified")}
+                  <Badge variant="outline" title="Услуга">
+                    {label(WORK_TYPE_LABELS, item.workType, "Не указана")}
                   </Badge>
                 </div>
               </div>
@@ -261,8 +264,8 @@ export const LiveOwnerPipelineModule = ({ email }: LiveOwnerPipelineModuleProps)
               )}
 
               <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-[11px] text-muted-foreground">
-                <span>Created {formatDubaiTimestamp(item.createdAt)}</span>
-                <span>Updated {formatDubaiTimestamp(item.updatedAt)}</span>
+                <span>Создано: {formatDubaiTimestamp(item.createdAt)}</span>
+                <span>Обновлено: {formatDubaiTimestamp(item.updatedAt)}</span>
               </div>
             </Card>
           ))}

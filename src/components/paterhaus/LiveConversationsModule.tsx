@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Archive,
+  ArchiveRestore,
   ArrowLeft,
   Download,
   File,
@@ -21,7 +23,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useQuery } from "@tanstack/react-query";
+import { leadsApi } from "@/lib/paterhausApi";
 import {
+  archiveLiveConversation,
   createLiveAttachmentDownloadUrl,
   fetchLiveConversationCapabilities,
   fetchLiveConversationMessages,
@@ -40,39 +45,36 @@ import { downloadSignedAttachment } from "@/lib/paterhausAttachmentDownload";
 
 interface LiveConversationsModuleProps {
   email: string;
+  targetChatId?: string | null;
 }
 
 const formatTimestamp = (sentAt: string | null, timeRaw: string | null): string => {
-  if (!sentAt) return timeRaw ?? "Time unavailable";
+  if (!sentAt) return timeRaw ?? "—";
   const date = new Date(sentAt);
-  if (Number.isNaN(date.getTime())) return timeRaw ?? "Time unavailable";
-  const hasCleanMilliseconds = /\.\d{3}$/.test(timeRaw ?? "");
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Almaty",
+  if (Number.isNaN(date.getTime())) return timeRaw ?? "—";
+  return new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "Asia/Dubai",
     day: "2-digit",
     month: "short",
-    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-    second: "2-digit",
-    ...(hasCleanMilliseconds ? { fractionalSecondDigits: 3 as const } : {}),
   }).format(date);
 };
 
 const identity = (conversation: LiveConversation): string =>
-  conversation.number ?? conversation.chatId ?? `Conversation ${conversation.id}`;
+  conversation.number ?? conversation.chatId ?? `Диалог ${conversation.id}`;
 
 const initials = (name: string): string =>
   name.split(/\s+/).filter(Boolean).map((part) => part[0]).slice(0, 2).join("").toUpperCase();
 
 const kindLabel: Record<LiveAttachmentKind, string> = {
-  image: "Image",
-  audio: "Audio",
-  pdf: "PDF",
-  word: "Word document",
-  spreadsheet: "Spreadsheet",
-  text: "Text document",
-  other: "File",
+  image: "Изображение",
+  audio: "Аудио",
+  pdf: "PDF документ",
+  word: "Word документ",
+  spreadsheet: "Таблица",
+  text: "Текстовый файл",
+  other: "Файл",
 };
 
 const attachmentTypeLabel = (fileName: string, kind: LiveAttachmentKind): string => {
@@ -92,11 +94,11 @@ const AttachmentIcon = ({ kind }: { kind: LiveAttachmentKind }) => {
 
 const attachmentDownloadError = (error: unknown): string => {
   if (error instanceof LiveConversationsError) {
-    if (error.status === 401 || error.status === 403) return "You are not authorized to download this file.";
-    if (error.status === 404) return "This attachment is no longer available.";
-    if (error.status === 503) return "File storage is temporarily unavailable.";
+    if (error.status === 401 || error.status === 403) return "У вас нет прав для скачивания этого файла.";
+    if (error.status === 404) return "Вложение больше недоступно.";
+    if (error.status === 503) return "Файловое хранилище временно недоступно.";
   }
-  return "The download link could not be created.";
+  return "Не удалось создать ссылку для скачивания.";
 };
 
 const AttachmentCard = ({ attachment, downloading, onDownload }: {
@@ -115,7 +117,7 @@ const AttachmentCard = ({ attachment, downloading, onDownload }: {
       </div>
     </div>
     <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => onDownload(attachment)} disabled={downloading}>
-      {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Download
+      {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Скачать
     </Button>
   </div>
 );
@@ -131,8 +133,8 @@ const MessageBubble = ({ message, downloadingId, onDownload }: {
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
         <p className="min-w-0 break-words text-xs font-medium text-foreground [overflow-wrap:anywhere]">
           {message.senderName}
-          {message.senderType === "ai" && <span className="ml-2 inline-flex rounded bg-accent/12 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">AI response</span>}
-          {message.senderType === "human" && <span className="ml-2 inline-flex rounded bg-primary/12 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">Manager reply</span>}
+          {message.senderType === "ai" && <span className="ml-2 inline-flex rounded bg-accent/12 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">Ответ AI</span>}
+          {message.senderType === "human" && <span className="ml-2 inline-flex rounded bg-primary/12 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">Ответ менеджера</span>}
         </p>
         <time className="flex-none text-[10px] text-muted-foreground">{formatTimestamp(message.sentAt, message.timeRaw)}</time>
       </div>
@@ -142,11 +144,12 @@ const MessageBubble = ({ message, downloadingId, onDownload }: {
   );
 };
 
-export const LiveConversationsModule = ({ email }: LiveConversationsModuleProps) => {
+export const LiveConversationsModule = ({ email, targetChatId }: LiveConversationsModuleProps) => {
   const [conversations, setConversations] = useState<LiveConversation[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<LiveConversationDetail | null>(null);
   const [query, setQuery] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
   const [listLoading, setListLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [aiUpdating, setAiUpdating] = useState(false);
@@ -168,26 +171,33 @@ export const LiveConversationsModule = ({ email }: LiveConversationsModuleProps)
 
   selectedIdRef.current = selectedId;
 
+  // Load all opportunities to show potential deal amounts
+  const leadsQuery = useQuery({
+    queryKey: ["paterhaus", "all-leads-for-conversations"],
+    queryFn: () => leadsApi.list(1, false),
+    staleTime: 30_000,
+  });
+
   const loadConversations = useCallback(async (signal?: AbortSignal) => {
     if (listRequestActive.current) return;
     listRequestActive.current = true;
     const requestId = ++listRequestId.current;
     try {
-      const response = await fetchLiveConversations(email, signal);
+      const response = await fetchLiveConversations(email, signal, showArchived);
       if (requestId !== listRequestId.current) return;
       setConversations(response.items);
       setSelectedId((current) => current && response.items.some((item) => item.id === current) ? current : (response.items[0]?.id ?? null));
       setListError(null);
     } catch (requestError) {
       if (requestError instanceof DOMException && requestError.name === "AbortError") return;
-      if (requestId === listRequestId.current) setListError("Live conversations are temporarily unavailable.");
+      if (requestId === listRequestId.current) setListError("Диалоги временно недоступны.");
     } finally {
       if (requestId === listRequestId.current) {
         listRequestActive.current = false;
         setListLoading(false);
       }
     }
-  }, [email]);
+  }, [email, showArchived]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -200,6 +210,37 @@ export const LiveConversationsModule = ({ email }: LiveConversationsModuleProps)
       listRequestActive.current = false;
     };
   }, [loadConversations]);
+
+  // Navigate to specific chat from Pipeline or custom event
+  const selectMatchingChat = useCallback((target: string | null | undefined, name?: string) => {
+    if (!target && !name) return;
+    const targetDigits = (target ?? "").replace(/\D/g, "");
+    const match = conversations.find((c) =>
+      (target && (c.chatId === target || c.number === target)) ||
+      (targetDigits.length >= 7 && (c.number?.replace(/\D/g, "").includes(targetDigits) || targetDigits.includes(c.number?.replace(/\D/g, "") || "---"))) ||
+      (name && c.contactName.toLowerCase().includes(name.toLowerCase()))
+    );
+    if (match) {
+      setSelectedId(match.id);
+      setMobileDetail(true);
+    }
+  }, [conversations]);
+
+  useEffect(() => {
+    if (targetChatId) {
+      selectMatchingChat(targetChatId);
+    }
+  }, [targetChatId, selectMatchingChat]);
+
+  useEffect(() => {
+    const handleOpenChatEvent = (event: Event) => {
+      const customEvent = event as CustomEvent<{ chatId?: string; number?: string; name?: string }>;
+      const target = customEvent.detail?.chatId ?? customEvent.detail?.number;
+      selectMatchingChat(target, customEvent.detail?.name);
+    };
+    window.addEventListener("paterhaus:open-chat", handleOpenChatEvent);
+    return () => window.removeEventListener("paterhaus:open-chat", handleOpenChatEvent);
+  }, [selectMatchingChat]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -222,7 +263,7 @@ export const LiveConversationsModule = ({ email }: LiveConversationsModuleProps)
         }
       } catch (requestError) {
         if (requestError instanceof DOMException && requestError.name === "AbortError") return;
-        if (selectedIdRef.current === selectedId) setDetailError("Live conversation history is temporarily unavailable.");
+        if (selectedIdRef.current === selectedId) setDetailError("История сообщений временно недоступна.");
       } finally {
         requestActive = false;
         if (selectedIdRef.current === selectedId) setDetailLoading(false);
@@ -253,12 +294,30 @@ export const LiveConversationsModule = ({ email }: LiveConversationsModuleProps)
   }, [conversations, query]);
 
   const selected = conversations.find((conversation) => conversation.id === selectedId) ?? null;
+
+  // Match current conversation with CRM lead to display deal amount
+  const matchedLead = useMemo(() => {
+    if (!selected || !leadsQuery.data?.data) return null;
+    const items = leadsQuery.data.data;
+    const selectedDigits = (selected.number ?? selected.chatId ?? "").replace(/\D/g, "");
+    return items.find((lead) => {
+      if (lead.externalChatId && (lead.externalChatId === selected.chatId || lead.externalChatId === selected.number)) return true;
+      if (selectedDigits.length >= 7 && lead.phone) {
+        const leadDigits = lead.phone.replace(/\D/g, "");
+        if (leadDigits.length >= 7 && (leadDigits.includes(selectedDigits) || selectedDigits.includes(leadDigits))) return true;
+      }
+      if (lead.name && selected.contactName && lead.name.toLowerCase() === selected.contactName.toLowerCase()) return true;
+      return false;
+    }) ?? null;
+  }, [selected, leadsQuery.data]);
+
   const selectConversation = (conversationId: number) => {
     setSelectedId(conversationId);
     setMobileDetail(true);
     setDraft("");
     setSendError(null);
   };
+
   const maxMessageLength = capabilities?.maxMessageLength ?? 4096;
   const composerVisible = Boolean(selected && !selected.aiEnabled && capabilities?.manualMessages);
   const manualRepliesUnavailable = Boolean(selected && !selected.aiEnabled && capabilities && !capabilities.manualMessages);
@@ -287,10 +346,10 @@ export const LiveConversationsModule = ({ email }: LiveConversationsModuleProps)
       setDetail((current) => current && current.conversation.id === selected.id
         ? { ...current, messages: current.messages.some((item) => item.id === message.id) ? current.messages : [...current.messages, message] }
         : current);
-      toast.success("Reply sent");
+      toast.success("Сообщение отправлено");
     } catch {
-      setSendError("The reply could not be delivered. Your text was kept.");
-      toast.error("Reply not delivered");
+      setSendError("Не удалось доставить сообщение. Текст сохранён.");
+      toast.error("Ошибка отправки сообщения");
     } finally {
       setSending(false);
     }
@@ -307,86 +366,217 @@ export const LiveConversationsModule = ({ email }: LiveConversationsModuleProps)
         ? { ...current, conversation: { ...current.conversation, aiEnabled: updated.aiEnabled, aiResumedAt: updated.aiResumedAt } }
         : current);
       setActionError(null);
-      toast.success(updated.aiEnabled ? "AI resumed" : "Human takeover enabled");
+      toast.success(updated.aiEnabled ? "AI активирован" : "Включён ручной режим");
     } catch {
-      setActionError("The AI state could not be updated. Please try again.");
-      toast.error("AI state update failed");
+      setActionError("Не удалось обновить статус AI. Попробуйте снова.");
+      toast.error("Ошибка переключения AI");
     } finally {
       setAiUpdating(false);
+    }
+  };
+
+  const toggleArchive = async () => {
+    if (!selected) return;
+    const willArchive = !showArchived;
+    try {
+      await archiveLiveConversation(email, selected.id, willArchive);
+      toast.success(willArchive ? "Чат перемещён в архив" : "Чат восстановлен из архива");
+      void loadConversations();
+    } catch {
+      toast.error("Не удалось изменить статус архива");
     }
   };
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col">
       <div className="mb-3 flex flex-none flex-wrap items-end justify-between gap-3">
-        <div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Live WhatsApp inbox</p><h2 className="mt-1 text-xl font-semibold text-foreground">Conversations</h2></div>
-        <Button type="button" variant="ghost" size="sm" onClick={() => void loadConversations()} disabled={listRequestActive.current}><RefreshCw className="h-4 w-4" /> Refresh</Button>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Live WhatsApp inbox</p>
+          <h2 className="mt-1 text-xl font-semibold text-foreground">Диалоги WhatsApp</h2>
+        </div>
+        <Button type="button" variant="ghost" size="sm" onClick={() => void loadConversations()} disabled={listRequestActive.current}>
+          <RefreshCw className="h-4 w-4" /> Обновить
+        </Button>
       </div>
       {actionError && <div role="alert" className="mb-3 flex-none rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">{actionError}</div>}
 
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-card shadow-card">
+        {/* Left Column: Conversations List */}
         <section className={`${mobileDetail ? "hidden" : "flex"} ${listCollapsed ? "lg:hidden" : "lg:flex lg:w-[340px]"} min-h-0 min-w-0 flex-1 flex-col border-r border-border lg:flex-none`}>
-          <div className="flex-none border-b border-border bg-card p-3">
-            <div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search conversations" className="pl-9" /></div>
+          {/* Active / Archive Toggle Tabs */}
+          <div className="flex border-b border-border bg-muted/20">
+            <button
+              type="button"
+              onClick={() => { setShowArchived(false); setSelectedId(null); }}
+              className={`flex-1 py-2 text-xs font-medium border-b-2 transition-colors ${!showArchived ? "border-primary text-primary bg-background" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+            >
+              Активные
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowArchived(true); setSelectedId(null); }}
+              className={`flex-1 py-2 text-xs font-medium border-b-2 transition-colors ${showArchived ? "border-primary text-primary bg-background" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+            >
+              Архив
+            </button>
           </div>
+
+          <div className="flex-none border-b border-border bg-card p-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Поиск диалогов…" className="pl-9" />
+            </div>
+          </div>
+
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             {listLoading && conversations.length === 0 ? (
               <div className="flex h-32 items-center justify-center text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /></div>
             ) : filtered.length > 0 ? filtered.map((conversation) => (
-              <button key={conversation.id} type="button" onClick={() => selectConversation(conversation.id)} className={`w-full min-w-0 border-b border-border/70 border-l-4 p-3 text-left transition-colors ${selectedId === conversation.id ? "border-l-primary bg-primary/10" : "border-l-transparent hover:bg-secondary/55"}`}>
+              <button
+                key={conversation.id}
+                type="button"
+                onClick={() => selectConversation(conversation.id)}
+                className={`w-full min-w-0 border-b border-border/70 border-l-4 p-3 text-left transition-colors ${selectedId === conversation.id ? "border-l-primary bg-primary/10" : "border-l-transparent hover:bg-secondary/55"}`}
+              >
                 <div className="flex min-w-0 items-start gap-3">
-                  <div className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-secondary text-xs font-semibold text-secondary-foreground">{initials(conversation.contactName)}</div>
+                  <div className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-secondary text-xs font-semibold text-secondary-foreground">
+                    {initials(conversation.contactName)}
+                  </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex min-w-0 items-start justify-between gap-2"><p className="min-w-0 truncate text-sm font-medium text-foreground">{conversation.contactName}</p><span className="flex-none text-[10px] text-muted-foreground">{formatTimestamp(conversation.lastMessageAt, conversation.lastMessageTimeRaw)}</span></div>
+                    <div className="flex min-w-0 items-start justify-between gap-2">
+                      <p className="min-w-0 truncate text-sm font-medium text-foreground">{conversation.contactName}</p>
+                      <span className="flex-none text-[10px] text-muted-foreground">{formatTimestamp(conversation.lastMessageAt, conversation.lastMessageTimeRaw)}</span>
+                    </div>
                     <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{identity(conversation)}</p>
-                    <p className="mt-1 truncate text-xs text-muted-foreground">{conversation.lastMessagePreview ?? "No messages yet"}</p>
-                    <Badge variant="outline" className={`mt-2 text-[10px] ${conversation.aiEnabled ? "border-emerald-600/40 bg-emerald-50 text-emerald-800" : "border-amber-600/40 bg-amber-50 text-amber-900"}`}>{conversation.aiEnabled ? "AI active" : "Human takeover"}</Badge>
+                    <p className="mt-1 truncate text-xs text-muted-foreground">{conversation.lastMessagePreview ?? "Нет сообщений"}</p>
+                    <Badge variant="outline" className={`mt-2 text-[10px] ${conversation.aiEnabled ? "border-emerald-600/40 bg-emerald-50 text-emerald-800" : "border-amber-600/40 bg-amber-50 text-amber-900"}`}>
+                      {conversation.aiEnabled ? "AI активен" : "Ручной режим"}
+                    </Badge>
                   </div>
                 </div>
               </button>
             )) : listError ? (
-              <div className="space-y-3 p-6 text-center text-sm text-destructive"><p>{listError}</p><Button type="button" variant="outline" size="sm" onClick={() => void loadConversations()}><RefreshCw className="h-4 w-4" /> Retry</Button></div>
-            ) : <div className="p-6 text-center text-sm text-muted-foreground">{conversations.length === 0 ? "No live conversations yet" : "No matching conversations"}</div>}
+              <div className="space-y-3 p-6 text-center text-sm text-destructive">
+                <p>{listError}</p>
+                <Button type="button" variant="outline" size="sm" onClick={() => void loadConversations()}><RefreshCw className="h-4 w-4" /> Повторить</Button>
+              </div>
+            ) : (
+              <div className="p-6 text-center text-sm text-muted-foreground">
+                {conversations.length === 0 ? (showArchived ? "В архиве нет диалогов" : "Пока нет диалогов") : "Диалоги не найдены"}
+              </div>
+            )}
           </div>
         </section>
 
+        {/* Right Column: Chat History & Composer */}
         <section className={`${mobileDetail ? "flex" : "hidden"} min-h-0 min-w-0 flex-1 flex-col bg-background/40 lg:flex`}>
           {selected ? <>
             <div className="flex-none border-b border-border bg-card p-3">
-              <Button type="button" variant="ghost" size="sm" className="mb-2 lg:hidden" onClick={() => setMobileDetail(false)}><ArrowLeft className="h-4 w-4" /> Back to list</Button>
+              <Button type="button" variant="ghost" size="sm" className="mb-2 lg:hidden" onClick={() => setMobileDetail(false)}>
+                <ArrowLeft className="h-4 w-4" /> Назад к списку
+              </Button>
               <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2">
-                  <Button type="button" variant="ghost" size="icon" className="hidden h-8 w-8 flex-none lg:inline-flex" aria-label={listCollapsed ? "Expand conversation list" : "Collapse conversation list"} onClick={() => setListCollapsed((value) => !value)}>{listCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}</Button>
-                  <div className="min-w-0"><h3 className="truncate font-semibold text-foreground">{selected.contactName}</h3><p className="mt-1 truncate text-sm text-muted-foreground">{identity(selected)}</p></div>
+                  <Button type="button" variant="ghost" size="icon" className="hidden h-8 w-8 flex-none lg:inline-flex" aria-label={listCollapsed ? "Развернуть список" : "Свернуть список"} onClick={() => setListCollapsed((value) => !value)}>
+                    {listCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+                  </Button>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="truncate font-semibold text-foreground text-base">{selected.contactName}</h3>
+                      {/* Potential deal amount displayed prominently */}
+                      {matchedLead ? (
+                        <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 font-bold text-emerald-700 dark:text-emerald-400">
+                          {matchedLead.agreedAmount != null
+                            ? `${matchedLead.currency || "AED"} ${Number(matchedLead.agreedAmount).toLocaleString("en-AE", { minimumFractionDigits: 0 })}`
+                            : matchedLead.quotedAmount != null
+                            ? `КП: ${matchedLead.currency || "AED"} ${Number(matchedLead.quotedAmount).toLocaleString("en-AE", { minimumFractionDigits: 0 })}`
+                            : `${matchedLead.currency || "AED"} 0.00`}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-muted-foreground font-medium text-xs">
+                          Потенциал: AED 0
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="mt-1 truncate text-xs text-muted-foreground">{identity(selected)}</p>
+                  </div>
                 </div>
-                <Button type="button" variant={selected.aiEnabled ? "destructive" : "default"} size="sm" onClick={() => void toggleAi()} disabled={aiUpdating}>{aiUpdating && <Loader2 className="h-4 w-4 animate-spin" />}{selected.aiEnabled ? "Take over AI" : "Resume AI"}</Button>
+                <div className="flex items-center gap-2">
+                  {/* Manual Archive Button */}
+                  <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => void toggleArchive()}>
+                    {showArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+                    {showArchived ? "Восстановить" : "В архив"}
+                  </Button>
+                  {/* AI toggle button */}
+                  <Button type="button" variant={selected.aiEnabled ? "destructive" : "default"} size="sm" onClick={() => void toggleAi()} disabled={aiUpdating}>
+                    {aiUpdating && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {selected.aiEnabled ? "Взять управление" : "Включить AI"}
+                  </Button>
+                </div>
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <Badge variant="outline" className={selected.aiEnabled ? "border-emerald-600/40 bg-emerald-50 text-emerald-800" : "border-amber-600/40 bg-amber-50 text-amber-900"}>{selected.aiEnabled ? "AI active" : "Human takeover"}</Badge>
-                {selected.number && <Button type="button" variant="outline" size="sm" asChild><a href={`https://wa.me/${selected.number.replace(/[^\d]/g, "")}`} target="_blank" rel="noreferrer"><Phone className="h-4 w-4" /> WhatsApp</a></Button>}
+                <Badge variant="outline" className={selected.aiEnabled ? "border-emerald-600/40 bg-emerald-50 text-emerald-800" : "border-amber-600/40 bg-amber-50 text-amber-900"}>
+                  {selected.aiEnabled ? "AI активен" : "Ручной режим"}
+                </Badge>
+                {selected.number && (
+                  <Button type="button" variant="outline" size="sm" asChild>
+                    <a href={`https://wa.me/${selected.number.replace(/[^\d]/g, "")}`} target="_blank" rel="noreferrer">
+                      <Phone className="h-4 w-4" /> WhatsApp
+                    </a>
+                  </Button>
+                )}
               </div>
             </div>
 
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-background/55 p-4" data-testid="live-messages-scroll">
-              {detailLoading && !detail ? <div className="flex h-full items-center justify-center text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /></div>
-                : detailError && !detail ? <div role="alert" className="flex h-full flex-col items-center justify-center gap-3 text-center text-sm text-destructive"><p>{detailError}</p><Button type="button" variant="outline" size="sm" onClick={() => setDetailReloadKey((value) => value + 1)}><RefreshCw className="h-4 w-4" /> Retry</Button></div>
-                  : detail?.messages.length ? detail.messages.map((message) => <MessageBubble key={message.id} message={message} downloadingId={downloadingId} onDownload={download} />)
-                    : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No messages in this conversation</div>}
+              {detailLoading && !detail ? (
+                <div className="flex h-full items-center justify-center text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /></div>
+              ) : detailError && !detail ? (
+                <div role="alert" className="flex h-full flex-col items-center justify-center gap-3 text-center text-sm text-destructive">
+                  <p>{detailError}</p>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setDetailReloadKey((value) => value + 1)}><RefreshCw className="h-4 w-4" /> Повторить</Button>
+                </div>
+              ) : detail?.messages.length ? (
+                detail.messages.map((message) => <MessageBubble key={message.id} message={message} downloadingId={downloadingId} onDownload={download} />)
+              ) : (
+                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">В этом диалоге пока нет сообщений</div>
+              )}
               <div ref={messagesEndRef} />
             </div>
 
-            {composerVisible && <div className="flex-none border-t border-border bg-card px-4 py-3" data-testid="live-composer">
-              {sendError && <p role="alert" className="mb-2 text-xs text-destructive">{sendError}</p>}
-              <div className="flex min-w-0 items-end gap-2">
-                <Textarea value={draft} onChange={(event) => setDraft(event.target.value.slice(0, maxMessageLength))} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void sendReply(); } }} placeholder="Write a reply as Ruslan" aria-label="Reply message" rows={2} className="min-h-[44px] min-w-0 flex-1 resize-none" />
-                <Button type="button" size="sm" onClick={() => void sendReply()} disabled={sending || draft.trim().length === 0}>{sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Send</Button>
+            {composerVisible && (
+              <div className="flex-none border-t border-border bg-card px-4 py-3" data-testid="live-composer">
+                {sendError && <p role="alert" className="mb-2 text-xs text-destructive">{sendError}</p>}
+                <div className="flex min-w-0 items-end gap-2">
+                  <Textarea
+                    value={draft}
+                    onChange={(event) => setDraft(event.target.value.slice(0, maxMessageLength))}
+                    onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void sendReply(); } }}
+                    placeholder="Напишите ответ от лица Руслана…"
+                    aria-label="Текст сообщения"
+                    rows={2}
+                    className="min-h-[44px] min-w-0 flex-1 resize-none"
+                  />
+                  <Button type="button" size="sm" onClick={() => void sendReply()} disabled={sending || draft.trim().length === 0}>
+                    {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Отправить
+                  </Button>
+                </div>
               </div>
-            </div>}
-            {manualRepliesUnavailable && <div className="flex-none border-t border-border bg-card px-4 py-3 text-xs text-muted-foreground">Manual replies are not configured for this deployment yet.</div>}
-          </> : <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-muted-foreground">
-            <Button type="button" variant="ghost" size="icon" className="hidden lg:inline-flex" aria-label="Expand conversation list" onClick={() => setListCollapsed(false)}><PanelLeftOpen className="h-4 w-4" /></Button>
-            <MessageSquare className="h-8 w-8" /><p>Select a conversation to view its live history.</p>
-          </div>}
+            )}
+            {manualRepliesUnavailable && (
+              <div className="flex-none border-t border-border bg-card px-4 py-3 text-xs text-muted-foreground">
+                Ручные ответы не настроены для данного развёртывания.
+              </div>
+            )}
+          </> : (
+            <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-muted-foreground">
+              <Button type="button" variant="ghost" size="icon" className="hidden lg:inline-flex" aria-label="Развернуть список" onClick={() => setListCollapsed(false)}>
+                <PanelLeftOpen className="h-4 w-4" />
+              </Button>
+              <MessageSquare className="h-8 w-8" />
+              <p>Выберите диалог из списка слева для просмотра сообщений.</p>
+            </div>
+          )}
         </section>
       </div>
     </div>

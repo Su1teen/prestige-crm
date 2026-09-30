@@ -11,7 +11,7 @@ import { leadsApi, opportunitiesApi, usersApi, type ProductionLead } from "@/lib
 import { cn } from "@/lib/utils";
 import {
   DirectionPill, EmptyState, Field, SectionHeader, directionLabel, leadStageLabel,
-  moneyLabel, nextActionLabel, projectStatusLabel, selectClass,
+  moneyLabel, nextActionLabel, priorityLabel, projectStatusLabel, selectClass,
 } from "./shared";
 import { LiveOwnerPipelineModule } from "./LiveOwnerPipelineModule";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,7 +27,7 @@ const directions = ["PROPERTY_MANAGEMENT", "SNAGGING", "STAGING"];
 const priorities = ["Low", "Medium", "High", "Urgent"];
 const nextActions = ["FOLLOW_UP", "CALL", "SEND_PROPOSAL", "NEGOTIATE", "SITE_VISIT", "WAITING_CLIENT", "WAITING_PAYMENT", "PAYMENT_RECEIVED", "CREATE_PROJECT", "OTHER"];
 const dubaiInput = (iso: string) => new Date(new Date(iso).getTime() + 4 * 60 * 60 * 1000).toISOString().slice(0, 16);
-const dubaiDate = (iso: string) => new Date(iso).toLocaleDateString("en-AE", { timeZone: "Asia/Dubai", month: "short", day: "numeric" });
+const dubaiDate = (iso: string) => new Date(iso).toLocaleDateString("ru-RU", { timeZone: "Asia/Dubai", month: "short", day: "numeric" });
 const isOverdue = (lead: ProductionLead) => Boolean(lead.nextActionAt) && new Date(lead.nextActionAt as string) < new Date() && lead.stage !== "won" && lead.stage !== "lost";
 const contractorNames = (lead: ProductionLead) =>
   (lead.projects ?? []).flatMap((project) => project.contractors.map((item) => item.contractor.name));
@@ -43,7 +43,7 @@ export const ProductionPipelineModule = () => {
   const [remove, setRemove] = useState<ProductionLead | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showAiSource, setShowAiSource] = useState(false);
+  const [showAiSource, setShowAiSource] = useState(true);
   const [followUpOpen, setFollowUpOpen] = useState(false);
   const [followUpText, setFollowUpText] = useState("");
   const active = useQuery({ queryKey: ["paterhaus", "opportunities"], queryFn: opportunitiesApi.list, enabled: !archived });
@@ -95,25 +95,30 @@ export const ProductionPipelineModule = () => {
 
   const cardContent = (lead: ProductionLead) => <>
     <div className="flex items-start justify-between gap-2">
-      <p className="truncate font-medium leading-5">{lead.name || lead.phone || "Unnamed owner"}</p>
+      <p className="truncate font-medium leading-5">{lead.name || lead.phone || "Без имени"}</p>
       {lead.externalChatId && <MessageCircle aria-label="WhatsApp linked" className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />}
     </div>
     <div className="mt-1.5 flex flex-wrap items-center gap-1">
       <DirectionPill direction={lead.direction} />
-      {lead.priority && lead.priority !== "Medium" && <Badge variant="outline" className="font-normal">{lead.priority}</Badge>}
-      {lead.stage === "lost" && lead.lostReason && <Badge variant="destructive" className="font-normal">Lost</Badge>}
+      {lead.priority && lead.priority !== "Medium" && <Badge variant="outline" className="font-normal">{priorityLabel(lead.priority)}</Badge>}
+      {lead.stage === "lost" && lead.lostReason && <Badge variant="destructive" className="font-normal">Отказ</Badge>}
     </div>
     {lead.note && <p className="mt-2 line-clamp-2 text-xs leading-4 text-muted-foreground">{lead.note}</p>}
     <div className="mt-2">
       {lead.agreedAmount != null ? (
-        <p className="text-base font-bold text-foreground">{lead.currency} {Number(lead.agreedAmount).toLocaleString("en-AE", { minimumFractionDigits: 2 })}</p>
+        <p className="text-base font-bold text-foreground">{lead.currency || "AED"} {Number(lead.agreedAmount).toLocaleString("en-AE", { minimumFractionDigits: 2 })}</p>
       ) : lead.quotedAmount != null ? (
-        <p className="text-sm text-muted-foreground">Quote: {lead.currency} {Number(lead.quotedAmount).toLocaleString("en-AE", { minimumFractionDigits: 2 })}</p>
-      ) : null}
+        <p className="text-sm font-semibold text-foreground">
+          <span className="text-xs font-normal text-muted-foreground">КП: </span>
+          {lead.currency || "AED"} {Number(lead.quotedAmount).toLocaleString("en-AE", { minimumFractionDigits: 2 })}
+        </p>
+      ) : (
+        <p className="text-sm font-bold text-foreground/80">{lead.currency || "AED"} 0.00</p>
+      )}
     </div>
     <p className={cn("mt-1 text-xs", isOverdue(lead) ? "font-medium text-destructive" : "text-muted-foreground")}>
-      {lead.nextActionText || nextActionLabel(lead.nextActionType ?? "") || "No next action"}
-      {lead.nextActionAt ? ` · ${dubaiDate(lead.nextActionAt)}` : ""}{isOverdue(lead) ? " · overdue" : ""}</p>
+      {lead.nextActionText || nextActionLabel(lead.nextActionType ?? "") || "Нет след. действия"}
+      {lead.nextActionAt ? ` · ${dubaiDate(lead.nextActionAt)}` : ""}{isOverdue(lead) ? " · просрочено" : ""}</p>
     <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
       {lead.phone && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{lead.phone}</span>}
       {lead.assignedUser && <span className="inline-flex items-center gap-1"><User className="h-3 w-3" />{lead.assignedUser.name}</span>}
@@ -123,18 +128,18 @@ export const ProductionPipelineModule = () => {
   </>;
 
   return <div className="space-y-5" data-testid="production-pipeline">
-    <SectionHeader eyebrow="Shared CRM · AI classifications linked by chat ID" title="Owner Pipeline"
-      description="One canonical lead per conversation, grouped by stage. Open a card for the summary, follow-up and assignee."
-      action={<Button onClick={() => edit()}>Add opportunity</Button>} />
+    <SectionHeader eyebrow="Shared CRM · AI-классификации по ID чатов" title="Воронка собственников"
+      description="Канонические сделки по перепискам WhatsApp. Нажмите на карточку для просмотра деталей и follow-up."
+      action={<Button onClick={() => edit()}>+ Добавить сделку</Button>} />
     <div className="flex flex-wrap items-center gap-3">
-      <Input className="max-w-xs" aria-label="Search opportunities" placeholder="Search owner, phone, area" value={search} onChange={(event) => setSearch(event.target.value)} />
-      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={archived} onChange={(event) => { setArchived(event.target.checked); setDetailId(null); }} />Archived</label>
-      <Button variant="outline" onClick={() => void (archived ? archive.refetch() : active.refetch())}>Refresh</Button>
+      <Input className="max-w-xs" aria-label="Search opportunities" placeholder="Поиск по имени, телефону, объекту…" value={search} onChange={(event) => setSearch(event.target.value)} />
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={archived} onChange={(event) => { setArchived(event.target.checked); setDetailId(null); }} />Архив</label>
+      <Button variant="outline" onClick={() => void (archived ? archive.refetch() : active.refetch())}>Обновить</Button>
     </div>
-    {active.data?.integrationStatus === "unavailable" && !archived && <p role="alert">AI classifications are temporarily unavailable; saved CRM opportunities remain visible.</p>}
-    {(archived ? archive.isPending : active.isPending) ? <p role="status">Loading opportunities…</p> :
-      (archived ? archive.isError : active.isError) ? <p role="alert">Could not load opportunities. <Button onClick={() => void (archived ? archive.refetch() : active.refetch())}>Retry</Button></p> :
-      !visible.length ? <EmptyState title="No opportunities" description="Create one here or capture a lead from WhatsApp." /> :
+    {active.data?.integrationStatus === "unavailable" && !archived && <p role="alert">AI-классификации временно недоступны; сохранённые сделки CRM отображаются штатно.</p>}
+    {(archived ? archive.isPending : active.isPending) ? <p role="status">Загрузка сделок…</p> :
+      (archived ? archive.isError : active.isError) ? <p role="alert">Не удалось загрузить сделки. <Button onClick={() => void (archived ? archive.refetch() : active.refetch())}>Повторить</Button></p> :
+      !visible.length ? <EmptyState title="Нет сделок" description="Создайте новую сделку или примите обращение из WhatsApp." /> :
       archived ? <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
         {visible.map((lead) => <button key={lead.id} type="button" onClick={() => setDetailId(lead.id)}
           className="rounded-lg border bg-card p-3 text-left shadow-sm transition hover:border-primary/40 hover:shadow">{cardContent(lead)}</button>)}
@@ -147,10 +152,10 @@ export const ProductionPipelineModule = () => {
           </header>
           {byStage(stage).map((lead) => <button key={lead.id} type="button" onClick={() => setDetailId(lead.id)}
             className="rounded-lg border bg-card p-3 text-left shadow-sm transition hover:border-primary/40 hover:shadow">{cardContent(lead)}</button>)}
-          {!byStage(stage).length && <p className="rounded-lg border border-dashed p-3 text-center text-xs text-muted-foreground/70">Empty</p>}
+          {!byStage(stage).length && <p className="rounded-lg border border-dashed p-3 text-center text-xs text-muted-foreground/70">Пусто</p>}
         </section>)}
       </div>}
-    <Button variant="ghost" onClick={() => setShowAiSource(!showAiSource)}>{showAiSource ? "Hide" : "Show"} AI classification source</Button>
+    <Button variant="ghost" onClick={() => setShowAiSource(!showAiSource)}>{showAiSource ? "Скрыть" : "Показать"} источник AI-классификаций</Button>
     {showAiSource && <LiveOwnerPipelineModule email={user?.email ?? ""} />}
     {error && <p role="alert" className="text-destructive">{error}</p>}
 

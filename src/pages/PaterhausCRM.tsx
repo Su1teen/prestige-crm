@@ -338,11 +338,17 @@ const PaterhausWorkspaceInner = ({ onLogout }: { onLogout: () => void }) => {
     setMobileNavOpen(false);
   };
 
+  const [targetChatId, setTargetChatId] = useState<string | null>(null);
+
   // Listen for cross-component navigation events (e.g., "Go to chat" from Pipeline)
   useEffect(() => {
-    const handleOpenChat = () => {
+    const handleOpenChat = (event: Event) => {
+      const customEvent = event as CustomEvent<{ chatId?: string; number?: string; name?: string }>;
       if (isSectionAllowed("conversations", role)) {
         setActiveSection("conversations");
+        if (customEvent.detail?.chatId || customEvent.detail?.number) {
+          setTargetChatId(customEvent.detail.chatId ?? customEvent.detail.number ?? null);
+        }
       }
     };
     window.addEventListener("paterhaus:open-chat", handleOpenChat);
@@ -370,7 +376,7 @@ const PaterhausWorkspaceInner = ({ onLogout }: { onLogout: () => void }) => {
     if (activeSection === "calendar") return <CalendarModule onPropertySelect={openProperty} />;
     if (activeSection === "files") return <ProductionFilesModule email={user?.email ?? ""} admin={role === "admin"} />;
     if (activeSection === "stays") return <ProductionGuestsStaysModule />;
-    if (activeSection === "conversations") return <ConversationsModule onPropertySelect={openProperty} />;
+    if (activeSection === "conversations") return <ConversationsModule onPropertySelect={openProperty} initialConversationId={targetChatId ?? undefined} targetChatId={targetChatId} />;
     if (activeSection === "team") return <ProductionContractorsModule />;
     return <ProductionOverview />;
   };

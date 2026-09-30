@@ -647,95 +647,123 @@ export const ProductionMarketingModule = () => {
 
       {/* ── Campaign form dialog ── */}
       <Dialog open={campaignOpen} onOpenChange={setCampaignOpen}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingCampaign ? "Редактировать" : "Новая"} кампания</DialogTitle>
-            <DialogDescription>Заполните параметры рекламной кампании.</DialogDescription>
+            <DialogTitle className="text-xl font-bold">{editingCampaign ? "Редактировать" : "Новая"} кампания</DialogTitle>
+            <DialogDescription>Параметры рекламной кампании, бюджет и таргетинг в базе данных Paterhaus.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={saveCampaignForm} className="space-y-4">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Название кампании *</label>
-                <Input required placeholder="Например: Dubai Marina — Snagging Aug 2026" value={campaignForm.name} onChange={(e) => setCampaignForm({ ...campaignForm, name: e.target.value })} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Платформа</label>
-                <select className={selectCls} value={campaignForm.platform} onChange={(e) => setCampaignForm({ ...campaignForm, platform: e.target.value })}>
-                  {platforms.map((v) => <option key={v} value={v}>{platformLabel[v] ?? v}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Направление</label>
-                <select className={selectCls} value={campaignForm.direction} onChange={(e) => setCampaignForm({ ...campaignForm, direction: e.target.value })}>
-                  {directions.map((v) => <option key={v} value={v}>{directionLabel[v] ?? v}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Статус</label>
-                <select className={selectCls} value={campaignForm.status} onChange={(e) => setCampaignForm({ ...campaignForm, status: e.target.value })}>
-                  {statuses.map((v) => <option key={v} value={v}>{statusLabel[v] ?? v}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Цель (Objective)</label>
-                <select className={selectCls} value={campaignForm.objective} onChange={(e) => setCampaignForm({ ...campaignForm, objective: e.target.value })}>
-                  {objectives.map((v) => <option key={v} value={v}>{v}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Стратегия ставки</label>
-                <select className={selectCls} value={campaignForm.bidStrategy} onChange={(e) => setCampaignForm({ ...campaignForm, bidStrategy: e.target.value })}>
-                  {bidStrategies.map((v) => <option key={v} value={v}>{v}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Расходы *</label>
-                <div className="flex gap-2">
-                  <Input type="number" min="0" step="0.01" required placeholder="0" value={campaignForm.spendAmount} onChange={(e) => setCampaignForm({ ...campaignForm, spendAmount: e.target.value })} />
-                  <Input className="w-20" maxLength={3} value={campaignForm.currency} onChange={(e) => setCampaignForm({ ...campaignForm, currency: e.target.value.toUpperCase() })} />
+          <form onSubmit={saveCampaignForm} className="space-y-5 pt-2">
+            {/* 1. Основное */}
+            <div className="rounded-xl border bg-muted/20 p-4 space-y-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-primary">1. Основная информация</h4>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Название кампании *</label>
+                  <Input required placeholder="Например: Dubai Marina — Snagging Aug 2026" value={campaignForm.name} onChange={(e) => setCampaignForm({ ...campaignForm, name: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Платформа</label>
+                  <select className={selectCls} value={campaignForm.platform} onChange={(e) => setCampaignForm({ ...campaignForm, platform: e.target.value })}>
+                    {platforms.map((v) => <option key={v} value={v}>{platformLabel[v] ?? v}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Направление</label>
+                  <select className={selectCls} value={campaignForm.direction} onChange={(e) => setCampaignForm({ ...campaignForm, direction: e.target.value })}>
+                    {directions.map((v) => <option key={v} value={v}>{directionLabel[v] ?? v}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Статус кампании</label>
+                  <select className={selectCls} value={campaignForm.status} onChange={(e) => setCampaignForm({ ...campaignForm, status: e.target.value })}>
+                    {statuses.map((v) => <option key={v} value={v}>{statusLabel[v] ?? v}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Meta / Facebook Campaign ID</label>
+                  <Input placeholder="Например: 12020491823901" value={campaignForm.externalCampaignId} onChange={(e) => setCampaignForm({ ...campaignForm, externalCampaignId: e.target.value })} />
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Дневной бюджет</label>
-                <Input type="number" min="0" step="0.01" placeholder="0" value={campaignForm.dailyBudget} onChange={(e) => setCampaignForm({ ...campaignForm, dailyBudget: e.target.value })} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Показы (Impressions)</label>
-                <Input type="number" min="0" placeholder="0" value={campaignForm.impressions} onChange={(e) => setCampaignForm({ ...campaignForm, impressions: e.target.value })} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Клики</label>
-                <Input type="number" min="0" placeholder="0" value={campaignForm.clicks} onChange={(e) => setCampaignForm({ ...campaignForm, clicks: e.target.value })} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Охват (Reach)</label>
-                <Input type="number" min="0" placeholder="0" value={campaignForm.reach} onChange={(e) => setCampaignForm({ ...campaignForm, reach: e.target.value })} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Конверсии</label>
-                <Input type="number" min="0" placeholder="0" value={campaignForm.conversions} onChange={(e) => setCampaignForm({ ...campaignForm, conversions: e.target.value })} />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Meta Campaign ID</label>
-                <Input placeholder="123456789012345" value={campaignForm.externalCampaignId} onChange={(e) => setCampaignForm({ ...campaignForm, externalCampaignId: e.target.value })} />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Настройки аудитории (JSON)</label>
-                <Textarea rows={2} placeholder='{"locations":["Dubai"],"age_min":25,"age_max":55}' value={campaignForm.targetAudienceJson} onChange={(e) => setCampaignForm({ ...campaignForm, targetAudienceJson: e.target.value })} />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-muted-foreground mb-1">URL креатива</label>
-                <Input type="url" placeholder="https://..." value={campaignForm.adCreativeUrl} onChange={(e) => setCampaignForm({ ...campaignForm, adCreativeUrl: e.target.value })} />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Заметки</label>
-                <Input placeholder="Заметки по кампании" value={campaignForm.notes} onChange={(e) => setCampaignForm({ ...campaignForm, notes: e.target.value })} />
+            </div>
+
+            {/* 2. Цели и бюджет */}
+            <div className="rounded-xl border bg-muted/20 p-4 space-y-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-primary">2. Цели и бюджет</h4>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Цель кампании (Objective)</label>
+                  <select className={selectCls} value={campaignForm.objective} onChange={(e) => setCampaignForm({ ...campaignForm, objective: e.target.value })}>
+                    {objectives.map((v) => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Стратегия ставки</label>
+                  <select className={selectCls} value={campaignForm.bidStrategy} onChange={(e) => setCampaignForm({ ...campaignForm, bidStrategy: e.target.value })}>
+                    {bidStrategies.map((v) => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Фактические расходы *</label>
+                  <div className="flex gap-2">
+                    <Input type="number" min="0" step="0.01" required placeholder="0" value={campaignForm.spendAmount} onChange={(e) => setCampaignForm({ ...campaignForm, spendAmount: e.target.value })} />
+                    <Input className="w-24 font-semibold text-center" maxLength={3} value={campaignForm.currency} onChange={(e) => setCampaignForm({ ...campaignForm, currency: e.target.value.toUpperCase() })} />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Дневной бюджет</label>
+                  <Input type="number" min="0" step="0.01" placeholder="0" value={campaignForm.dailyBudget} onChange={(e) => setCampaignForm({ ...campaignForm, dailyBudget: e.target.value })} />
+                </div>
               </div>
             </div>
+
+            {/* 3. Метрики результативности */}
+            <div className="rounded-xl border bg-muted/20 p-4 space-y-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-primary">3. Метрики результативности</h4>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Показы</label>
+                  <Input type="number" min="0" placeholder="0" value={campaignForm.impressions} onChange={(e) => setCampaignForm({ ...campaignForm, impressions: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Клики</label>
+                  <Input type="number" min="0" placeholder="0" value={campaignForm.clicks} onChange={(e) => setCampaignForm({ ...campaignForm, clicks: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Охват (Reach)</label>
+                  <Input type="number" min="0" placeholder="0" value={campaignForm.reach} onChange={(e) => setCampaignForm({ ...campaignForm, reach: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Конверсии</label>
+                  <Input type="number" min="0" placeholder="0" value={campaignForm.conversions} onChange={(e) => setCampaignForm({ ...campaignForm, conversions: e.target.value })} />
+                </div>
+              </div>
+            </div>
+
+            {/* 4. Креатив и аудитория */}
+            <div className="rounded-xl border bg-muted/20 p-4 space-y-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-primary">4. Таргетинг и креативы</h4>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">URL креатива / ссылки</label>
+                  <Input type="url" placeholder="https://..." value={campaignForm.adCreativeUrl} onChange={(e) => setCampaignForm({ ...campaignForm, adCreativeUrl: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Настройки аудитории (JSON или описание)</label>
+                  <Textarea rows={2} placeholder='{"locations":["Dubai"],"age_min":25,"age_max":55,"interests":["Real Estate"]}' value={campaignForm.targetAudienceJson} onChange={(e) => setCampaignForm({ ...campaignForm, targetAudienceJson: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Заметки и комментарии</label>
+                  <Input placeholder="Дополнительные комментарии к кампании…" value={campaignForm.notes} onChange={(e) => setCampaignForm({ ...campaignForm, notes: e.target.value })} />
+                </div>
+              </div>
+            </div>
+
             {error && <p className="text-destructive text-sm">{error}</p>}
-            <DialogFooter>
+            <DialogFooter className="gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setCampaignOpen(false)}>Отмена</Button>
-              <Button type="submit" disabled={saveCampaign.isPending}>Сохранить кампанию</Button>
+              <Button type="submit" disabled={saveCampaign.isPending}>
+                {saveCampaign.isPending ? "Сохранение…" : "Сохранить кампанию"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

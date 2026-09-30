@@ -173,7 +173,7 @@ const DIRECTION_LABELS: Record<string, string> = {
 
 const LEAD_STAGE_LABELS: Record<string, string> = {
   new: "Новый",
-  contacted: "Contacted",
+  contacted: "Связались",
   qualified: "Квалифицирован",
   proposal: "Предложение",
   negotiation: "Переговоры",
@@ -211,6 +211,17 @@ const NEXT_ACTION_LABELS: Record<string, string> = {
   OTHER: "Другое",
 };
 
+const PRIORITY_LABELS: Record<string, string> = {
+  Low: "Низкий",
+  Medium: "Средний",
+  High: "Высокий",
+  Urgent: "Срочный",
+  low: "Низкий",
+  medium: "Средний",
+  high: "Высокий",
+  urgent: "Срочный",
+};
+
 const pretty = (value: string) =>
   value.replace(/_/g, " ").toLowerCase().replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
 
@@ -219,6 +230,7 @@ export const leadStageLabel = (value: string) => LEAD_STAGE_LABELS[value] ?? pre
 export const projectStatusLabel = (value: string) => PROJECT_STATUS_LABELS[value] ?? pretty(value);
 export const paymentTypeLabel = (value: string) => PAYMENT_TYPE_LABELS[value] ?? pretty(value);
 export const nextActionLabel = (value: string) => NEXT_ACTION_LABELS[value] ?? pretty(value);
+export const priorityLabel = (value: string) => PRIORITY_LABELS[value] ?? value;
 
 /** Direction pill with a consistent per-direction tint. */
 export const DirectionPill = ({ direction }: { direction: string }) => {

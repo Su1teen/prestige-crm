@@ -104,6 +104,7 @@ const generateChatSummary = (messages: Message[]) => {
 interface ConversationsModuleProps {
   onPropertySelect?: (propertyId: string) => void;
   initialConversationId?: string;
+  targetChatId?: string | null;
 }
 
 const DemoConversationsModule = ({ onPropertySelect, initialConversationId }: ConversationsModuleProps) => {
@@ -342,6 +343,6 @@ const DemoConversationsModule = ({ onPropertySelect, initialConversationId }: Co
 export const ConversationsModule = (props: ConversationsModuleProps) => {
   const { user } = useAuth();
   return user?.workspace === "paterhaus"
-    ? <LiveConversationsModule email={user?.email ?? ""} />
+    ? <LiveConversationsModule email={user?.email ?? ""} targetChatId={props.targetChatId ?? props.initialConversationId} />
     : <DemoConversationsModule {...props} />;
 };
