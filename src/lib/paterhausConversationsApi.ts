@@ -178,10 +178,17 @@ const FOCUSED_WORKSPACE_EMAILS = new Set(["r_tszi@paterhaus.com"]);
 
 const SESSION_KEY = "paterhaus:session";
 
-export const getPaterhausSession = (): string | null => sessionStorage.getItem(SESSION_KEY);
+export const getPaterhausSession = (): string | null =>
+  localStorage.getItem(SESSION_KEY) ?? sessionStorage.getItem(SESSION_KEY);
+
 export const setPaterhausSession = (token: string | null): void => {
-  if (token) sessionStorage.setItem(SESSION_KEY, token);
-  else sessionStorage.removeItem(SESSION_KEY);
+  if (token) {
+    localStorage.setItem(SESSION_KEY, token);
+    sessionStorage.setItem(SESSION_KEY, token);
+  } else {
+    localStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(SESSION_KEY);
+  }
 };
 
 export const loginPaterhaus = async (email: string, password: string): Promise<{

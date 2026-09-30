@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Briefcase, MessageCircle, Phone, User } from "lucide-react";
+import { Briefcase, MessageCircle, MessageSquare, Phone, SendHorizonal, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -44,6 +44,8 @@ export const ProductionPipelineModule = () => {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showAiSource, setShowAiSource] = useState(false);
+  const [followUpOpen, setFollowUpOpen] = useState(false);
+  const [followUpText, setFollowUpText] = useState("");
   const active = useQuery({ queryKey: ["paterhaus", "opportunities"], queryFn: opportunitiesApi.list, enabled: !archived });
   const archive = useQuery({ queryKey: ["paterhaus", "opportunities-archived"], queryFn: () => leadsApi.list(1, true), enabled: archived });
   const users = useQuery({ queryKey: ["paterhaus", "users"], queryFn: usersApi.list });
@@ -102,15 +104,19 @@ export const ProductionPipelineModule = () => {
       {lead.stage === "lost" && lead.lostReason && <Badge variant="destructive" className="font-normal">Lost</Badge>}
     </div>
     {lead.note && <p className="mt-2 line-clamp-2 text-xs leading-4 text-muted-foreground">{lead.note}</p>}
-    <p className="mt-2 text-sm font-medium">{lead.agreedAmount != null ? moneyLabel(lead.agreedAmount, lead.currency)
-      : lead.quotedAmount != null ? <span className="font-normal text-muted-foreground">Quote {moneyLabel(lead.quotedAmount, lead.currency)}</span>
-      : moneyLabel(null, lead.currency)}</p>
+    <div className="mt-2">
+      {lead.agreedAmount != null ? (
+        <p className="text-base font-bold text-foreground">{lead.currency} {Number(lead.agreedAmount).toLocaleString("en-AE", { minimumFractionDigits: 2 })}</p>
+      ) : lead.quotedAmount != null ? (
+        <p className="text-sm text-muted-foreground">Quote: {lead.currency} {Number(lead.quotedAmount).toLocaleString("en-AE", { minimumFractionDigits: 2 })}</p>
+      ) : null}
+    </div>
     <p className={cn("mt-1 text-xs", isOverdue(lead) ? "font-medium text-destructive" : "text-muted-foreground")}>
       {lead.nextActionText || nextActionLabel(lead.nextActionType ?? "") || "No next action"}
       {lead.nextActionAt ? ` · ${dubaiDate(lead.nextActionAt)}` : ""}{isOverdue(lead) ? " · overdue" : ""}</p>
     <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
       {lead.phone && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{lead.phone}</span>}
-      <span className="inline-flex items-center gap-1"><User className="h-3 w-3" />{lead.assignedUser ? `Assigned ${lead.assignedUser.name}` : "Unassigned"}</span>
+      {lead.assignedUser && <span className="inline-flex items-center gap-1"><User className="h-3 w-3" />{lead.assignedUser.name}</span>}
     </div>
     {contractorNames(lead).length > 0 && <p className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
       <Briefcase className="h-3 w-3" />{(lead.projects ?? []).map((project) => project.name).join(", ")} · {contractorNames(lead).join(", ")}</p>}
@@ -159,58 +165,124 @@ export const ProductionPipelineModule = () => {
             </SheetDescription>
           </SheetHeader>
           <div className="mt-5 space-y-5 text-sm">
+            {/* AED Amount — prominent display */}
+            {(detail.agreedAmount != null || detail.quotedAmount != null) && (
+              <div className="rounded-lg border bg-primary/5 p-4">
+                {detail.agreedAmount != null ? (
+                  <>
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Согласованная сумма</p>
+                    <p className="mt-1 text-2xl font-bold text-foreground">{detail.currency} {Number(detail.agreedAmount).toLocaleString("en-AE", { minimumFractionDigits: 2 })}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Цитата</p>
+                    <p className="mt-1 text-xl font-semibold text-muted-foreground">{detail.currency} {Number(detail.quotedAmount).toLocaleString("en-AE", { minimumFractionDigits: 2 })}</p>
+                  </>
+                )}
+              </div>
+            )}
             <div className="rounded-lg border bg-secondary/30 p-3">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Summary</p>
-              <p className="mt-1 whitespace-pre-line leading-5">{detail.note?.trim() || "No summary yet — capture one in Edit."}</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Резюме</p>
+              <p className="mt-1 whitespace-pre-line leading-5">{detail.note?.trim() || "Нет резюме — добавьте его через Edit."}</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Stage">
+              <Field label="Этап">
                 <select aria-label="Stage" className={selectClass} value={detail.stage}
                   onChange={(event) => patch.mutate({ id: detail.id, body: { stage: event.target.value } })}>
                   {stages.map((value) => <option key={value} value={value}>{leadStageLabel(value)}</option>)}
                 </select>
               </Field>
-              <Field label="Assigned to">
+              <Field label="Ответственный">
                 <select aria-label="Assignee" className={selectClass} value={detail.assignedUser?.id ?? ""}
                   onChange={(event) => patch.mutate({ id: detail.id, body: { assignedUserId: event.target.value || null } })}>
-                  <option value="">Unassigned</option>
+                  <option value="">Не назначен</option>
                   {(users.data?.items ?? []).map((item) => <option key={item.id} value={item.id}>{item.name} · {item.email}</option>)}
                 </select>
               </Field>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><p className="text-xs text-muted-foreground">Phone</p><p className="mt-0.5">{detail.phone || "—"}</p></div>
+              <div><p className="text-xs text-muted-foreground">Телефон</p><p className="mt-0.5">{detail.phone || "—"}</p></div>
               <div><p className="text-xs text-muted-foreground">Email</p><p className="mt-0.5 break-all">{detail.email || "—"}</p></div>
-              <div><p className="text-xs text-muted-foreground">Quoted</p><p className="mt-0.5 font-medium">{moneyLabel(detail.quotedAmount, detail.currency)}</p></div>
-              <div><p className="text-xs text-muted-foreground">Agreed</p><p className="mt-0.5 font-medium">{moneyLabel(detail.agreedAmount, detail.currency)}</p></div>
-              <div><p className="text-xs text-muted-foreground">Property</p><p className="mt-0.5">{[detail.propertyType, detail.propertyArea].filter(Boolean).join(" · ") || "—"}</p></div>
-              <div><p className="text-xs text-muted-foreground">Priority</p><p className="mt-0.5">{detail.priority || "Medium"}</p></div>
+              <div><p className="text-xs text-muted-foreground">Объект</p><p className="mt-0.5">{[detail.propertyType, detail.propertyArea].filter(Boolean).join(" · ") || "—"}</p></div>
+              <div><p className="text-xs text-muted-foreground">Приоритет</p><p className="mt-0.5">{detail.priority || "Medium"}</p></div>
             </div>
             <div className="rounded-lg border p-3">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Next step</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Следующий шаг</p>
               <p className={cn("mt-1", isOverdue(detail) && "font-medium text-destructive")}>
-                {detail.nextActionText || nextActionLabel(detail.nextActionType ?? "") || "Nothing planned"}
-                {detail.nextActionAt ? ` · ${dubaiDate(detail.nextActionAt)}` : ""}{isOverdue(detail) ? " · overdue" : ""}</p>
+                {detail.nextActionText || nextActionLabel(detail.nextActionType ?? "") || "Ничего не запланировано"}
+                {detail.nextActionAt ? ` · ${dubaiDate(detail.nextActionAt)}` : ""}{isOverdue(detail) ? " · просрочено" : ""}</p>
             </div>
             {detail.stage === "lost" && detail.lostReason && <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-              <p className="text-xs font-medium uppercase tracking-wider text-destructive">Lost reason</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-destructive">Причина отказа</p>
               <p className="mt-1">{detail.lostReason}</p>
             </div>}
             {(detail.projects ?? []).map((project) => <div key={project.id} className="rounded-lg border p-3">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Linked project</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Связанный проект</p>
               <p className="mt-1 font-medium">{project.name} · {projectStatusLabel(project.status)}</p>
-              <p className="mt-0.5 text-muted-foreground">Contractors: {project.contractors.length ? project.contractors.map((item) => item.contractor.name).join(", ") : "none yet"}</p>
+              <p className="mt-0.5 text-muted-foreground">Подрядчики: {project.contractors.length ? project.contractors.map((item) => item.contractor.name).join(", ") : "нет"}</p>
             </div>)}
-            <p className="text-xs text-muted-foreground">Source {detail.source} · Created {dubaiDate(detail.createdAt)}</p>
+            <p className="text-xs text-muted-foreground">Источник {detail.source} · Создан {dubaiDate(detail.createdAt)}</p>
           </div>
-          <SheetFooter className="mt-6 gap-2">
-            <Button onClick={() => edit(detail)}>Edit</Button>
-            <Button variant="outline" onClick={() => archiveMutation.mutate({ id: detail.id, value: !archived })}>{archived ? "Restore" : "Archive"}</Button>
-            <Button variant="destructive" onClick={() => setRemove(detail)}>Delete</Button>
+          {/* Action buttons */}
+          <div className="mt-4 flex flex-wrap gap-2 border-t pt-4">
+            {detail.externalChatId && (
+              <Button
+                variant="outline"
+                className="flex-1 gap-2"
+                onClick={() => { setDetailId(null); /* navigation handled by parent */ window.dispatchEvent(new CustomEvent("paterhaus:open-chat", { detail: { chatId: detail.externalChatId } })); }}
+              >
+                <MessageSquare className="h-4 w-4" />
+                Перейти в чат
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              className="flex-1 gap-2"
+              onClick={() => { setFollowUpText(""); setFollowUpOpen(true); }}
+            >
+              <SendHorizonal className="h-4 w-4" />
+              Follow-up
+            </Button>
+          </div>
+          <SheetFooter className="mt-4 gap-2">
+            <Button onClick={() => edit(detail)}>Редактировать</Button>
+            <Button variant="outline" onClick={() => archiveMutation.mutate({ id: detail.id, value: !archived })}>{archived ? "Восстановить" : "Архивировать"}</Button>
+            <Button variant="destructive" onClick={() => setRemove(detail)}>Удалить</Button>
           </SheetFooter>
         </>}
       </SheetContent>
     </Sheet>
+
+    {/* Follow-up dialog */}
+    <Dialog open={followUpOpen} onOpenChange={setFollowUpOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Отправить follow-up</DialogTitle>
+          <DialogDescription>Запланируйте следующий шаг для {detail?.name || detail?.phone || "этого лида"}.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <Field label="Текст follow-up">
+            <Textarea
+              rows={4}
+              placeholder="Что именно нужно сделать или написать клиенту…"
+              value={followUpText}
+              onChange={(e) => setFollowUpText(e.target.value)}
+            />
+          </Field>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setFollowUpOpen(false)}>Отмена</Button>
+          <Button onClick={() => {
+            if (detail && followUpText.trim()) {
+              patch.mutate({ id: detail.id, body: { nextActionText: followUpText.trim(), nextActionType: "FOLLOW_UP" } });
+              setFollowUpOpen(false);
+            }
+          }} disabled={!followUpText.trim() || patch.isPending}>
+            Сохранить follow-up
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">

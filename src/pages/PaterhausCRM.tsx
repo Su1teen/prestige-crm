@@ -73,9 +73,8 @@ interface NavGroup {
   items: NavItem[];
 }
 
-/** Sections visible to the Marketing role (restricted workspace). */
 const ADMIN_SECTIONS: ReadonlySet<PaterhausSection> = new Set([
-  "overview", "pipeline", "marketing", "conversations", "operations", "properties", "team", "stays", "calendar", "files",
+  "overview", "pipeline", "marketing", "conversations", "operations", "properties", "team", "calendar", "files",
 ]);
 
 /**
@@ -127,7 +126,6 @@ const adminNavGroups: NavGroup[] = [
       { id: "operations", label: "nav.operations_board", icon: BriefcaseBusiness },
       { id: "properties", label: "nav.properties", icon: Home },
       { id: "team", label: "nav.team_vendors", icon: Wrench },
-      { id: "stays", label: "nav.guests_stays", icon: UsersRound },
       { id: "calendar", label: "nav.calendar", icon: CalendarDays },
       { id: "files", label: "nav.files_documents", icon: FolderOpen },
     ],
@@ -339,6 +337,17 @@ const PaterhausWorkspaceInner = ({ onLogout }: { onLogout: () => void }) => {
     setActiveSection(section);
     setMobileNavOpen(false);
   };
+
+  // Listen for cross-component navigation events (e.g., "Go to chat" from Pipeline)
+  useEffect(() => {
+    const handleOpenChat = () => {
+      if (isSectionAllowed("conversations", role)) {
+        setActiveSection("conversations");
+      }
+    };
+    window.addEventListener("paterhaus:open-chat", handleOpenChat);
+    return () => window.removeEventListener("paterhaus:open-chat", handleOpenChat);
+  }, [role]);
 
   const quickCreate = (target: PaterhausSection, message: string) => {
     if (!isSectionAllowed(target, role)) return;
