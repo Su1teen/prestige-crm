@@ -152,6 +152,7 @@ export interface LiveConversationDetail {
     aiResumedAt: string | null;
   };
   messages: LiveConversationMessage[];
+  attachments?: LiveAttachment[];
 }
 
 interface AccessTokenResponse {
@@ -333,8 +334,10 @@ export const fetchLiveConversations = (
   email: string,
   signal?: AbortSignal,
   archived = false,
-): Promise<ConversationListResponse> =>
-  authorizedRequest(email, `/api/paterhaus/conversations?limit=100&archived=${archived}`, { signal });
+): Promise<ConversationListResponse> => {
+  const query = archived ? "?limit=100&archived=true" : "?limit=100";
+  return authorizedRequest(email, `/api/paterhaus/conversations${query}`, { signal });
+};
 
 export const archiveLiveConversation = (
   email: string,

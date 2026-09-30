@@ -764,7 +764,7 @@ export const PortfolioOverview = ({ onNavigate }: { onNavigate: (section: string
                     />
                   </label>
                   <label className="block text-sm text-foreground">
-                    {t("portfolio.description")}
+                    {t("portfolio.fieldDescription")}
                     <textarea
                       value={actionDraft.description}
                       onChange={(event) => updateActionDraft("description", event.target.value)}
