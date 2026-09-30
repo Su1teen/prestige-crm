@@ -194,11 +194,19 @@ const MessageBubble = ({
           {formatTimestamp(message.sentAt, message.timeRaw)}
         </time>
       </div>
-      {message.text && (
+      {message.text ? (
         <p className="mt-2 whitespace-pre-line break-words text-sm leading-6 text-foreground [overflow-wrap:anywhere]">
           {message.text}
         </p>
-      )}
+      ) : attachments.length === 0 ? (
+        <p className="mt-2 text-xs italic text-muted-foreground/80 [overflow-wrap:anywhere]">
+          {message.senderType === "ai"
+            ? "[Ответ не содержит текста]"
+            : message.senderType === "human"
+              ? "[Сообщение без текста]"
+              : "[Медиафайл или голосовое сообщение без текста]"}
+        </p>
+      ) : null}
       {attachments.map((attachment) => (
         <AttachmentCard
           key={attachment.id}
@@ -525,6 +533,8 @@ export const LiveConversationsModule = ({ email, targetChatId }: LiveConversatio
     try {
       await archiveLiveConversation(email, selected.id, willArchive);
       toast.success(willArchive ? "Чат перемещён в архив" : "Чат восстановлен из архива");
+      setSelectedId(null);
+      setDetail(null);
       void loadConversations();
     } catch {
       toast.error("Не удалось изменить статус архива");
