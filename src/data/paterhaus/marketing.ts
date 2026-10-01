@@ -138,7 +138,7 @@ export const demoMarketingLeads: MarketingLead[] = [
     source: "meta_lead_ads",
     campaignId: "camp-001",
     status: "contacted",
-    assignedTo: "Sultan Sovetov",
+    assignedTo: "Ruslan Tszi",
     propertyArea: "Dubai Marina",
     propertyType: "apartment",
     bedrooms: 1,
@@ -179,7 +179,7 @@ export const demoMarketingLeads: MarketingLead[] = [
     source: "meta_lead_ads",
     campaignId: "camp-003",
     status: "proposal_sent",
-    assignedTo: "Sultan Sovetov",
+    assignedTo: "Ruslan Tszi",
     propertyArea: "JBR",
     propertyType: "apartment",
     bedrooms: 2,
@@ -206,7 +206,7 @@ export const demoMarketingLeads: MarketingLead[] = [
     email: "omar.haddad@gmail.com",
     source: "website",
     status: "qualified",
-    assignedTo: "Sultan Sovetov",
+    assignedTo: "Ruslan Tszi",
     propertyArea: "Business Bay",
     propertyType: "apartment",
     bedrooms: 1,
@@ -247,7 +247,7 @@ export const demoMarketingLeads: MarketingLead[] = [
     source: "meta_lead_ads",
     campaignId: "camp-002",
     status: "qualified",
-    assignedTo: "Sultan Sovetov",
+    assignedTo: "Ruslan Tszi",
     propertyArea: "Palm Jumeirah",
     propertyType: "villa",
     bedrooms: 5,
@@ -286,7 +286,7 @@ export const demoMarketingLeads: MarketingLead[] = [
     email: "n.volkov@gmail.com",
     source: "manual",
     status: "contacted",
-    assignedTo: "Sultan Sovetov",
+    assignedTo: "Ruslan Tszi",
     propertyArea: "Dubai Marina",
     propertyType: "apartment",
     bedrooms: 3,
@@ -710,7 +710,7 @@ export const demoWhatsAppLeads: WhatsAppLead[] = [
     intent: "owner_lead",
     direction: "property_management",
     opportunityId: "opp-01",
-    assignedTo: "Sultan Sovetov",
+    assignedTo: "Ruslan Tszi",
     createdAt: "2025-08-18T10:12:00",
     firstResponseAt: "2025-08-18T10:26:00",
     firstResponseMinutes: 14,
@@ -747,7 +747,7 @@ export const demoWhatsAppLeads: WhatsAppLead[] = [
     intent: "owner_lead",
     direction: "property_management",
     opportunityId: "opp-03",
-    assignedTo: "Sultan Sovetov",
+    assignedTo: "Ruslan Tszi",
     createdAt: "2025-08-18T16:05:00",
     firstResponseAt: "2025-08-18T16:20:00",
     firstResponseMinutes: 15,
@@ -779,7 +779,7 @@ export const demoWhatsAppLeads: WhatsAppLead[] = [
     contactName: "Priya Sharma",
     intent: "owner_lead",
     direction: "staging",
-    assignedTo: "Sultan Sovetov",
+    assignedTo: "Ruslan Tszi",
     createdAt: "2025-08-20T08:30:00",
     qualified: false,
     escalated: false,
@@ -814,9 +814,9 @@ export const routeWhatsAppLead = (
   intent: WhatsAppIntent,
   direction: Direction,
 ): string => {
-  if (intent === "guest_issue") return "Sultan Sovetov";
-  if (intent === "vendor") return "Sultan Sovetov";
+  if (intent === "guest_issue") return "Ruslan Tszi";
+  if (intent === "vendor") return "Ruslan Tszi";
   if (direction === "snagging") return "Ruslan Tszi";
-  if (direction === "staging") return "Sultan Sovetov";
+  if (direction === "staging") return "Ruslan Tszi";
   return "Ruslan Tszi";
 };

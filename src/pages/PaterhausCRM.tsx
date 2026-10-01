@@ -185,7 +185,7 @@ const getUserIdentity = (role: NavProfile, email: string) => {
   if (role === "marketing" || role === "focused") {
     return { name: "Paterhaus Marketing", roleLabel: "Marketing", initials: "PM", email };
   }
-  return { name: "Sultan Sovetov", roleLabel: "Administrator", initials: "SS", email };
+  return { name: "Ruslan Tszi", roleLabel: "Administrator", initials: "SS", email };
 };
 
 /** Workspace title per role. */

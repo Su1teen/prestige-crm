@@ -96,7 +96,7 @@ export const demoKnowledgeItems: KnowledgeItem[] = [
     summary:
       "Markdown SOP for new-build handover snagging: room-by-room inspection, defect logging with photos, and the report format handed back to the developer.",
     lastUpdated: "2025-08-21",
-    updatedBy: "Sultan Sovetov",
+    updatedBy: "Ruslan Tszi",
     tags: ["snagging", "handover", "markdown"],
     status: "active",
     format: "markdown",
@@ -172,7 +172,7 @@ Every defect needs a **photo**, a **location**, and a **severity** (Low / Medium
     summary:
       "Maps issue severity to response owner and response window: guest safety issues escalate immediately to the Operations Director; comfort issues follow the 30-minute update rule.",
     lastUpdated: "2025-08-15",
-    updatedBy: "Sultan Sovetov",
+    updatedBy: "Ruslan Tszi",
     tags: ["escalation", "priorities"],
     status: "active",
   },
@@ -184,7 +184,7 @@ Every defect needs a **photo**, a **location**, and a **severity** (Low / Medium
     summary:
       "Pre-arrival checklist covering cleaning sign-off, AC test, Wi-Fi check, amenity restock and access verification, completed at least 3 hours before check-in.",
     lastUpdated: "2025-08-12",
-    updatedBy: "Sultan Sovetov",
+    updatedBy: "Ruslan Tszi",
     tags: ["check-in", "turnover"],
     status: "active",
   },
@@ -196,7 +196,7 @@ Every defect needs a **photo**, a **location**, and a **severity** (Low / Medium
     summary:
       "Steps for cooling failures during a stay: acknowledge within 15 minutes, dispatch the approved AC vendor, offer a portable unit if repair exceeds 4 hours, update the guest every 30 minutes.",
     lastUpdated: "2025-08-18",
-    updatedBy: "Sultan Sovetov",
+    updatedBy: "Ruslan Tszi",
     tags: ["maintenance", "guest issue", "AC"],
     status: "active",
   },
@@ -208,7 +208,7 @@ Every defect needs a **photo**, a **location**, and a **severity** (Low / Medium
     summary:
       "Immediate isolation steps, emergency vendor dispatch rules and the documentation photos required before and after any water damage repair.",
     lastUpdated: "2025-07-30",
-    updatedBy: "Sultan Sovetov",
+    updatedBy: "Ruslan Tszi",
     tags: ["maintenance", "emergency"],
     status: "active",
   },
@@ -232,7 +232,7 @@ Every defect needs a **photo**, a **location**, and a **severity** (Low / Medium
     summary:
       "Non-defensive acknowledgement, one owner per complaint, resolution confirmation with the guest, and a follow-up message after closure.",
     lastUpdated: "2025-08-16",
-    updatedBy: "Sultan Sovetov",
+    updatedBy: "Ruslan Tszi",
     tags: ["guest issue", "service recovery"],
     status: "active",
   },
@@ -244,7 +244,7 @@ Every defect needs a **photo**, a **location**, and a **severity** (Low / Medium
     summary:
       "2BR Marina apartment: chiller managed by building, balcony door requires gentle handling after the August adjustment, parking bay P2-118.",
     lastUpdated: "2025-08-18",
-    updatedBy: "Sultan Sovetov",
+    updatedBy: "Ruslan Tszi",
     tags: ["property profile", "access"],
     linkedPropertyId: "prop-marina-vista-2204",
     status: "active",
@@ -270,7 +270,7 @@ Every defect needs a **photo**, a **location**, and a **severity** (Low / Medium
     summary:
       "Gate code rotates monthly, pool service every Tuesday, AC units serviced by Vertex under an annual contract; garden irrigation controller is in the garage.",
     lastUpdated: "2025-08-14",
-    updatedBy: "Sultan Sovetov",
+    updatedBy: "Ruslan Tszi",
     tags: ["access", "maintenance"],
     linkedPropertyId: "prop-palm-crescent",
     status: "active",
@@ -296,7 +296,7 @@ Every defect needs a **photo**, a **location**, and a **severity** (Low / Medium
     summary:
       "Standard arrival message with access instructions, Wi-Fi details, house rules link and the support contact, sent 24 hours before check-in.",
     lastUpdated: "2025-08-06",
-    updatedBy: "Sultan Sovetov",
+    updatedBy: "Ruslan Tszi",
     tags: ["template", "check-in"],
     status: "active",
   },
@@ -308,7 +308,7 @@ Every defect needs a **photo**, a **location**, and a **severity** (Low / Medium
     summary:
       "Approve up to 2 hours free when no same-day arrival exists; otherwise offer paid late check-out or luggage storage. Confirm only after the calendar check.",
     lastUpdated: "2025-08-11",
-    updatedBy: "Sultan Sovetov",
+    updatedBy: "Ruslan Tszi",
     tags: ["check-out", "guest request"],
     status: "active",
   },
@@ -332,7 +332,7 @@ Every defect needs a **photo**, a **location**, and a **severity** (Low / Medium
     summary:
       "Vertex Technical Services is the primary AC vendor with a 4-hour response SLA; quotes above $1,000 require owner approval before scheduling.",
     lastUpdated: "2025-08-17",
-    updatedBy: "Sultan Sovetov",
+    updatedBy: "Ruslan Tszi",
     tags: ["vendor", "SLA", "AC"],
     linkedVendorId: "vendor-vertex",
     status: "active",

@@ -13,7 +13,7 @@ export const RUSLAN_TSZI: PaterhausTeamMember = {
 };
 
 export const SULTAN_SOVETOV: PaterhausTeamMember = {
-  name: "Sultan Sovetov",
+  name: "Ruslan Tszi",
   role: "Property Management Lead",
   focus: "Property readiness, guest stays, compliance and vendor coordination",
   initials: "SS",
